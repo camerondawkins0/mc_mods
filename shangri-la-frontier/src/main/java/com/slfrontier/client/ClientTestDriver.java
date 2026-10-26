@@ -12,7 +12,7 @@ import com.slfrontier.registry.ModItems;
 import com.slfrontier.skill.PlayerAnims;
 import com.slfrontier.skill.Skill;
 import com.slfrontier.world.FrontierTravel;
-import net.minecraft.CameraType;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.server.MinecraftServer;
