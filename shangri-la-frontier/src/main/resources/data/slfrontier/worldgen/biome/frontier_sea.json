@@ -22,14 +22,15 @@
     "axolotls": [],
     "underground_water_creature": [],
     "misc": [],
-    "water_ambient": [],
-    "water_creature": [
+    "water_ambient": [
       {
         "type": "minecraft:cod",
         "weight": 10,
         "minCount": 3,
         "maxCount": 6
-      },
+      }
+    ],
+    "water_creature": [
       {
         "type": "minecraft:squid",
         "weight": 3,

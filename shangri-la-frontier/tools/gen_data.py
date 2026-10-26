@@ -359,7 +359,8 @@ BIOME_DEFS = {
         "features": {"minecraft:patch_tall_grass"},
         "monsters": [],
         "creatures": [],
-        "water_creatures": [("minecraft:cod", 10, 3, 6), ("minecraft:squid", 3, 1, 4)],
+        "water_creatures": [("minecraft:squid", 3, 1, 4)],
+        "water_ambient": [("minecraft:cod", 10, 3, 6)],
     },
 }
 
@@ -403,7 +404,8 @@ def gen_biomes():
             "spawners": {
                 "monster": [spawner(e) for e in b["monsters"]],
                 "creature": [spawner(e) for e in b["creatures"]],
-                "ambient": [], "axolotls": [], "underground_water_creature": [], "misc": [], "water_ambient": [],
+                "ambient": [], "axolotls": [], "underground_water_creature": [], "misc": [],
+                "water_ambient": [spawner(e) for e in b.get("water_ambient", [])],
                 "water_creature": [spawner(e) for e in b.get("water_creatures", [])],
             },
             "spawn_costs": {},

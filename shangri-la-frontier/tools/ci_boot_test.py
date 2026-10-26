@@ -14,18 +14,18 @@ SERVER_DIR = sys.argv[1] if len(sys.argv) > 1 else "server"
 BOOT_TIMEOUT = 900
 
 COMMANDS = [
-    "execute in slfrontier:frontier run forceload add -48 -48 48 48",
+    "execute in slfrontier:frontier run forceload add -64 -64 64 64",
     "execute in slfrontier:frontier run locate biome slfrontier:fastera_plains",
     "execute in slfrontier:frontier run locate biome slfrontier:diremarsh_waste",
     "execute in slfrontier:frontier run locate biome slfrontier:prismatic_forest_grotto",
     "execute in slfrontier:frontier run locate biome slfrontier:hidden_garden",
     "execute in slfrontier:frontier run locate biome slfrontier:nightslayer_woods",
     # Everything is placed inside the force-loaded area (commands refuse unloaded chunks).
-    "execute in slfrontier:frontier run place structure slfrontier:wezaemon_tomb -40 100 -40",
-    "execute in slfrontier:frontier run place structure slfrontier:nightslayer_den 0 100 -40",
-    "execute in slfrontier:frontier run place structure slfrontier:empire_bee_hive -40 100 0",
+    "execute in slfrontier:frontier run place structure slfrontier:wezaemon_tomb 0 100 0",
+    "execute in slfrontier:frontier run place structure slfrontier:nightslayer_den 0 100 0",
+    "execute in slfrontier:frontier run place structure slfrontier:empire_bee_hive 0 100 0",
     "execute in slfrontier:frontier run place structure slfrontier:mud_digger_lair 0 100 0",
-    "execute in slfrontier:frontier run place structure slfrontier:divinity_ruins 20 100 20",
+    "execute in slfrontier:frontier run place structure slfrontier:divinity_ruins 0 100 0",
     "execute in slfrontier:frontier run place template slfrontier:town/fastera -40 120 -40",
     "execute in slfrontier:frontier run place template slfrontier:town/rabituza 0 120 0",
     "execute in slfrontier:frontier run summon slfrontier:lycagon 0 120 0",
@@ -35,6 +35,7 @@ COMMANDS = [
     "execute in slfrontier:frontier run summon slfrontier:emul 16 120 0",
     "execute in slfrontier:frontier run summon slfrontier:setsuna 20 120 0",
     "slf debug selftest",
+    "slf debug storytest",
     "save-all",
 ]
 
@@ -104,7 +105,7 @@ def main():
         print(f">>> {cmd}", flush=True)
         proc.stdin.write(cmd + "\n")
         proc.stdin.flush()
-        time.sleep(8 if "forceload" in cmd or "place" in cmd else 3)
+        time.sleep(20 if "storytest" in cmd else 8 if "forceload" in cmd or "place" in cmd else 3)
     time.sleep(20)
     proc.stdin.write("stop\n")
     proc.stdin.flush()
@@ -121,7 +122,7 @@ def main():
         if any(p.search(line) for p in BAD_PATTERNS):
             problems.append(line.rstrip())
     command_output = "".join(lines[boot_index:])
-    for needed in ["Self-test passed"]:
+    for needed in ["Self-test passed", "Story test passed"]:
         if needed not in command_output:
             problems.append(f"Missing expected output: {needed}")
     if problems:

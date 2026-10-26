@@ -92,7 +92,8 @@ public final class SlfCommand {
                             return 1;
                         }))
                 .then(Commands.literal("debug").requires(s -> s.hasPermission(2))
-                        .then(Commands.literal("selftest").executes(SlfCommand::selfTest))));
+                        .then(Commands.literal("selftest").executes(SlfCommand::selfTest))
+                        .then(Commands.literal("storytest").executes(SlfCommand::storyTest))));
     }
 
     private static int status(CommandContext<CommandSourceStack> ctx, ServerPlayer player) {
@@ -133,6 +134,22 @@ public final class SlfCommand {
             }
         }
         ctx.getSource().sendFailure(Component.literal("Unknown stage " + name));
+        return 0;
+    }
+
+    private static int storyTest(CommandContext<CommandSourceStack> ctx) {
+        ServerLevel frontier = ctx.getSource().getServer().getLevel(Frontier.LEVEL);
+        if (frontier == null) {
+            ctx.getSource().sendFailure(Component.literal("Frontier dimension is missing"));
+            return 0;
+        }
+        List<String> failures = StoryTest.run(frontier);
+        if (failures.isEmpty()) {
+            SLFrontier.LOGGER.info("Story test passed");
+            ctx.getSource().sendSuccess(() -> Component.literal("Story test passed"), false);
+            return 1;
+        }
+        for (String f : failures) ctx.getSource().sendFailure(Component.literal(f));
         return 0;
     }
 
