@@ -29,6 +29,12 @@ neoForge {
             server()
             programArgument '--nogui'
         }
+        // CI only: launches a client into a prepared world, takes screenshots and quits.
+        clientTest {
+            client()
+            systemProperty 'slfrontier.clientTest', 'true'
+            programArguments.addAll '--quickPlaySingleplayer', 'ci_world', '--width', '1280', '--height', '720'
+        }
         configureEach {
             logLevel = org.slf4j.event.Level.INFO
         }

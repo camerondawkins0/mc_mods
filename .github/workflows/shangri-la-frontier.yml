@@ -51,6 +51,38 @@ jobs:
       - name: Boot server and exercise the Frontier dimension
         run: python3 tools/ci_boot_test.py ../server
 
+      - name: Prepare client test world
+        if: always()
+        run: |
+          test -d ../server/world || exit 0
+          mkdir -p run/saves
+          rm -rf run/saves/ci_world
+          cp -r ../server/world run/saves/ci_world
+          printf 'onboardAccessibility:false\npauseOnLostFocus:false\nnarrator:0\ntutorialStep:none\njoinedFirstServer:true\nskipMultiplayerWarning:true\nrenderDistance:6\nsimulationDistance:6\nguiScale:2\nsoundCategory_master:0.0\n' > run/options.txt
+
+      - name: Client walkthrough (virtual display, screenshots)
+        if: always()
+        run: |
+          test -d run/saves/ci_world || exit 0
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb libgl1-mesa-dri mesa-utils > /dev/null
+          timeout 1200 xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew runClientTest --no-configuration-cache > client.log 2>&1 || echo "client exited with $?"
+          grep -E "Client test finished|Screenshot|/ERROR|Exception|Missing texture|Unable to load|FAILED|was not applied|Mixin|OpenGL" client.log | head -300 || true
+          pip install -q pillow
+          test -d run/screenshots && python3 tools/ci_screens.py run/screenshots || echo "no screenshots"
+          grep -q "Client test finished" client.log
+
+      - name: Upload client log and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-test
+          path: |
+            shangri-la-frontier/client.log
+            shangri-la-frontier/run/screenshots/
+            shangri-la-frontier/run/logs/
+          if-no-files-found: ignore
+
       - name: Upload server log
         if: always()
         uses: actions/upload-artifact@v4

@@ -29,6 +29,7 @@ public final class ClientEvents {
     public static void onClientTick(ClientTickEvent.Post event) {
         ClientAnims.tick();
         FrontierHud.tick();
+        if (ClientTestDriver.ENABLED) ClientTestDriver.tick();
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) return;
