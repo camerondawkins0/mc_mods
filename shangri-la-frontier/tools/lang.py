@@ -234,6 +234,7 @@ OPTIONS = {
     "buy_holy_water": "Brew Holy Water (1 Gray Ore + 1 Glass Bottle).",
     "show_fin": "Show him the Mud Digger Fin.",
     "go_rabituza": "Take me to Rabituza.",
+    "find_emul": "Have you seen a Vorpal Bunny around here?",
     "emul_rest": "Go rest in Rabituza for now.",
     "accept_invitation": "I'll come to Rabituza!",
     "decline": "Maybe later.",

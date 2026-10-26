@@ -120,7 +120,16 @@ public final class Story {
             }
             case GRAY_ORE -> d.node("guide.go_blacksmith", 2).close();
             case NIGHTSLAYER_ENCOUNTER -> d.node("guide.nightslayer_rumor", 4).close();
-            case INVITATION, MEET_VYSACHE, MOONBLADES -> d.node("guide.marked", 3).close();
+            case INVITATION -> {
+                d.node("guide.marked", 3);
+                if (player.level().getEntitiesOfClass(EmulEntity.class, player.getBoundingBox().inflate(48),
+                        e -> e.owner() == null).isEmpty()) {
+                    d.option("find_emul", Story::spawnInvitingEmul);
+                }
+                d.close();
+            }
+            case MEET_VYSACHE -> d.node("guide.marked", 3).option("go_rabituza", FrontierTravel::toRabituza).close();
+            case MOONBLADES -> d.node("guide.marked", 3).close();
             case FIND_SETSUNA, TOMBGUARD -> d.node("guide.tombguard_rumor", 2).close();
             case NIGHTSLAYER_FINAL -> d.node("guide.final", 2).close();
             case COMPLETE -> d.node("guide.complete", 2).close();
@@ -418,13 +427,18 @@ public final class Story {
         player.sendSystemMessage(Component.translatable("message.slfrontier.marked").withStyle(ChatFormatting.DARK_RED));
         if (data.stage() == QuestStage.NIGHTSLAYER_ENCOUNTER) {
             advance(player, QuestStage.INVITATION);
-            ServerLevel level = player.serverLevel();
-            EmulEntity emul = ModEntities.EMUL.get().create(level);
-            if (emul != null) {
-                emul.moveTo(player.getX() + 2, player.getY(), player.getZ() + 2, player.getYRot() + 180, 0);
-                level.addFreshEntity(emul);
-                level.sendParticles(ParticleTypes.CHERRY_LEAVES, emul.getX(), emul.getY() + 0.5, emul.getZ(), 20, 0.4, 0.4, 0.4, 0);
-            }
+            spawnInvitingEmul(player);
+        }
+    }
+
+    /** Emul hops over to invite the marked player to Rabituza. */
+    private static void spawnInvitingEmul(ServerPlayer player) {
+        ServerLevel level = player.serverLevel();
+        EmulEntity emul = ModEntities.EMUL.get().create(level);
+        if (emul != null) {
+            emul.moveTo(player.getX() + 2, player.getY(), player.getZ() + 2, player.getYRot() + 180, 0);
+            level.addFreshEntity(emul);
+            level.sendParticles(ParticleTypes.CHERRY_LEAVES, emul.getX(), emul.getY() + 0.5, emul.getZ(), 20, 0.4, 0.4, 0.4, 0);
         }
     }
 

@@ -175,6 +175,17 @@ public class LycagonEntity extends FrontierBoss {
         }
     }
 
+    /** The first encounter is scripted: a blow that would kill the summoner marks them instead. */
+    @Override
+    protected float adjustDamage(LivingEntity target, float damage) {
+        if (mode == Mode.ENCOUNTER && target instanceof ServerPlayer player && player.getUUID().equals(summoner)
+                && damage >= player.getHealth() - 1) {
+            markAndVanish(player);
+            return 0;
+        }
+        return damage;
+    }
+
     @Override
     protected void onHitTarget(LivingEntity target) {
         if (mode == Mode.ENCOUNTER && target instanceof ServerPlayer player && player.getUUID().equals(summoner)
@@ -185,6 +196,7 @@ public class LycagonEntity extends FrontierBoss {
 
     /** The scripted end of the first encounter. */
     private void markAndVanish(ServerPlayer player) {
+        if (isRemoved()) return;
         player.setHealth(1f);
         player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 200, 4), this);
         player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 400, 1), this);

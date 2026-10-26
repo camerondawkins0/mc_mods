@@ -188,7 +188,9 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
             double dist = Math.sqrt(to.x * to.x + to.z * to.z);
             if (dist > radius + e.getBbWidth() / 2) continue;
             if (minDot > -1 && dist > 0.5 && (to.x * look.x + to.z * look.z) / dist < minDot) continue;
-            if (e.hurt(damageSources().mobAttack(this), damage)) {
+            float dealt = adjustDamage(e, damage);
+            if (dealt <= 0) continue;
+            if (e.hurt(damageSources().mobAttack(this), dealt)) {
                 hits++;
                 if (knockback > 0) e.knockback(knockback, -to.x, -to.z);
                 onHitTarget(e);
@@ -200,6 +202,11 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
     protected boolean isEnemy(LivingEntity e) {
         if (e instanceof Player p) return !p.isCreative() && !p.isSpectator();
         return e == getTarget();
+    }
+
+    /** Lets a boss change (or cancel, by returning 0) the damage of one of its hits. */
+    protected float adjustDamage(LivingEntity target, float damage) {
+        return damage;
     }
 
     /** Hook for effects such as Lycagon's mark. */
