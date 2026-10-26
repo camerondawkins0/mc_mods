@@ -32,6 +32,7 @@ import java.util.List;
  * players can read and dodge (or parry) it.
  */
 public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAnimated {
+    private static final double BOSS_BAR_RANGE = 48;
     private final AnimationState[] anims = SlfAnimated.create();
     protected final ServerBossEvent bossEvent;
     private final int frontierLevel;
@@ -159,6 +160,20 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
         super.tick();
         if (level().isClientSide) {
             anims[0].startIfStopped(tickCount);
+        } else if (tickCount % 10 == 0) {
+            updateBossBarViewers();
+        }
+    }
+
+    /** Only players actually near the fight see the boss bar. */
+    private void updateBossBarViewers() {
+        for (ServerPlayer p : new java.util.ArrayList<>(bossEvent.getPlayers())) {
+            if (!p.isAlive() || p.level() != level() || p.distanceToSqr(this) > BOSS_BAR_RANGE * BOSS_BAR_RANGE) {
+                bossEvent.removePlayer(p);
+            }
+        }
+        for (ServerPlayer p : playersNear(BOSS_BAR_RANGE * 0.8)) {
+            bossEvent.addPlayer(p);
         }
     }
 
@@ -233,12 +248,6 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
     @Override
     public AnimationState[] animStates() {
         return anims;
-    }
-
-    @Override
-    public void startSeenByPlayer(ServerPlayer player) {
-        super.startSeenByPlayer(player);
-        bossEvent.addPlayer(player);
     }
 
     @Override
