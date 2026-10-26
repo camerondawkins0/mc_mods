@@ -111,7 +111,6 @@ public final class FrontierTravel {
         BlockPos land = findLand(frontier, 0, 0);
         BlockPos spawn = placeTown(frontier, FASTERA_TEMPLATE, land.getX(), land.getZ());
         data.setFastera(spawn);
-        frontier.setDefaultSpawnPos(spawn, 0f);
         return spawn;
     }
 
