@@ -35,6 +35,7 @@ import java.util.function.Supplier;
 public final class ClientTestDriver {
     public static final boolean ENABLED = Boolean.getBoolean("slfrontier.clientTest");
     private static int ticks = -1;
+    private static int clientTicks;
     private static final List<Mob> spawned = new ArrayList<>();
 
     private ClientTestDriver() {
@@ -42,6 +43,18 @@ public final class ClientTestDriver {
 
     public static void tick() {
         Minecraft mc = Minecraft.getInstance();
+        clientTicks++;
+        if (clientTicks % 200 == 0) {
+            SLFrontier.LOGGER.info("Client test heartbeat: tick {}, screen {}, in world {}", clientTicks,
+                    mc.screen == null ? "none" : mc.screen.getClass().getName(), mc.player != null);
+        }
+        if (mc.player == null && clientTicks == 4000) {
+            shot(mc, "00_never_joined_world");
+        }
+        if (mc.player == null && clientTicks == 4040) {
+            SLFrontier.LOGGER.error("Client test never joined the world");
+            mc.stop();
+        }
         if (mc.player == null || mc.level == null) return;
         ticks++;
         MinecraftServer server = mc.getSingleplayerServer();

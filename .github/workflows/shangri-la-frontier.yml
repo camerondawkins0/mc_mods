@@ -67,7 +67,9 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq xvfb libgl1-mesa-dri mesa-utils > /dev/null
           timeout 1200 xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew runClientTest --no-configuration-cache > client.log 2>&1 || echo "client exited with $?"
-          grep -E "Client test finished|Screenshot|/ERROR|Exception|Missing texture|Unable to load|FAILED|was not applied|Mixin|OpenGL" client.log | head -300 || true
+          grep -E "Client test|Screenshot|/ERROR|Exception|Missing texture|Unable to load|FAILED|was not applied|Mixin|OpenGL|quick|Quick|Loading|world" client.log | grep -v "flite\|OpenAL" | head -300 || true
+          echo "===== client.log tail ====="
+          tail -n 80 client.log
           pip install -q pillow
           test -d run/screenshots && python3 tools/ci_screens.py run/screenshots || echo "no screenshots"
           grep -q "Client test finished" client.log
