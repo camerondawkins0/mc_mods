@@ -1,0 +1,30 @@
+{
+  "variants": {
+    "facing=down": {
+      "model": "slfrontier:block/prismatic_cluster",
+      "x": 180
+    },
+    "facing=east": {
+      "model": "slfrontier:block/prismatic_cluster",
+      "x": 90,
+      "y": 90
+    },
+    "facing=north": {
+      "model": "slfrontier:block/prismatic_cluster",
+      "x": 90
+    },
+    "facing=south": {
+      "model": "slfrontier:block/prismatic_cluster",
+      "x": 90,
+      "y": 180
+    },
+    "facing=up": {
+      "model": "slfrontier:block/prismatic_cluster"
+    },
+    "facing=west": {
+      "model": "slfrontier:block/prismatic_cluster",
+      "x": 90,
+      "y": 270
+    }
+  }
+}

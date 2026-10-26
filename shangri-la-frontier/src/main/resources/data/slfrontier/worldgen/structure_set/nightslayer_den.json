@@ -1,0 +1,14 @@
+{
+  "structures": [
+    {
+      "structure": "slfrontier:nightslayer_den",
+      "weight": 1
+    }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "spacing": 20,
+    "separation": 6,
+    "salt": 7712302
+  }
+}

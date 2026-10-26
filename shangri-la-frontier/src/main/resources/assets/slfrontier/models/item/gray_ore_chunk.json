@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "slfrontier:item/gray_ore_chunk"
+  }
+}

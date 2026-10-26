@@ -1,0 +1,14 @@
+{
+  "structures": [
+    {
+      "structure": "slfrontier:empire_bee_hive",
+      "weight": 1
+    }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "spacing": 18,
+    "separation": 6,
+    "salt": 7712303
+  }
+}

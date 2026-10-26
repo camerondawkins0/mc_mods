@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "slfrontier:fastera_plains",
+    "slfrontier:diremarsh_waste",
+    "slfrontier:prismatic_forest_grotto",
+    "slfrontier:hidden_garden",
+    "slfrontier:nightslayer_woods"
+  ]
+}
