@@ -30,6 +30,11 @@ stamina, evolving skills, twin-blade combat, NPCs and the Unique Monsters.
 
 (The mod is needed on both the client and the server.)
 
+> When you open a world with the mod, Minecraft shows a one-time **"Worlds using
+> Experimental Settings are not supported"** warning. That's vanilla's message for any
+> world with a data-pack dimension (the Frontier). Click **"I know what I'm doing!"** —
+> it won't show again for that world.
+
 ## Building
 
 ```bash

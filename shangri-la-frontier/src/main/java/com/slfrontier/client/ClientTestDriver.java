@@ -48,6 +48,17 @@ public final class ClientTestDriver {
             SLFrontier.LOGGER.info("Client test heartbeat: tick {}, screen {}, in world {}", clientTicks,
                     mc.screen == null ? "none" : mc.screen.getClass().getName(), mc.player != null);
         }
+        // Vanilla warns once about worlds with datapack dimensions; accept it.
+        if (mc.screen instanceof net.minecraft.client.gui.screens.BackupConfirmScreen screen && clientTicks % 20 == 0) {
+            String skip = net.minecraft.network.chat.Component.translatable("selectWorld.backupJoinSkipButton").getString();
+            for (var child : screen.children()) {
+                if (child instanceof net.minecraft.client.gui.components.Button button && button.getMessage().getString().equals(skip)) {
+                    SLFrontier.LOGGER.info("Client test: accepting experimental-settings warning");
+                    button.onPress();
+                    break;
+                }
+            }
+        }
         if (mc.player == null && clientTicks == 4000) {
             shot(mc, "00_never_joined_world");
         }
