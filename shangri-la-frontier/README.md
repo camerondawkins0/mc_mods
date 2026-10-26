@@ -14,6 +14,15 @@ stamina, evolving skills, twin-blade combat, NPCs and the Unique Monsters.
 | Java | 21 |
 | Dependencies | none besides NeoForge |
 
+![Creatures of the Frontier in Fastera](docs/screenshots/creatures.jpg)
+
+| | |
+|---|---|
+| ![Bosses](docs/screenshots/bosses.jpg) | ![Lycagon the Nightslayer rearing up](docs/screenshots/lycagon.jpg) |
+| ![Avatar status menu](docs/screenshots/status_menu.jpg) | ![NPC dialogue](docs/screenshots/dialogue.jpg) |
+
+*(Screenshots are taken automatically by CI on a headless client — see "Testing" below.)*
+
 ---
 
 ## Installing it with the CurseForge app
@@ -151,6 +160,19 @@ tools/
   gen_data.py    -> lang, models, loot, recipes, tags, worldgen, structures (.nbt)
   ci_boot_test.py boots a real NeoForge server in CI and generates Frontier terrain
 ```
+
+### Testing
+
+Every push runs `.github/workflows/shangri-la-frontier.yml`, which:
+
+1. builds the jar;
+2. installs a real NeoForge server, boots it with the mod, generates Frontier terrain,
+   locates every biome, places every structure and summons every boss and NPC;
+3. runs `/slf debug selftest` and `/slf debug storytest` — the latter drives a fake
+   player through every skill, every NPC dialogue at every quest stage, the compass and
+   the boss rewards;
+4. launches a real client on a virtual display, logs into the Frontier, lines up every
+   creature, opens the menus and takes screenshots.
 
 Art and structures are generated, so they can be rebuilt with
 `python3 tools/gen_assets.py && python3 tools/gen_data.py` (needs Pillow). Replace any
