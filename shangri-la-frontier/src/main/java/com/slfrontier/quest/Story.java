@@ -432,7 +432,7 @@ public final class Story {
         Component who = killer != null ? killer.getDisplayName() : Component.literal("?");
         level.getServer().getPlayerList().broadcastSystemMessage(Component.translatable("message.slfrontier.lycagon.slain", who)
                 .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), false);
-        for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, lycagon.getBoundingBox().inflate(64))) {
+        for (ServerPlayer p : participants(level, lycagon, killer, 64)) {
             PlayerData data = ModAttachments.get(p);
             if (data.cursed()) {
                 data.setCursed(false);
@@ -450,7 +450,7 @@ public final class Story {
     public static void onWezaemonSlain(ServerLevel level, WezaemonEntity wezaemon, @Nullable Entity killer) {
         level.getServer().getPlayerList().broadcastSystemMessage(Component.translatable("message.slfrontier.wezaemon.subjugated")
                 .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD), false);
-        for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, wezaemon.getBoundingBox().inflate(48))) {
+        for (ServerPlayer p : participants(level, wezaemon, killer, 48)) {
             PlayerData data = ModAttachments.get(p);
             if (data.stage() == QuestStage.TOMBGUARD) {
                 give(p, new ItemStack(ModItems.SEITEN_SKILLBOOK.get()));
@@ -460,6 +460,14 @@ public final class Story {
                 p.sendSystemMessage(Component.translatable("dialogue.slfrontier.setsuna.farewell").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.ITALIC));
             }
         }
+    }
+
+    /** Everyone near the boss, plus whoever landed the final blow (even from far away). */
+    private static java.util.Set<ServerPlayer> participants(ServerLevel level, Entity boss, @Nullable Entity killer, double radius) {
+        java.util.Set<ServerPlayer> players = new java.util.LinkedHashSet<>(
+                level.getEntitiesOfClass(ServerPlayer.class, boss.getBoundingBox().inflate(radius)));
+        if (killer instanceof ServerPlayer sp) players.add(sp);
+        return players;
     }
 
     // ---- Stage helpers ---------------------------------------------------------------
