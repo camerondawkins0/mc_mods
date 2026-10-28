@@ -160,8 +160,8 @@ public final class SlfCommand {
         if (frontier == null) {
             problems.add("Frontier dimension is missing");
         } else {
-            for (String t : List.of("town/fastera", "town/rabituza", "wezaemon_tomb", "nightslayer_den", "empire_bee_hive",
-                    "mud_digger_lair", "divinity_ruins")) {
+            for (String t : List.of("town/firstia", "town/secondil", "town/thirdrema", "town/rabituza", "landmark/serpent_bridge",
+                    "wezaemon_tomb", "nightslayer_den", "empire_bee_hive", "mud_digger_lair", "divinity_ruins", "shadow_altar")) {
                 if (frontier.getStructureManager().get(SLFrontier.id(t)).isEmpty()) problems.add("Missing template " + t);
             }
             FrontierTravel.ensureFastera(frontier);

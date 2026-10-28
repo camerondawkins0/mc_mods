@@ -70,14 +70,16 @@ public final class MapStore {
 
     // ---- Lifecycle -------------------------------------------------------------------
 
-    /** Folder for the current world (single player save name or server address). */
+    /** Folder for the current world (single player save name and seed, or server address). */
     @Nullable
     private static Path worldDir() {
         Minecraft mc = Minecraft.getInstance();
         String key;
         MinecraftServer server = mc.getSingleplayerServer();
         if (server != null) {
-            key = "sp_" + server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize().getFileName();
+            // The seed tells apart a new world that reuses an old world's name.
+            key = "sp_" + server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize().getFileName()
+                    + "_" + Long.toHexString(server.getWorldData().worldGenOptions().seed());
         } else if (mc.getCurrentServer() != null) {
             key = "mp_" + mc.getCurrentServer().ip;
         } else {

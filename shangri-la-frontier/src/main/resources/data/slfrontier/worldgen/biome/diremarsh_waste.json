@@ -29,6 +29,12 @@
         "weight": 20,
         "minCount": 1,
         "maxCount": 2
+      },
+      {
+        "type": "slfrontier:redcap_goblin",
+        "weight": 35,
+        "minCount": 1,
+        "maxCount": 3
       }
     ],
     "creature": [
@@ -94,6 +100,7 @@
     ],
     [
       "minecraft:glow_lichen",
+      "slfrontier:dead_tree_rare",
       "minecraft:trees_swamp",
       "minecraft:flower_swamp",
       "minecraft:patch_grass_normal",

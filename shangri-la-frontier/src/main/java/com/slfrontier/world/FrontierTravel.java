@@ -1,6 +1,5 @@
 package com.slfrontier.world;
 
-import com.slfrontier.SLFrontier;
 import com.slfrontier.data.PlayerData;
 import com.slfrontier.network.ModNetwork;
 import com.slfrontier.quest.QuestStage;
@@ -8,7 +7,6 @@ import com.slfrontier.quest.Story;
 import com.slfrontier.registry.ModAttachments;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Vec3i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -19,19 +17,11 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Optional;
 
-/** Logging in and out of the Frontier, and building the two hand-placed towns. */
+/** Logging in and out of the Frontier, and travelling between its towns. */
 public final class FrontierTravel {
-    public static final ResourceLocation FASTERA_TEMPLATE = SLFrontier.id("town/fastera");
-    public static final ResourceLocation RABITUZA_TEMPLATE = SLFrontier.id("town/rabituza");
-
     private FrontierTravel() {
     }
 
@@ -111,90 +101,29 @@ public final class FrontierTravel {
         return server == null ? null : server.getLevel(Frontier.LEVEL);
     }
 
-    /** Builds Fastera at the world origin the first time anyone logs in. */
+    /** Firstia (internally "fastera"), built at the world origin the first time anyone logs in. */
     public static BlockPos ensureFastera(ServerLevel frontier) {
-        TownData data = TownData.get(frontier);
-        if (data.fastera() != null) return data.fastera();
-        BlockPos land = findLand(frontier, 0, 0);
-        BlockPos spawn = placeTown(frontier, FASTERA_TEMPLATE, land.getX(), land.getZ());
-        data.setFastera(spawn);
-        registerTownWaypoints(frontier);
+        BlockPos spawn = Landmarks.ensure(frontier, Landmarks.Site.FIRSTIA);
+        // Plan the rest of the world in the background so maps and compasses know where it is.
+        Landmarks.planAhead(frontier);
         return spawn;
     }
 
-    /** Builds Rabituza far away from Fastera the first time it is needed. */
+    /** Rabituza, the hidden nation of the Vorpal Bunnies, far from everything else. */
     public static BlockPos ensureRabituza(ServerLevel frontier) {
-        TownData data = TownData.get(frontier);
-        if (data.rabituza() != null) return data.rabituza();
-        BlockPos land = findLand(frontier, Frontier.RABITUZA_X, Frontier.RABITUZA_Z);
-        BlockPos pos = placeTown(frontier, RABITUZA_TEMPLATE, land.getX(), land.getZ());
-        data.setRabituza(pos);
-        registerTownWaypoints(frontier);
-        return pos;
+        return Landmarks.ensure(frontier, Landmarks.Site.RABITUZA);
     }
 
-    /**
-     * Spirals outward from (x, z) until the terrain generator reports dry land, so towns
-     * aren't built in the middle of the sea. Uses noise height only, so it's cheap.
-     */
-    private static BlockPos findLand(ServerLevel level, int x, int z) {
-        var generator = level.getChunkSource().getGenerator();
-        var random = level.getChunkSource().randomState();
-        int sea = level.getSeaLevel();
-        for (int r = 0; r <= 1536; r += 32) {
-            for (int i = -r; i <= r; i += 32) {
-                int[][] candidates = {{x + i, z - r}, {x + i, z + r}, {x - r, z + i}, {x + r, z + i}};
-                for (int[] c : candidates) {
-                    int h = generator.getBaseHeight(c[0], c[1], Heightmap.Types.OCEAN_FLOOR_WG, level, random);
-                    if (h > sea + 2 && h < sea + 40) return new BlockPos(c[0], h, c[1]);
-                }
-            }
-        }
-        return new BlockPos(x, sea, z);
-    }
-
-    /**
-     * Places a town template centered on (x, z) at the surface. Returns the spawn point,
-     * the middle of the template one block above its floor.
-     */
-    private static BlockPos placeTown(ServerLevel level, ResourceLocation id, int x, int z) {
-        Optional<StructureTemplate> template = level.getStructureManager().get(id);
-        level.getChunk(x >> 4, z >> 4);
-        int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-        y = Math.max(y, level.getSeaLevel() + 1);
-        if (template.isEmpty()) {
-            SLFrontier.LOGGER.error("Missing town template {}", id);
-            return new BlockPos(x, y + 1, z);
-        }
-        Vec3i size = template.get().getSize();
-        BlockPos origin = new BlockPos(x - size.getX() / 2, y - 1, z - size.getZ() / 2);
-        // Lay a foundation so the town doesn't float over hills or water.
-        for (int dx = 0; dx < size.getX(); dx++) {
-            for (int dz = 0; dz < size.getZ(); dz++) {
-                for (int dy = 1; dy <= 8; dy++) {
-                    BlockPos p = origin.offset(dx, -dy, dz);
-                    if (level.getBlockState(p).canBeReplaced() || level.getBlockState(p).is(Blocks.WATER)) {
-                        level.setBlock(p, dy == 1 ? Blocks.DIRT.defaultBlockState() : Blocks.STONE.defaultBlockState(), 2);
-                    }
-                }
-            }
-        }
-        StructurePlaceSettings settings = new StructurePlaceSettings();
-        template.get().placeInWorld(level, origin, origin, settings, level.getRandom(), 2);
-        SLFrontier.LOGGER.info("Built {} at {}", id, origin);
-        return new BlockPos(x, y + 1, z);
+    public static void toSite(ServerPlayer player, Landmarks.Site site) {
+        ServerLevel frontier = frontierLevel(player);
+        if (frontier == null) return;
+        BlockPos pos = Landmarks.ensure(frontier, site);
+        player.teleportTo(frontier, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, player.getYRot(), player.getXRot());
     }
 
     /** Towns are fast-travel waypoints; also fills them in for worlds made before waypoints existed. */
     public static void registerTownWaypoints(ServerLevel level) {
-        TownData towns = TownData.get(level);
-        Waypoints all = Waypoints.get(level);
-        if (towns.fastera() != null) {
-            all.put(new Waypoints.Waypoint("fastera", "waypoint.slfrontier.fastera", towns.fastera(), Waypoints.Kind.TOWN));
-        }
-        if (towns.rabituza() != null) {
-            all.put(new Waypoints.Waypoint("rabituza", "waypoint.slfrontier.rabituza", towns.rabituza(), Waypoints.Kind.TOWN));
-        }
+        Landmarks.registerWaypoints(level);
     }
 
     public static boolean isFrontierLevel(Level level) {

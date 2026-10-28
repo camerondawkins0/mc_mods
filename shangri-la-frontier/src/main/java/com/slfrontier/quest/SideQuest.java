@@ -14,7 +14,7 @@ import java.util.function.Supplier;
  * the NPC who gave it.
  */
 public enum SideQuest {
-    GOBLIN_CULL("goblin_cull", "frontier_guide", Objective.KILL, "slfrontier:goblin", 12, 180, QuestStage.GRAY_ORE,
+    GOBLIN_CULL("goblin_cull", "frontier_guide", Objective.KILL, "slfrontier:goblin", 12, 180, QuestStage.RAVENOUS_SNAKE,
             () -> new ItemStack(Items.GOLDEN_APPLE), () -> new ItemStack(ModItems.HOLY_WATER.get(), 2)),
     SOLO_KILLER("solo_killer", "frontier_blacksmith", Objective.COLLECT, "slfrontier:mud_digger_fin", 1, 300,
             QuestStage.NIGHTSLAYER_ENCOUNTER, () -> new ItemStack(ModItems.REBIRTH_TEARJEWEL.get())),
@@ -27,7 +27,13 @@ public enum SideQuest {
     LILY_OFFERING("lily_offering", "setsuna", Objective.COLLECT, "slfrontier:red_spider_lily", 8, 250, QuestStage.NIGHTSLAYER_FINAL,
             () -> new ItemStack(ModItems.HOLY_WATER.get(), 4)),
     SEASONED_ADVENTURER("seasoned_adventurer", "frontier_guide", Objective.LEVEL, "", 20, 0, QuestStage.GRAY_ORE,
-            () -> new ItemStack(ModItems.REBIRTH_TEARJEWEL.get()), () -> new ItemStack(Items.DIAMOND, 3));
+            () -> new ItemStack(ModItems.REBIRTH_TEARJEWEL.get()), () -> new ItemStack(Items.DIAMOND, 3)),
+    REDCAP_RAID("redcap_raid", "frontier_blacksmith", Objective.KILL, "slfrontier:redcap_goblin", 5, 300, QuestStage.GRAY_ORE,
+            () -> new ItemStack(ModItems.GRAY_ORE_CHUNK.get(), 8), () -> new ItemStack(ModItems.HOLY_WATER.get(), 2)),
+    GIANT_KILLER("giant_killer", "pencilgon", Objective.KILL, "slfrontier:quad_beetle", 3, 600, QuestStage.THIRDREMA,
+            () -> new ItemStack(ModItems.REALLOCATION_TONIC.get()), () -> new ItemStack(ModItems.REBIRTH_TEARJEWEL.get())),
+    SPIRIT_FIST_SPARRING("spirit_fist_sparring", "oikatzo", Objective.KILL, "slfrontier:redcap_goblin", 10, 500, QuestStage.THIRDREMA,
+            () -> new ItemStack(Items.GOLDEN_APPLE, 2), () -> new ItemStack(ModItems.HOLY_WATER.get(), 3));
 
     public enum Objective { KILL, COLLECT, LEVEL, VISIT }
 

@@ -413,6 +413,74 @@ def stripes(c1, c2, period=2.0, axis=1, edge=None):
     return paint
 
 
+def crackle(base, vein, edge, alpha=255):
+    """Translucent stone-glass (the Marsh Dagger's jade): white crackle veins and a pale edge."""
+    base, vein, edge = hex_rgb(base), hex_rgb(vein), hex_rgb(edge)
+
+    def paint(p, n, ctx):
+        x, y, z = p
+        f = abs(smooth_noise(x * 2.3, y * 2.3 + z, ctx.seed) - smooth_noise(x * 2.3 + 5.3, y * 2.3 - 2.1, ctx.seed + 1))
+        depth = 0.5 + 0.5 * smooth_noise(x * 1.1, y * 0.7, ctx.seed + 2)
+        c = mix(scale(base, 0.75), base, depth)
+        a = alpha
+        if f < 0.05:
+            c = mix(vein, c, f / 0.05 * 0.5)
+            a = 255
+        shape = ctx.el["shape"]
+        if shape and shape.edge_distance(x, y) < 0.3:
+            c = mix(edge, c, shape.edge_distance(x, y) / 0.3)
+            a = 255
+        return c + (a,)
+
+    return paint
+
+
+def edged(base, edge_color, edge_pts, width=0.45, sheen=None):
+    """A blade colour with a stripe along one curved edge (Togetsu's inner-edge line)."""
+    base, ec = hex_rgb(base), hex_rgb(edge_color)
+    sh = hex_rgb(sheen) if sheen else mix(base, (255, 255, 255), 0.35)
+
+    def paint(p, n, ctx):
+        x, y, z = p
+        d = min(math.hypot(x - ex, y - ey) for ex, ey in edge_pts)
+        c = mix(base, sh, 0.5 + 0.5 * math.sin(x * 0.9 - y * 0.55))
+        c = mix(base, c, 0.6)
+        if d < width:
+            c = mix(ec, c, (d / width) ** 2)
+        return scale(c, 1 + smooth_noise(x * 5, y * 5 + z * 5, ctx.seed) * 0.03)
+
+    return paint
+
+
+def radial(center, split, outer, inner, edge="#FFFFFF"):
+    """Two-tone moon: ``outer`` beyond ``split`` units from ``center``, ``inner`` inside it."""
+    o, i, e = hex_rgb(outer), hex_rgb(inner), hex_rgb(edge)
+
+    def paint(p, n, ctx):
+        x, y, z = p
+        r = math.hypot(x - center[0], y - center[1])
+        c = o if r > split else i
+        band = abs(r - split)
+        if band < 0.25:
+            c = mix(e, c, band / 0.25)
+        shape = ctx.el["shape"]
+        if shape and shape.edge_distance(x, y) < 0.22:
+            c = mix(e, c, 0.4)
+        sheen = 0.5 + 0.5 * math.sin(x * 0.7 + y * 0.5)
+        return mix(c, (255, 255, 255), 0.12 * sheen if r > split else 0.05 * sheen)
+
+    return paint
+
+
+def bezier(p0, p1, p2, n=24):
+    pts = []
+    for k in range(n + 1):
+        t = k / n
+        pts.append(((1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0],
+                    (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1]))
+    return pts
+
+
 def moonsteel(base, glow_color, dark_mode=False):
     """Moonblade steel: pearl (Waxing) or night (Waning) with a luminous edge and star glints."""
     base = hex_rgb(base)
@@ -561,7 +629,8 @@ def build_model(model, materials, display):
                 for ty in range(th):
                     p = face_point(el, f, (tx + 0.5) / tw, (ty + 0.5) / th)
                     c = paint(p, NORMALS[f], ctx)
-                    img.putpixel((px + tx, py + ty), clamp_rgb(c) + (255,))
+                    alpha = int(c[3]) if len(c) == 4 else 255
+                    img.putpixel((px + tx, py + ty), clamp_rgb(c[:3]) + (alpha,))
             k = 16.0 / size
             jfaces[f] = {"uv": [r4(px * k), r4(py * k), r4((px + tw) * k), r4((py + th) * k)], "texture": "#0"}
         j = {"from": [r4(v) for v in el["from"]], "to": [r4(v) for v in el["to"]], "faces": jfaces}
@@ -581,6 +650,8 @@ def build_model(model, materials, display):
         "elements": json_els,
         "display": display,
     }
+    if model.extra.get("translucent"):
+        out["render_type"] = "minecraft:translucent"
     return out, img
 
 
@@ -624,29 +695,34 @@ def grip_assembly(m, grip_y0, grip_y1, grip_r, mat_grip, mat_guard, mat_pommel, 
 
 
 def mercenary_twin_blades():
-    """Cheap, honest steel short swords with a leather grip and a plain cross-guard."""
+    """The starter Mercenary Twinblades: plain single-edged steel short swords with a dark fuller
+    along the spine, a short dark crossguard and a black grip."""
     m = Model("mercenary_twin_blades")
-    blade = straight_blade(3.8, 17.5, 2.2, tip_len=3.0)
+    blade = polygon([(7.0, 3.8), (9.2, 3.8), (9.25, 12.8), (8.7, 15.4), (7.5, 17.5), (7.0, 16.6)])
     m.bevelled(blade, BLADE_LAYERS[:2], "steel")
-    m.cbox(0.5, 4.0, 13.5, 1.25, "fuller")
-    grip_assembly(m, 0.0, 3.0, 0.55, "grip", "guard", "guard", guard_w=4.6)
+    m.cbox(0.45, 4.6, 14.0, 1.15, "fuller", cx=7.55)
+    grip_assembly(m, 0.0, 3.0, 0.55, "grip", "guard", "guard", guard_w=3.8)
     m.cbox(0.8, 3.0, 3.8, 1.9, "guard")
-    mats = {"steel": steel("#AEB6BF", edge="#F2F6FA"), "fuller": steel("#8C949C", ridge=False),
-            "grip": wrap("#5A3A22", "#7A5233"), "guard": metal("#6E6A64")}
+    mats = {"steel": steel("#B4BCC4", edge="#F2F6FA"), "fuller": steel("#4E545C", ridge=False),
+            "grip": wrap("#141414", "#2E2E30"), "guard": metal("#34343A", "#7A7A84")}
     return m, mats, handheld_display()
 
 
 def marsh_dagger():
-    """Gray-Ore steel: a broad, leaf-shaped dagger with a greenish sheen from the marsh."""
+    """The Marsh Dagger: a wavy, serpentine kris blade of translucent green stone-glass with white
+    crackle veins, a chunky two-tone green guard, a dark cord grip and a round pommel."""
     m = Model("marsh_dagger")
-    leaf = polygon([(6.6, 3.8), (9.4, 3.8), (10.1, 7.5), (9.6, 11.0), (8.0, 15.2), (6.4, 11.0), (5.9, 7.5)])
-    m.bevelled(leaf, BLADE_LAYERS, "steel")
-    grip_assembly(m, 0.2, 3.0, 0.5, "grip", "guard", "pommel", guard_w=3.6, guard_h=0.8, guard_d=1.4, pommel_r=0.75)
-    # Curled quillons
-    m.box((5.6, 3.8, 7.5), (6.4, 4.8, 8.5), "guard")
-    m.box((9.6, 3.8, 7.5), (10.4, 4.8, 8.5), "guard")
-    mats = {"steel": steel("#7F8E86", light="#B9C7BF", edge="#DDE8E2", warm="#6E8A60"),
-            "grip": wrap("#2E3A2E", "#4E6A4A"), "guard": metal("#4E5E56"), "pommel": metal("#5E6E66")}
+    m.extra["translucent"] = True
+    kris = curved_blade(4.1, 16.2, lambda t: 2.5 * (1 - t) ** 0.65 + 0.2,
+                        lambda t: 8.0 + 0.7 * math.sin(t * 3 * math.pi) * (1 - 0.45 * t))
+    m.bevelled(kris, [(0.0, 0.22), (0.45, 0.4)], "jade")
+    grip_assembly(m, 0.1, 3.0, 0.5, "grip", "guard", "pommel", guard_w=4.4, guard_h=0.9, guard_d=1.9, pommel_r=0.85,
+                  pommel_h=1.2)
+    m.cbox(3.0, 3.9, 4.4, 1.4, "guard2")
+    m.box((5.3, 3.4, 7.4), (6.0, 4.6, 8.6), "guard2")
+    m.box((10.0, 3.4, 7.4), (10.7, 4.6, 8.6), "guard2")
+    mats = {"jade": crackle("#3FB874", "#F2FFF6", "#E8FFF0", alpha=205), "grip": wrap("#16201A", "#2F4A38"),
+            "guard": metal("#24482E", "#5A9A6A"), "guard2": metal("#3E7A50", "#9AD8A8"), "pommel": metal("#24482E", "#5A9A6A")}
     return m, mats, handheld_display()
 
 
@@ -668,25 +744,32 @@ def ducusram():
 
 
 def empire_bee_twinblades():
-    """Forged from the Empire Bee Queen's crown and stingers: amber stinger blades."""
+    """Bilac's Empire Bee Twinblade (the long blade): a straight violet blade carrying Crush
+    Poison, a gold crossguard over a purple shell, a black-and-gold spiral grip with a cream
+    bulb, and a looping black knuckle-bow that ends in a pink tip."""
     m = Model("empire_bee_twinblades")
-    sting = curved_blade(3.6, 18.0, lambda t: 2.6 * (1 - t) ** 0.7 + 0.15, lambda t: 8.0 + 0.6 * math.sin(t * math.pi) * 0.5)
-    m.bevelled(sting, [(0.0, 0.3), (0.45, 0.5)], "chitin")
-    # Black venom grooves
-    m.cbox(0.4, 5.0, 13.0, 1.05, "venom", glow=True)
-    m.prism(0.6, 0.0, 3.0, "grip")
-    # Wing-shaped guard
-    wing = polygon([(8.0, 3.0), (11.6, 4.4), (12.0, 5.4), (9.2, 4.3), (8.0, 4.0), (6.8, 4.3), (4.0, 5.4), (4.4, 4.4)])
-    m.extrude(wing, 0.45, "wing")
-    m.prism(0.8, -1.2, 0.0, "pommel")
-    mats = {"chitin": stripes("#E8B530", "#2B1D0E", period=2.6, edge="#FFE890"), "venom": flat("#B6F04A", 0.1),
-            "grip": wrap("#2B1D0E", "#6B4A1E"), "wing": crystal("#E6F4FF", "#BFD8F0"),
-            "pommel": metal("#F2C230", "#FFF2A0")}
+    blade = straight_blade(4.2, 19.6, 2.1, tip_len=3.2)
+    m.bevelled(blade, BLADE_LAYERS, "violet")
+    m.cbox(0.4, 5.0, 15.5, 1.15, "venom", glow=True)
+    m.cbox(4.6, 3.4, 4.2, 1.7, "gold")
+    m.extrude(ellipse(8.0, 8.0, 1.9, 1.5), 0.32, "shell", plane="xz", y_center=3.2)
+    m.prism(0.55, 0.0, 3.0, "grip")
+    m.prism(0.85, -1.5, 0.0, "bulb")
+    m.cbox(0.7, -2.2, -1.5, 0.7, "pink")
+    # The knuckle-bow loops from the guard round to the bulb.
+    m.box((10.2, 0.0, 7.7), (10.75, 3.4, 8.3), "bow")
+    m.box((9.0, 3.0, 7.7), (10.75, 3.45, 8.3), "bow")
+    m.box((8.8, -0.45, 7.7), (10.75, 0.0, 8.3), "bow")
+    m.box((10.75, -0.9, 7.75), (11.35, -0.3, 8.25), "pink")
+    mats = {"violet": steel("#7A3AC8", light="#B886F2", dark="#3E1A6A", edge="#EEDCFF"), "venom": flat("#C25AF0", 0.08),
+            "gold": metal("#D8B040", "#FFF0A0"), "shell": metal("#5A2A8A", "#B07AE0"), "grip": wrap("#141016", "#D8B040", width=0.55),
+            "bulb": metal("#E8D8A8", "#FFFFFF"), "pink": gem("#F07AB0", "#FFE0F0"), "bow": metal("#18161A", "#5A5660")}
     return m, mats, handheld_display()
 
 
 def tombguard_katana():
-    """Wezaemon's katana: a long curved blade, round tsuba, black-and-gold tsuka-ito."""
+    """Wezaemon's katana: a long, slim, curved silver blade, a round black tsuba and a hilt
+    wrapped in red cord over pale rayskin."""
     m = Model("tombguard_katana")
     curve = lambda t: 8.0 + 1.3 * t * t  # sori: the blade curves back toward the tip
 
@@ -706,75 +789,94 @@ def tombguard_katana():
     m.prism(0.55, -4.6, 2.9, "tsuka")
     m.prism(0.62, -5.4, -4.6, "kashira")
     mats = {"steel": steel("#D8E4EC", light="#F6FBFF", edge="#FFFFFF", streak=0.04), "hamon": flat("#F4F8FF", 0.03),
-            "habaki": metal("#C9B07A", "#FFF0C0"), "tsuba": metal("#2A2620", "#7A6A50"),
-            "tsuka": wrap("#1A1410", "#C9B07A", diamond="#7A1E2C", width=0.55), "kashira": metal("#2A2620", "#C9B07A")}
+            "habaki": metal("#C9B07A", "#FFF0C0"), "tsuba": metal("#1E1C1A", "#6A6058"),
+            "tsuka": wrap("#E8E0D0", "#B8303A", diamond="#E8E0D0", width=0.55), "kashira": metal("#1E1C1A", "#C9B07A")}
     return m, mats, handheld_display(hand_scale=1.0, fp_scale=0.95, lift=1.2, gui_scale=0.78)
 
 
-def crescent(y0, y1, cx, outer_r, inner_r, inner_dx, inner_dy=0.0):
-    """A crescent: a disc minus an offset disc, clipped to y0..y1."""
-    cy = (y0 + y1) / 2
-    outer = ellipse(cx, cy, outer_r, (y1 - y0) / 2)
-    inner = ellipse(cx + inner_dx, cy + inner_dy, inner_r, (y1 - y0) / 2 * 0.98)
-    return outer - inner
-
-
 def moonblade(name, waxing):
-    """Moonblades (Togetsu): crescent blades of moonlight. Waxing is pearl-white, Waning night-black."""
+    """Togetsu, the Moonblades: thick talon-curved crescent blades, wide at the base with a
+    barb by the guard and a bevel line down the face, tapering to a hooked point. Waxing is
+    pearl white with a dark inner-edge stripe; Waning is gunmetal black. Both share a silver
+    collar, a maroon cord grip, a silver hex pommel, a red bead and a white hook charm."""
     m = Model(name)
-    side = -1 if waxing else 1  # the crescents face each other when held in both hands
-    blade = crescent(3.6, 19.0, 8.0 - side * 1.4, 3.2, 3.3, -side * 1.8, 0.0)
-    m.bevelled(blade, [(0.0, 0.22), (0.4, 0.4), (0.85, 0.5)], "moon")
-    # Luminous inner edge
-    edge = crescent(3.8, 18.8, 8.0 - side * 1.4, 3.0, 3.3, -side * 1.95, 0.0) - crescent(3.8, 18.8, 8.0 - side * 1.4, 3.0, 3.3, -side * 1.6, 0.0)
-    m.extrude(edge, 0.26, "edge", glow=True)
-    m.cbox(2.8, 3.0, 3.9, 1.5, "guard")
-    m.cbox(1.2, 3.9, 4.4, 1.2, "guard")
-    m.prism(0.5, 0.0, 3.0, "grip")
-    m.prism(0.7, -1.0, 0.0, "guard")
-    m.cbox(0.8, -1.9, -1.0, 0.8, "gem", glow=True)
+    sx = 1 if waxing else -1  # the two blades are mirror images
+
+    def X(pts):
+        return [(8 + sx * (x - 8), y) for (x, y) in pts]
+
+    spine = X(bezier((6.3, 4.6), (4.6, 15.6), (12.3, 19.8)))
+    edge = X(bezier((9.7, 4.6), (8.9, 12.8), (12.3, 19.8)))
+    blade = polygon(spine + edge[::-1])
+    m.bevelled(blade, [(0.0, 0.24), (0.42, 0.42), (0.85, 0.52)], "moon")
+    barb = polygon(X([(9.4, 4.6), (11.2, 4.85), (11.05, 5.45), (9.5, 6.7)]))
+    m.extrude(barb, 0.36, "moon")
+    line = polygon(X(bezier((7.85, 4.7), (6.6, 14.4), (12.1, 19.45))) + X(bezier((8.2, 4.7), (6.95, 14.2), (12.1, 19.45)))[::-1])
+    m.extrude(line, 0.55, "bevel")
+    # Fittings
+    m.cbox(2.2, 3.7, 4.6, 1.5, "silver")
+    m.prism(0.5, 0.3, 3.7, "grip")
+    m.prism(0.78, -0.6, 0.3, "silver")
+    m.cbox(0.6, -1.3, -0.6, 0.6, "bead")
+    m.box((8.15, -2.7, 7.85), (8.45, -1.3, 8.15), "charm")
+    m.box((7.45, -3.0, 7.85), (8.45, -2.7, 8.15), "charm")
+    m.box((7.35, -3.0, 7.85), (7.65, -2.35, 8.15), "charm")
     if waxing:
-        mats = {"moon": moonsteel("#E6E8F4", "#BFE8FF"), "edge": flat("#E8FBFF", 0.02),
-                "guard": metal("#C9CEDD", "#FFFFFF"), "grip": wrap("#3A3E58", "#9FC3E8"), "gem": gem("#9FE2FF", "#FFFFFF")}
+        mats = {"moon": edged("#F2F0EA", "#34343E", edge, width=0.5, sheen="#FFFFFF"), "bevel": flat("#D8D8E0", 0.03),
+                "silver": metal("#C8CCD4", "#FFFFFF"), "grip": wrap("#4A0E18", "#8A2030", width=0.6),
+                "bead": gem("#D02030", "#FF9AA0"), "charm": flat("#F4F4F0", 0.02)}
     else:
-        mats = {"moon": moonsteel("#241E34", "#8E5BE0", dark_mode=True), "edge": flat("#C9A0FF", 0.02),
-                "guard": metal("#3A2E50", "#8E7BB8"), "grip": wrap("#141018", "#6E2FA8"), "gem": gem("#B57CFF", "#F2E6FF")}
+        mats = {"moon": edged("#3A3C44", "#9AA0AC", edge, width=0.4, sheen="#6A6E7A"), "bevel": flat("#24262C", 0.03),
+                "silver": metal("#C8CCD4", "#FFFFFF"), "grip": wrap("#4A0E18", "#8A2030", width=0.6),
+                "bead": gem("#D02030", "#FF9AA0"), "charm": flat("#F4F4F0", 0.02)}
     return m, mats, handheld_display()
 
 
 def twin_moon():
-    """Twin Moon: Waxing and Waning joined back to back into one great moon-blade."""
+    """Sogengetsu, the Twin Moon: Waxing and Waning locked into one huge, nearly circular crescent,
+    white on the outer arc and black on the inner, on a red-wrapped handle with a white ribbon."""
     m = Model("twin_moon")
-    # Two crescents back to back around a shared spine.
-    light = crescent(4.0, 27.0, 6.2, 4.4, 4.5, 2.4)
-    dark = crescent(4.0, 27.0, 9.8, 4.4, 4.5, -2.4)
-    m.bevelled(light, [(0.0, 0.24), (0.45, 0.42), (0.95, 0.55)], "wax")
-    m.bevelled(dark, [(0.0, 0.24), (0.45, 0.42), (0.95, 0.55)], "wane")
-    m.cbox(0.9, 4.0, 25.5, 1.3, "spine", glow=True)
-    m.cbox(5.4, 2.8, 4.0, 1.8, "guard")
-    m.cbox(2.2, 4.0, 5.0, 1.5, "guard")
-    m.prism(0.62, -3.4, 2.8, "grip")
-    m.prism(0.85, -4.6, -3.4, "guard")
-    m.cbox(1.0, -5.6, -4.6, 1.0, "gem", glow=True)
-    mats = {"wax": moonsteel("#E6E8F4", "#BFE8FF"), "wane": moonsteel("#241E34", "#8E5BE0", dark_mode=True),
-            "spine": flat("#DDEBFF", 0.03), "guard": metal("#8A8FB0", "#FFFFFF"), "grip": wrap("#1A1626", "#9FC3E8"),
-            "gem": gem("#C9B0FF", "#FFFFFF")}
-    return m, mats, handheld_display(hand_scale=1.25, fp_scale=1.0, lift=2.0, gui_scale=0.66)
+    cx, cy = 8.0, 16.6
+    outer = ellipse(cx, cy, 7.3, 7.5)
+    inner = ellipse(cx + 2.2, cy + 0.3, 4.6, 5.2)
+    moon = outer - inner
+    m.bevelled(moon, [(0.0, 0.26), (0.45, 0.44), (0.95, 0.56)], "moon")
+    # The neck joining the handle to the bottom of the ring
+    m.cbox(1.6, 7.6, 9.6, 1.4, "silver")
+    m.cbox(3.4, 6.9, 7.6, 1.8, "silver")
+    m.prism(0.62, 0.6, 6.9, "grip")
+    m.prism(0.85, -0.6, 0.6, "silver")
+    m.cbox(0.7, -1.4, -0.6, 0.7, "bead")
+    # The white ribbon tied below the guard
+    m.box((8.7, 3.6, 7.92), (9.25, 6.9, 8.08), "ribbon")
+    m.box((9.1, 1.4, 7.92), (9.65, 3.8, 8.08), "ribbon")
+    m.box((7.0, 4.4, 7.92), (7.4, 6.9, 8.08), "ribbon")
+    mats = {"moon": radial((cx, cy), 5.2, "#F2F0EA", "#24242C", edge="#E8F2FF"), "silver": metal("#C8CCD4", "#FFFFFF"),
+            "grip": wrap("#4A0E18", "#A82434", width=0.6), "bead": gem("#D02030", "#FF9AA0"), "ribbon": flat("#FAFAF6", 0.02)}
+    return m, mats, handheld_display(hand_scale=1.2, fp_scale=0.95, lift=2.0, gui_scale=0.6)
 
 
 def vorpal_choppers():
-    """The Vorpal Choppers Vysache gives: short, heavy cleaver-knives of the Vorpal Bunnies."""
+    """The Vorpal Choppers ("fatal kitchen knives"): long, slim crimson blades whose edge is
+    slightly wavy and jagged like a cleaver, on dark brown wooden handles."""
     m = Model("vorpal_choppers")
-    cleaver = polygon([(6.5, 3.8), (9.0, 3.8), (11.2, 9.0), (11.4, 14.6), (10.4, 16.0), (7.4, 16.0), (6.2, 13.0), (6.5, 6.0)])
-    m.bevelled(cleaver, [(0.0, 0.25), (0.45, 0.42), (1.0, 0.52)], "steel")
-    # Rabbit-ear notches near the spine and a red binding
-    m.cbox(0.45, 13.6, 15.4, 1.1, "red", cx=7.2)
-    m.cbox(0.45, 13.6, 15.4, 1.1, "red", cx=8.1)
-    m.cbox(3.2, 3.0, 3.8, 1.5, "guard")
-    m.prism(0.55, 0.0, 3.0, "grip")
-    m.prism(0.7, -1.0, 0.0, "guard")
-    mats = {"steel": steel("#E8E4F4", light="#FFFFFF", edge="#FFFFFF", warm="#F2D8E8"), "red": flat("#C0283A", 0.05),
-            "guard": metal("#C0283A", "#FF8090"), "grip": wrap("#6F5BD1", "#B8A8F8")}
+    pts = [(6.9, 3.9), (6.9, 17.8), (7.25, 19.2)]
+    for i in range(41):
+        y = 19.0 - i * (15.1 / 40)
+        rise = min(1.0, (19.2 - y) / 4.2) ** 0.55
+        jag = 0.16 * math.sin(y * 4.4) + (0.08 if int(y * 2.2) % 2 else -0.04)
+        pts.append((7.25 + (9.5 - 7.25) * rise + (jag if y < 15.5 else 0), y))
+    pts.append((9.5, 3.9))
+    blade = polygon(pts)
+    m.bevelled(blade, [(0.0, 0.2), (0.45, 0.36), (0.9, 0.44)], "crimson")
+    m.cbox(1.7, 3.5, 4.0, 1.3, "bolster")
+    m.prism(0.58, -0.8, 3.5, "wood")
+    for y in (0.4, 2.2):
+        m.cbox(0.38, y, y + 0.38, 1.24, "rivet")
+    m.prism(0.66, -1.2, -0.8, "bolster")
+    mats = {"crimson": steel("#B01E2E", light="#E85060", dark="#5A0A14", edge="#FFC0C8", warm="#C8303A"),
+            "bolster": metal("#2A2422", "#8A7A70"), "wood": stripes("#4A2C18", "#3A2010", period=0.9, axis=1),
+            "rivet": metal("#B8B0A8", "#FFFFFF")}
     return m, mats, handheld_display()
 
 

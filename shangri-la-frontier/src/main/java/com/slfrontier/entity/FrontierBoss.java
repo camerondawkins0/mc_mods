@@ -59,7 +59,8 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
         goalSelector.addGoal(0, new FloatGoal(this));
         goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 16f));
         goalSelector.addGoal(9, new RandomLookAroundGoal(this));
-        targetSelector.addGoal(1, new HurtByTargetGoal(this));
+        // Allied NPCs (Pencilgon, Oikatzo, Emul) chip in, but the boss keeps its eyes on the players.
+        targetSelector.addGoal(1, new HurtByTargetGoal(this, com.slfrontier.entity.npc.FrontierNpc.class));
         targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, false));
     }
 
@@ -93,6 +94,24 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
         attackTick = 0;
         getNavigation().stop();
         playAnim(animSlot(id));
+    }
+
+    /** Starts a specific attack right away (used by the client test scenes to show telegraphs). */
+    public void forceAttack(int id) {
+        startAttack(id);
+    }
+
+    /** Runs every attack's whole tick sequence once against {@code target} (used by the story self-test). */
+    public void exerciseAttacks(LivingEntity target, int maxId) {
+        for (int id = 0; id <= maxId; id++) {
+            attack = id;
+            int length = attackLength(id);
+            for (int t = 1; t <= length && isAlive() && !isRemoved(); t++) {
+                attackTick = t;
+                tickAttack(id, t, target);
+            }
+        }
+        attack = -1;
     }
 
     public boolean isAttacking() {
@@ -199,6 +218,49 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
         return hits;
     }
 
+    /** Damages every valid target within {@code radius} of a point. */
+    protected int hitAt(Vec3 at, double radius, float damageScale, double knockback) {
+        int hits = 0;
+        for (LivingEntity e : level().getEntitiesOfClass(LivingEntity.class, new AABB(at, at).inflate(radius, radius + 1, radius),
+                e -> e != this && e.isAlive() && isEnemy(e))) {
+            Vec3 to = e.position().subtract(at);
+            if (Math.sqrt(to.x * to.x + to.z * to.z) > radius + e.getBbWidth() / 2) continue;
+            if (strike(e, damageScale, to.x, to.z, knockback)) hits++;
+        }
+        return hits;
+    }
+
+    /** Damages every valid target within {@code width} of the segment {@code from}-{@code to} (beams, wind blades). */
+    protected int hitLine(Vec3 from, Vec3 to, double width, float damageScale, double knockback) {
+        Vec3 d = to.subtract(from);
+        double len2 = Math.max(1e-6, d.lengthSqr());
+        int hits = 0;
+        for (LivingEntity e : level().getEntitiesOfClass(LivingEntity.class, new AABB(from, to).inflate(width + 1),
+                e -> e != this && e.isAlive() && isEnemy(e))) {
+            Vec3 p = e.position().add(0, e.getBbHeight() / 2, 0);
+            double t = Math.max(0, Math.min(1, p.subtract(from).dot(d) / len2));
+            Vec3 closest = from.add(d.scale(t));
+            if (closest.distanceTo(p) > width + e.getBbWidth() / 2) continue;
+            if (strike(e, damageScale, d.x, d.z, knockback)) hits++;
+        }
+        return hits;
+    }
+
+    /** Players (and the current target) worth aiming a telegraphed attack at. */
+    protected List<LivingEntity> enemiesNear(double radius) {
+        return level().getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(radius, 6, radius),
+                e -> e != this && e.isAlive() && isEnemy(e) && e.distanceTo(this) <= radius);
+    }
+
+    private boolean strike(LivingEntity e, float damageScale, double dx, double dz, double knockback) {
+        float damage = (float) getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE) * damageScale;
+        float dealt = adjustDamage(e, damage);
+        if (dealt <= 0 || !e.hurt(damageSources().mobAttack(this), dealt)) return false;
+        if (knockback > 0 && (dx != 0 || dz != 0)) e.knockback(knockback, -dx, -dz);
+        onHitTarget(e);
+        return true;
+    }
+
     protected boolean isEnemy(LivingEntity e) {
         if (e instanceof Player p) return !p.isCreative() && !p.isSpectator();
         return e == getTarget();
@@ -261,6 +323,13 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
     public void stopSeenByPlayer(ServerPlayer player) {
         super.stopSeenByPlayer(player);
         bossEvent.removePlayer(player);
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        super.remove(reason);
+        // Viewers are added by distance, not tracking, so drop them all when the boss goes away.
+        bossEvent.removeAllPlayers();
     }
 
     @Override

@@ -130,6 +130,13 @@ public final class ClientSetup {
         slf(event, ModEntities.EMPIRE_BEE_QUEEN.get(), EMPIRE_BEE, MobAnims.EMPIRE_BEE, "empire_bee_queen", 0.45f, 2f);
         slf(event, ModEntities.QUAD_BEETLE.get(), QUAD_BEETLE, MobAnims.QUAD_BEETLE, "quad_beetle", 1.0f, 1.3f);
         slf(event, ModEntities.MUD_DIGGER.get(), MUD_DIGGER, MobAnims.MUD_DIGGER, "mud_digger", 1.1f, 1.1f);
+        slf(event, ModEntities.REDCAP_GOBLIN.get(), GOBLIN, MobAnims.GOBLIN, "redcap_goblin", 0.6f, 0.75f);
+        slf(event, ModEntities.RAVENOUS_SNAKE.get(), RAVENOUS_SNAKE, MobAnims.RAVENOUS_SNAKE, "ravenous_snake", 0.8f, 1.6f);
+        slf(event, ModEntities.WOODMAGE.get(), WOODMAGE, MobAnims.WOODMAGE, "woodmage", 0.8f, 0.85f);
+        slf(event, ModEntities.KIRIN.get(), KIRIN, MobAnims.KIRIN, "kirin", 1.0f, 1.2f);
+        slf(event, ModEntities.LYCAGON_SHADOW.get(), LYCAGON, MobAnims.LYCAGON, "lycagon_shadow", 1.4f, 1.0f, null, true);
+        slf(event, ModEntities.PENCILGON.get(), PENCILGON, MobAnims.PENCILGON, "pencilgon", 0.5f, 0.9375f);
+        slf(event, ModEntities.OIKATZO.get(), OIKATZO, MobAnims.OIKATZO, "oikatzo", 0.5f, 0.9f);
 
         event.registerEntityRenderer(ModEntities.HOLY_WATER.get(), ThrownItemRenderer::new);
     }

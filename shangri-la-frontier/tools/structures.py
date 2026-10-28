@@ -107,25 +107,8 @@ class Template:
 # Reusable bits
 # ---------------------------------------------------------------------------------------
 
-def door(t, x, y, z, facing, wood="oak"):
-    t.set(x, y, z, f"minecraft:{wood}_door", {"facing": facing, "half": "lower", "hinge": "left", "open": "false", "powered": "false"})
-    t.set(x, y + 1, z, f"minecraft:{wood}_door", {"facing": facing, "half": "upper", "hinge": "left", "open": "false", "powered": "false"})
-
-
-def bed(t, x, y, z, facing, color="red"):
-    dx, dz = {"north": (0, -1), "south": (0, 1), "east": (1, 0), "west": (-1, 0)}[facing]
-    t.set(x, y, z, f"minecraft:{color}_bed", {"facing": facing, "part": "foot", "occupied": "false"})
-    t.set(x + dx, y, z + dz, f"minecraft:{color}_bed", {"facing": facing, "part": "head", "occupied": "false"})
-
-
 def lantern(t, x, y, z, soul=False):
     t.set(x, y, z, "minecraft:soul_lantern" if soul else "minecraft:lantern", {"hanging": "false", "waterlogged": "false"})
-
-
-def lamp_post(t, x, y, z, height=3, soul=False):
-    for i in range(height):
-        t.set(x, y + i, z, "minecraft:oak_fence")
-    lantern(t, x, y + height, z, soul)
 
 
 def tree(t, x, y, z, log="oak", leaves="oak", height=5, radius=2):
@@ -140,209 +123,16 @@ def tree(t, x, y, z, log="oak", leaves="oak", height=5, radius=2):
                     t.set(x + dx, top + dy, z + dz, *LEAVES(leaves))
 
 
-def house(t, x0, z0, door_side, seed_color="red", w=9, d=9, h=4):
-    x1, z1 = x0 + w - 1, z0 + d - 1
-    t.fill(x0, 0, z0, x1, 0, z1, "minecraft:oak_planks")
-    t.walls(x0, 1, z0, x1, h, z1, "minecraft:oak_planks")
-    for (cx, cz) in ((x0, z0), (x0, z1), (x1, z0), (x1, z1)):
-        t.fill(cx, 1, cz, cx, h, cz, "minecraft:oak_log", {"axis": "y"})
-    # roof: two stepped layers of spruce
-    t.fill(x0 - 1, h + 1, z0 - 1, x1 + 1, h + 1, z1 + 1, "minecraft:spruce_planks")
-    t.fill(x0 + 1, h + 2, z0 + 1, x1 - 1, h + 2, z1 - 1, "minecraft:spruce_planks")
-    t.fill(x0 + 3, h + 3, z0 + 3, x1 - 3, h + 3, z1 - 3, "minecraft:spruce_planks")
-    # interior air
-    t.fill(x0 + 1, 1, z0 + 1, x1 - 1, h, z1 - 1, "minecraft:air")
-    mx, mz = (x0 + x1) // 2, (z0 + z1) // 2
-    if door_side == "east":
-        door(t, x1, 1, mz, "east")
-        t.set(x0, 2, mz, "minecraft:glass_pane")
-    elif door_side == "west":
-        door(t, x0, 1, mz, "west")
-        t.set(x1, 2, mz, "minecraft:glass_pane")
-    elif door_side == "south":
-        door(t, mx, 1, z1, "south")
-        t.set(mx, 2, z0, "minecraft:glass_pane")
-    else:
-        door(t, mx, 1, z0, "north")
-        t.set(mx, 2, z1, "minecraft:glass_pane")
-    for side_x in (x0, x1):
-        t.set(side_x, 2, z0 + 2, "minecraft:glass_pane")
-        t.set(side_x, 2, z1 - 2, "minecraft:glass_pane")
-    bed(t, x0 + 1, 1, z0 + 1, "south", seed_color)
-    t.set(x1 - 1, 1, z0 + 1, "minecraft:crafting_table")
-    t.set(x1 - 1, 1, z1 - 1, "minecraft:barrel", {"facing": "up", "open": "false"})
-    lantern(t, x0 + 1, 1, z1 - 1)
-
-
 # ---------------------------------------------------------------------------------------
 # Fastera — the starting town
 # ---------------------------------------------------------------------------------------
-
-def fastera():
-    t = Template(41, 18, 41, "fastera")
-    c = 20
-    t.fill(0, 0, 0, 40, 0, 40, "minecraft:grass_block", {"snowy": "false"})
-    # roads
-    t.fill(19, 0, 0, 21, 0, 40, "minecraft:dirt_path")
-    t.fill(0, 0, 19, 40, 0, 21, "minecraft:dirt_path")
-    # plaza
-    t.disc(c, 0, c, 8.5, "minecraft:stone_bricks")
-    t.disc(c, 0, c, 8.5, "minecraft:cobblestone", chance=0.25)
-    t.ring(c, 0, c, 8.5, "minecraft:polished_andesite", width=0.5)
-    t.set(c, 0, c, "minecraft:chiseled_stone_bricks")
-    # fountain north of the plaza center
-    fz = 13
-    t.fill(c - 2, 0, fz - 2, c + 2, 0, fz + 2, "minecraft:stone_bricks")
-    t.walls(c - 2, 1, fz - 2, c + 2, 1, fz + 2, "minecraft:stone_brick_wall")
-    t.fill(c - 1, 1, fz - 1, c + 1, 1, fz + 1, "minecraft:water", {"level": "0"})
-    t.set(c, 1, fz, "minecraft:chiseled_stone_bricks")
-    t.set(c, 2, fz, "minecraft:chiseled_stone_bricks")
-    lantern(t, c, 3, fz)
-    # lamp posts around the plaza
-    for (lx, lz) in ((c - 7, c - 7), (c + 7, c - 7), (c - 7, c + 7), (c + 7, c + 7)):
-        lamp_post(t, lx, 1, lz)
-    # houses (beds inside let players set a Frontier respawn point)
-    house(t, 2, 2, "east", "red")
-    house(t, 2, 30, "east", "blue")
-    house(t, 30, 30, "west", "yellow")
-    # blacksmith: an open forge on the east side of the road
-    bx0, bz0 = 29, 3
-    t.fill(bx0, 0, bz0, bx0 + 9, 0, bz0 + 9, "minecraft:cobblestone")
-    for (px, pz) in ((bx0, bz0), (bx0 + 9, bz0), (bx0, bz0 + 9), (bx0 + 9, bz0 + 9)):
-        t.fill(px, 1, pz, px, 4, pz, "minecraft:spruce_log", {"axis": "y"})
-    t.fill(bx0, 5, bz0, bx0 + 9, 5, bz0 + 9, "minecraft:spruce_planks")
-    t.fill(bx0 + 1, 6, bz0 + 1, bx0 + 8, 6, bz0 + 8, "minecraft:spruce_slab", {"type": "bottom", "waterlogged": "false"})
-    t.fill(bx0 + 7, 1, bz0 + 1, bx0 + 8, 1, bz0 + 8, "minecraft:bricks")
-    t.set(bx0 + 8, 2, bz0 + 2, "minecraft:furnace", {"facing": "west", "lit": "false"})
-    t.set(bx0 + 8, 2, bz0 + 4, "minecraft:blast_furnace", {"facing": "west", "lit": "false"})
-    t.set(bx0 + 8, 2, bz0 + 6, "minecraft:lava_cauldron")
-    t.set(bx0 + 4, 1, bz0 + 4, "minecraft:anvil", {"facing": "north"})
-    t.set(bx0 + 4, 1, bz0 + 7, "minecraft:smithing_table")
-    t.set(bx0 + 2, 1, bz0 + 2, "minecraft:grindstone", {"face": "floor", "facing": "north"})
-    t.fill(bx0 + 8, 2, bz0 + 1, bx0 + 8, 4, bz0 + 1, "minecraft:bricks")
-    t.entity(bx0 + 4, 1, bz0 + 5, "slfrontier:frontier_blacksmith", yaw=90.0)
-    # notice board / guide stand by the fountain
-    t.set(c + 3, 1, fz + 3, "minecraft:lectern", {"facing": "south", "has_book": "false", "powered": "false"})
-    t.entity(c, 1, fz + 4, "slfrontier:frontier_guide", yaw=0.0)
-    # hedges and trees for a bit of life
-    for x in range(0, 41):
-        for z in (0, 40):
-            if not 18 <= x <= 22:
-                t.set(x, 1, z, *LEAVES("oak"))
-    for z in range(0, 41):
-        for x in (0, 40):
-            if not 18 <= z <= 22:
-                t.set(x, 1, z, *LEAVES("oak"))
-    tree(t, 14, 1, 33)
-    tree(t, 26, 1, 35, "birch", "birch")
-    tree(t, 34, 1, 18)
-    for _ in range(40):
-        x, z = t.rnd.randint(1, 39), t.rnd.randint(1, 39)
-        if t.get(x, 0, z) == "minecraft:grass_block" and t.get(x, 1, z) is None:
-            t.set(x, 1, z, t.rnd.choice(["minecraft:short_grass", "minecraft:dandelion", "minecraft:poppy",
-                                          "minecraft:cornflower", "minecraft:short_grass"]))
-    t.clear_above()
-    return t
-
-
-# ---------------------------------------------------------------------------------------
-# Rabituza — the hidden nation of the Vorpal Bunnies
-# ---------------------------------------------------------------------------------------
-
-def burrow(t, cx, cz, r, door_facing):
-    for x in range(cx - r, cx + r + 1):
-        for z in range(cz - r, cz + r + 1):
-            for y in range(1, r + 1):
-                d = math.sqrt((x - cx) ** 2 + (y * 1.3) ** 2 + (z - cz) ** 2)
-                if d <= r:
-                    inner = d <= r - 1.2
-                    if inner:
-                        t.set(x, y, z, "minecraft:air")
-                    else:
-                        top = math.sqrt((x - cx) ** 2 + ((y + 1) * 1.3) ** 2 + (z - cz) ** 2) > r
-                        t.set(x, y, z, "minecraft:grass_block" if top else "minecraft:dirt", {"snowy": "false"} if top else None)
-    dx, dz = {"north": (0, -1), "south": (0, 1), "east": (1, 0), "west": (-1, 0)}[door_facing]
-    for i in range(r - 1, r + 1):
-        t.set(cx + dx * i, 1, cz + dz * i, "minecraft:air")
-        t.set(cx + dx * i, 2, cz + dz * i, "minecraft:air")
-    door(t, cx + dx * (r - 1), 1, cz + dz * (r - 1), door_facing, "spruce")
-    lantern(t, cx, 1, cz)
-    t.set(cx - dz, 1, cz - dx, "minecraft:hay_block", {"axis": "y"})
-
-
-def rabituza():
-    t = Template(41, 18, 41, "rabituza")
-    c = 20
-    t.fill(0, 0, 0, 40, 0, 40, "minecraft:grass_block", {"snowy": "false"})
-    # Vorpal Colosseum in the middle
-    t.disc(c, 0, c, 9, "minecraft:smooth_sandstone")
-    t.ring(c, 0, c, 9, "minecraft:stone_bricks", width=0.7)
-    for y in (1, 2):
-        t.ring(c, y, c, 9.5, "minecraft:stone_bricks", width=0.6)
-    t.ring(c, 3, c, 9.5, "minecraft:stone_brick_wall", width=0.6)
-    for (gx, gz) in ((c, c - 9), (c, c + 9), (c - 9, c), (c + 9, c)):
-        for dx in (-1, 0, 1):
-            for y in (1, 2, 3):
-                if gx == c:
-                    t.set(gx + dx, y, gz, "minecraft:air")
-                    t.set(gx + dx, y, gz + (1 if gz > c else -1), "minecraft:air")
-                else:
-                    t.set(gx, y, gz + dx, "minecraft:air")
-                    t.set(gx + (1 if gx > c else -1), y, gz + dx, "minecraft:air")
-    for a in range(0, 360, 45):
-        x = round(c + 8 * math.cos(math.radians(a)))
-        z = round(c + 8 * math.sin(math.radians(a)))
-        lamp_post(t, x, 1, z, 2)
-    # Vysache's throne to the north
-    t.fill(15, 0, 1, 25, 0, 6, "minecraft:polished_blackstone")
-    t.fill(16, 1, 1, 24, 1, 3, "minecraft:polished_blackstone_bricks")
-    t.fill(18, 1, 2, 22, 1, 2, "minecraft:gold_block")
-    t.set(20, 2, 2, "minecraft:quartz_stairs", {"facing": "north", "half": "bottom", "shape": "straight", "waterlogged": "false"})
-    t.fill(19, 3, 1, 21, 4, 1, "minecraft:red_wool")
-    t.fill(20, 1, 4, 20, 1, 10, "minecraft:red_carpet")
-    t.entity(20, 1, 5, "slfrontier:vysache", yaw=0.0)
-    for x in (16, 24):
-        t.fill(x, 2, 1, x, 4, 1, "minecraft:polished_blackstone_wall")
-        lantern(t, x, 5, 1)
-    # Bilac's forge to the east
-    t.fill(33, 0, 15, 39, 0, 25, "minecraft:stone_bricks")
-    t.fill(38, 1, 15, 39, 4, 25, "minecraft:bricks")
-    t.set(37, 1, 17, "minecraft:blast_furnace", {"facing": "west", "lit": "true"})
-    t.set(37, 1, 19, "minecraft:lava_cauldron")
-    t.set(37, 1, 21, "minecraft:furnace", {"facing": "west", "lit": "true"})
-    t.set(35, 1, 18, "minecraft:anvil", {"facing": "east"})
-    t.set(35, 1, 22, "minecraft:smithing_table")
-    t.fill(33, 5, 15, 39, 5, 25, "minecraft:spruce_planks")
-    for (px, pz) in ((33, 15), (33, 25)):
-        t.fill(px, 1, pz, px, 4, pz, "minecraft:spruce_log", {"axis": "y"})
-    t.entity(35, 1, 20, "slfrontier:bilac", yaw=90.0)
-    # burrows
-    burrow(t, 7, 7, 4, "south")
-    burrow(t, 7, 33, 4, "north")
-    burrow(t, 31, 34, 4, "north")
-    # carrot fields
-    for (fx, fz) in ((2, 15), (2, 24)):
-        t.fill(fx, 0, fz, fx + 7, 0, fz + 3, "minecraft:farmland", {"moisture": "7"})
-        t.fill(fx, 1, fz, fx + 7, 1, fz + 3, "minecraft:carrots", {"age": "7"})
-        t.fill(fx, 0, fz + 1, fx + 7, 0, fz + 1, "minecraft:water", {"level": "0"})
-        t.fill(fx, 1, fz + 1, fx + 7, 1, fz + 1, "minecraft:air")
-    # cherry trees
-    for (x, z) in ((3, 3), (37, 3), (27, 38), (14, 37)):
-        tree(t, x, 1, z, "cherry", "cherry", 4, 2)
-    for _ in range(50):
-        x, z = t.rnd.randint(1, 39), t.rnd.randint(1, 39)
-        if t.get(x, 0, z) == "minecraft:grass_block" and t.get(x, 1, z) is None:
-            t.set(x, 1, z, t.rnd.choice(["minecraft:short_grass", "minecraft:pink_petals", "minecraft:allium"]))
-    t.clear_above()
-    return t
-
 
 # ---------------------------------------------------------------------------------------
 # Worldgen structures
 # ---------------------------------------------------------------------------------------
 
 def wezaemon_tomb():
-    t = Template(31, 12, 31, "tomb")
+    t = Template(31, 28, 31, "tomb")
     t.fill(0, 0, 0, 30, 0, 30, "minecraft:grass_block", {"snowy": "false"})
     t.disc(15, 0, 15, 14, "minecraft:podzol", {"snowy": "false"}, chance=0.25)
     # path from the torii gate to the grave
@@ -369,9 +159,11 @@ def wezaemon_tomb():
                 continue
             t.set(x, 1, z, t.rnd.choice(["minecraft:mossy_stone_brick_wall", "minecraft:stone_brick_wall"]))
             t.set(x, 2, z, t.rnd.choice(["minecraft:chiseled_stone_bricks", "minecraft:mossy_stone_bricks", "minecraft:cracked_stone_bricks"]))
-    # a lone cherry tree over the grave
-    tree(t, 22, 1, 12, "cherry", "cherry", 5, 3)
+    # the huge, dead, gnarled tree Setsuna appears beside on full-moon nights
+    dead_tree(t, 21, 1, 9, 19)
     tree(t, 6, 1, 14, "cherry", "cherry", 4, 2)
+    t.set(26, 0, 27, "minecraft:polished_andesite")
+    t.set(26, 1, 27, "slfrontier:waypoint_crystal")
     # red spider lilies everywhere
     for x in range(31):
         for z in range(31):
@@ -397,6 +189,8 @@ def nightslayer_den():
         t.fill(x, 1, z, x, h, z, "minecraft:polished_blackstone_bricks")
         lantern(t, x, h + 1, z, soul=True)
     t.set(c, 1, c, "slfrontier:nightslayer_altar")
+    t.set(2, 0, c, "minecraft:polished_blackstone")
+    t.set(2, 1, c, "slfrontier:waypoint_crystal")
     for (dx, dz) in ((-2, 0), (2, 0), (0, -2), (0, 2)):
         t.set(c + dx, 1, c + dz, "minecraft:polished_blackstone_slab", {"type": "bottom", "waterlogged": "false"})
     # dead trees and bones
@@ -435,6 +229,8 @@ def empire_bee_hive():
         t.set(x, 1, z, "slfrontier:prismatic_crystal")
         t.set(x, 2, z, "slfrontier:prismatic_cluster", {"facing": "up", "waterlogged": "false"})
     t.entity(c, 3, c, "slfrontier:empire_bee_queen", yaw=180.0)
+    t.set(c + 4, 0, 21, "minecraft:honeycomb_block")
+    t.set(c + 4, 1, 21, "slfrontier:waypoint_crystal")
     t.entity(c - 3, 4, c - 2, "slfrontier:empire_bee")
     t.entity(c + 3, 4, c - 2, "slfrontier:empire_bee")
     t.clear_above()
@@ -458,6 +254,8 @@ def mud_digger_lair():
         if t.get(x, 1, z) is None:
             t.set(x, 1, z, t.rnd.choice(["minecraft:bone_block", "minecraft:dead_bush"]))
     t.entity(c, 1, c, "slfrontier:mud_digger", yaw=180.0)
+    t.set(1, 0, 1, "minecraft:packed_mud")
+    t.set(1, 1, 1, "slfrontier:waypoint_crystal")
     t.clear_above()
     return t
 
@@ -480,25 +278,100 @@ def divinity_ruins():
     t.set(10, 1, 10, "minecraft:chest", {"facing": "south", "type": "single", "waterlogged": "false"},
           {"LootTable": "slfrontier:chests/divinity_ruins"})
     t.set(10, 1, 9, "minecraft:heavy_core", {"waterlogged": "false"})
+    t.set(1, 1, 10, "slfrontier:waypoint_crystal")
     for y in range(2, 7):
         t.set(10, y, 12, "minecraft:chain", {"axis": "y", "waterlogged": "false"})
     t.clear_above()
     return t
 
 
+def dead_tree(t, x, y, z, height):
+    """A huge dead tree with twisted, bare branches."""
+    rnd = t.rnd
+    wood = ("minecraft:stripped_dark_oak_wood", {"axis": "y"})
+    for i in range(height):
+        r = 1.6 - i / height
+        for dx in range(-2, 3):
+            for dz in range(-2, 3):
+                if math.hypot(dx, dz) <= r + 0.3:
+                    t.set(x + dx + (i // 5) % 2, y + i, z + dz, *wood)
+    for k in range(7):
+        ang = math.radians(k * 51 + rnd.uniform(-15, 15))
+        by = y + int(height * rnd.uniform(0.45, 0.95))
+        px, pz, py = float(x), float(z), float(by)
+        for i in range(rnd.randint(4, 8)):
+            px += math.cos(ang)
+            pz += math.sin(ang)
+            py += rnd.choice([0, 0.5, 1])
+            ang += rnd.uniform(-0.5, 0.5)
+            t.set(round(px), round(py), round(pz), *wood)
+    for a in range(0, 360, 60):
+        for i in range(2, 5):
+            t.set(round(x + math.cos(math.radians(a)) * i), y - (0 if i < 4 else 0), round(z + math.sin(math.radians(a)) * i), *wood)
+
+
+def shadow_altar():
+    """The broken altar in the Lightless Barrens, ringed by toppled black monoliths."""
+    t = Template(41, 22, 41, "shadow_altar")
+    c = 20
+    t.fill(0, 0, 0, 40, 0, 40, "minecraft:tuff")
+    t.disc(c, 0, c, 19, "minecraft:cobbled_deepslate", chance=0.5)
+    t.disc(c, 0, c, 14, "minecraft:deepslate_tiles")
+    t.disc(c, 0, c, 14, "minecraft:cracked_deepslate_tiles", chance=0.35)
+    t.disc(c, 0, c, 5, "minecraft:polished_blackstone")
+    t.ring(c, 0, c, 14, "minecraft:polished_deepslate", width=0.6)
+    t.ring(c, 0, c, 5, "minecraft:chiseled_polished_blackstone", width=0.5)
+    # Monoliths: some standing, some leaning, some fallen, with violet veins
+    for i, a in enumerate(range(0, 360, 30)):
+        ax, az = c + 14 * math.cos(math.radians(a)), c + 14 * math.sin(math.radians(a))
+        h = t.rnd.randint(5, 13)
+        lean = t.rnd.choice([0, 0, 0.25, 0.45])
+        fallen = i % 4 == 3
+        for y in range(1, h + 1):
+            if fallen:
+                px = round(ax + math.cos(math.radians(a + 90)) * y * 0.9)
+                pz = round(az + math.sin(math.radians(a + 90)) * y * 0.9)
+                t.set(px, 1, pz, "minecraft:deepslate_bricks")
+                continue
+            ox = round(ax + math.cos(math.radians(a)) * y * lean)
+            oz = round(az + math.sin(math.radians(a)) * y * lean)
+            for dx in (0, 1):
+                t.set(ox + dx, y, oz, "minecraft:polished_deepslate" if y % 4 else "minecraft:amethyst_block")
+            if y == h:
+                t.set(ox, y + 1, oz, "minecraft:deepslate_tile_slab", {"type": "bottom", "waterlogged": "false"})
+    # The altar on a stepped dais
+    t.disc(c, 1, c, 3, "minecraft:polished_blackstone_bricks")
+    t.disc(c, 2, c, 1.6, "minecraft:polished_blackstone_bricks")
+    t.set(c, 3, c, "slfrontier:shadow_altar")
+    for (dx, dz) in ((-3, -3), (3, -3), (-3, 3), (3, 3)):
+        t.set(c + dx, 1, c + dz, "minecraft:polished_blackstone_wall")
+        t.set(c + dx, 2, c + dz, "minecraft:soul_lantern", {"hanging": "false", "waterlogged": "false"})
+    # Dead trees and ash
+    for (x, z) in ((4, 5), (35, 7), (6, 34), (34, 33)):
+        dead_tree(t, x, 1, z, t.rnd.randint(7, 10))
+    for _ in range(40):
+        x, z = t.rnd.randint(1, 39), t.rnd.randint(1, 39)
+        if t.get(x, 1, z) is None and math.hypot(x - c, z - c) > 6:
+            t.set(x, 1, z, t.rnd.choice(["minecraft:dead_bush", "minecraft:bone_block", "minecraft:cobweb", "minecraft:wither_rose"]))
+    t.set(c, 0, 2, "minecraft:polished_blackstone")
+    t.set(c, 1, 2, "slfrontier:waypoint_crystal")
+    t.clear_above()
+    return t
+
+
 ALL = {
-    "town/fastera": fastera,
-    "town/rabituza": rabituza,
     "wezaemon_tomb": wezaemon_tomb,
     "nightslayer_den": nightslayer_den,
     "empire_bee_hive": empire_bee_hive,
     "mud_digger_lair": mud_digger_lair,
     "divinity_ruins": divinity_ruins,
+    "shadow_altar": shadow_altar,
 }
 
 
 def build_all(out_dir):
-    for name, fn in ALL.items():
+    import towns
+    for name, fn in {**ALL, **towns.ALL}.items():
         t = fn()
         t.save(os.path.join(out_dir, name + ".nbt"))
         print(f"structure {name}: {len(t.blocks)} blocks, {len(t.entities)} entities")

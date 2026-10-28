@@ -8,15 +8,25 @@ import org.jetbrains.annotations.Nullable;
  */
 public enum QuestStage {
     NOT_STARTED(0, 0),
+    // Act I: Firstia, the Rampant Forest and Secondil
     MEET_GUIDE(1, 0),
     GOBLIN_HUNT(1, 5),
+    RAVENOUS_SNAKE(1, 0),
+    REACH_SECONDIL(1, 0),
     GRAY_ORE(1, 6),
+    // Act II: Lycagon's mark, Rabituza and the Moonblades
     NIGHTSLAYER_ENCOUNTER(2, 0),
     INVITATION(2, 0),
     MEET_VYSACHE(2, 0),
+    VORPAL_COLOSSEUM(2, 0),
     MOONBLADES(2, 0),
+    // Act III: the road to Thirdrema and Unique Scenario EX
+    MUD_DIGGER_ROAD(3, 0),
+    THIRDREMA(3, 0),
     FIND_SETSUNA(3, 0),
     TOMBGUARD(3, 0),
+    // Act IV: the Nightslayer
+    LYCAGON_SHADOW(4, 0),
     NIGHTSLAYER_FINAL(4, 0),
     COMPLETE(4, 0);
 

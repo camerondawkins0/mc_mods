@@ -28,6 +28,8 @@ public final class Fx {
     public static final int WAVE = 6;
     /** A bright impact flash facing the camera. */
     public static final int FLASH = 7;
+    /** A straight glowing beam (lasers, magic bolts); param is its length. */
+    public static final int BEAM = 8;
 
     /**
      * @param yaw    facing in degrees (Minecraft yRot)
@@ -89,5 +91,36 @@ public final class Fx {
 
     public static void flash(Level level, Vec3 at, float radius, int color, int duration, float shake) {
         send(level, new Spec(FLASH, (float) at.x, (float) at.y, (float) at.z, 0, 0, radius, color, duration, 0, shake));
+    }
+
+    /** Yaw (Minecraft convention) pointing from {@code from} toward {@code to}. */
+    public static float yawTo(Vec3 from, Vec3 to) {
+        return (float) Math.toDegrees(Math.atan2(-(to.x - from.x), to.z - from.z));
+    }
+
+    /** A cone-shaped danger zone at a point, aimed along {@code yaw}; a narrow cone reads as a line. */
+    public static void coneAt(Level level, Vec3 at, float yaw, float radius, float angle, int color, int duration) {
+        send(level, new Spec(CONE, (float) at.x, (float) at.y + 0.06f, (float) at.z, yaw, 0, radius, color, duration, angle, 0));
+    }
+
+    /** A slash ribbon at a point, facing {@code yaw}. */
+    public static void arcAt(Level level, Vec3 at, float yaw, float radius, float tilt, float span, int color, int duration) {
+        send(level, new Spec(ARC, (float) at.x, (float) at.y, (float) at.z, yaw, tilt, radius, color, duration, span, 0));
+    }
+
+    /** A flying crescent launched from a point along {@code yaw}. */
+    public static void waveAt(Level level, Vec3 at, float yaw, float radius, float tilt, float distance, int color, int duration,
+                              float shake) {
+        send(level, new Spec(WAVE, (float) at.x, (float) at.y, (float) at.z, yaw, tilt, radius, color, duration, distance, shake));
+    }
+
+    /** A beam from {@code from} to {@code to}. */
+    public static void beam(Level level, Vec3 from, Vec3 to, float width, int color, int duration) {
+        Vec3 d = to.subtract(from);
+        double len = d.length();
+        if (len < 1e-3) return;
+        float yaw = yawTo(from, to);
+        float pitch = (float) Math.toDegrees(-Math.asin(Math.max(-1, Math.min(1, d.y / len))));
+        send(level, new Spec(BEAM, (float) from.x, (float) from.y, (float) from.z, yaw, pitch, width, color, duration, (float) len, 0));
     }
 }

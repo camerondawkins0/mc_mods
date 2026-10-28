@@ -403,6 +403,24 @@ def generate_blocks():
         c.line(8, 8, round(8 + 7 * math.cos(math.radians(a + 45))), round(8 + 7 * math.sin(math.radians(a + 45))), "#5A1020")
     save(c.img, "textures/block/nightslayer_altar_top.png")
 
+    # Shadow altar (Lightless Barrens): cracked black stone veined with violet light
+    c = Canvas(16, "shadow_altar_side")
+    c.fill_noise((18, 14, 26), 5)
+    c.rect(0, 0, 16, 2, "#2A2238")
+    c.rect(0, 14, 16, 2, "#2A2238")
+    for (x0, y0, x1, y1) in ((3, 3, 6, 8), (6, 8, 4, 12), (12, 2, 10, 7), (10, 7, 13, 12), (7, 5, 9, 10)):
+        c.line(x0, y0, x1, y1, "#B070FF")
+    save(c.img, "textures/block/shadow_altar_side.png")
+    c = Canvas(16, "shadow_altar_top")
+    c.fill_noise((16, 12, 24), 5)
+    c.circle(8, 8, 6, "#6A3AA8", 0, fill=False)
+    c.circle(8, 8, 3.5, "#2A1440")
+    c.circle(8, 8, 1.6, "#D8A0FF")
+    for a in range(0, 360, 60):
+        c.line(round(8 + 3 * math.cos(math.radians(a))), round(8 + 3 * math.sin(math.radians(a))),
+               round(8 + 7 * math.cos(math.radians(a + 20))), round(8 + 7 * math.sin(math.radians(a + 20))), "#8A4AD8")
+    save(c.img, "textures/block/shadow_altar_top.png")
+
 
 def generate_effects():
     c = Canvas(18, "death_penalty")

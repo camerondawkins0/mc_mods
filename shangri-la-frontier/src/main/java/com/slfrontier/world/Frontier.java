@@ -18,11 +18,15 @@ public final class Frontier {
     public static final ResourceKey<Biome> PRISMATIC_FOREST_GROTTO = biome("prismatic_forest_grotto");
     public static final ResourceKey<Biome> HIDDEN_GARDEN = biome("hidden_garden");
     public static final ResourceKey<Biome> NIGHTSLAYER_WOODS = biome("nightslayer_woods");
+    public static final ResourceKey<Biome> RAMPANT_FOREST = biome("rampant_forest");
+    public static final ResourceKey<Biome> LIGHTLESS_BARRENS = biome("lightless_barrens");
+    public static final ResourceKey<Biome> THIRDREMA_HIGHLANDS = biome("thirdrema_highlands");
 
     public static final TagKey<Structure> WEZAEMON_TOMB = structure("wezaemon_tomb");
     public static final TagKey<Structure> NIGHTSLAYER_DEN = structure("nightslayer_den");
     public static final TagKey<Structure> EMPIRE_BEE_HIVE = structure("empire_bee_hive");
     public static final TagKey<Structure> MUD_DIGGER_LAIR = structure("mud_digger_lair");
+    public static final TagKey<Structure> SHADOW_ALTAR = structure("shadow_altar");
 
     /** Rabituza, the hidden nation of the Vorpal Bunnies, sits far from the starting town. */
     public static final int RABITUZA_X = 6000;

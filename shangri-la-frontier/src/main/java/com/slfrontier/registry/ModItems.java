@@ -96,6 +96,7 @@ public final class ModItems {
     public static final DeferredItem<?> PRISMATIC_CRYSTAL = ITEMS.registerSimpleBlockItem(ModBlocks.PRISMATIC_CRYSTAL);
     public static final DeferredItem<?> PRISMATIC_CLUSTER = ITEMS.registerSimpleBlockItem(ModBlocks.PRISMATIC_CLUSTER);
     public static final DeferredItem<?> NIGHTSLAYER_ALTAR = ITEMS.registerSimpleBlockItem(ModBlocks.NIGHTSLAYER_ALTAR);
+    public static final DeferredItem<?> SHADOW_ALTAR = ITEMS.registerSimpleBlockItem(ModBlocks.SHADOW_ALTAR);
     public static final DeferredItem<?> WAYPOINT_CRYSTAL = ITEMS.registerSimpleBlockItem(ModBlocks.WAYPOINT_CRYSTAL);
 
     // ---- Spawn eggs ---------------------------------------------------------------
@@ -115,6 +116,13 @@ public final class ModItems {
         egg("vysache", ModEntities.VYSACHE, 0xEDE7DE, 0x7A1E2C);
         egg("bilac", ModEntities.BILAC, 0xF7EFE7, 0xD0692A);
         egg("setsuna", ModEntities.SETSUNA, 0xE9E4F5, 0xC23046);
+        egg("redcap_goblin", ModEntities.REDCAP_GOBLIN, 0x5A5A2E, 0xA01C26);
+        egg("ravenous_snake", ModEntities.RAVENOUS_SNAKE, 0x3E7A4A, 0xF2F2EE);
+        egg("woodmage", ModEntities.WOODMAGE, 0x3A2618, 0xE8E6E0);
+        egg("kirin", ModEntities.KIRIN, 0xE8ECF0, 0x4AE0F0);
+        egg("lycagon_shadow", ModEntities.LYCAGON_SHADOW, 0x0A0814, 0xB070FF);
+        egg("pencilgon", ModEntities.PENCILGON, 0x7A3ABF, 0xE8C24A);
+        egg("oikatzo", ModEntities.OIKATZO, 0xF2D04A, 0xC8302A);
     }
 
     private ModItems() {

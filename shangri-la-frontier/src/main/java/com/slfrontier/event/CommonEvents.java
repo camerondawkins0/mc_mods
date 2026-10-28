@@ -156,6 +156,8 @@ public final class CommonEvents {
         if (player.tickCount % 20 == 0) {
             Story.tickSideQuests(player);
             if (inFrontier && player.tickCount % 200 == 0) FrontierTravel.registerTownWaypoints(player.serverLevel());
+            if (inFrontier && player.tickCount % 40 == 0) com.slfrontier.world.Landmarks.tick(player.serverLevel());
+            if (inFrontier) Story.tickPlayer(player);
             MapSync.tick(player);
         }
         if (data.syncHash() != data.lastSyncedHash) {
@@ -180,6 +182,11 @@ public final class CommonEvents {
     }
 
     // ---- Dual wielding ---------------------------------------------------------------
+
+    @SubscribeEvent
+    public static void onServerTick(net.neoforged.neoforge.event.tick.ServerTickEvent.Post event) {
+        if (event.getServer().getTickCount() % 20 == 0) com.slfrontier.quest.ColosseumTrial.tick(event.getServer());
+    }
 
     @SubscribeEvent
     public static void onAttack(AttackEntityEvent event) {

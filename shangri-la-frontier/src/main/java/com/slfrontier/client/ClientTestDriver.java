@@ -12,6 +12,9 @@ import com.slfrontier.registry.ModItems;
 import com.slfrontier.skill.PlayerAnims;
 import com.slfrontier.skill.Skill;
 import com.slfrontier.world.FrontierTravel;
+import com.slfrontier.world.Landmarks;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Vec3i;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
@@ -28,6 +31,7 @@ import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -135,10 +139,12 @@ public final class ClientTestDriver {
         });
         cursor += 40;
         if (wants("creatures")) creatures();
+        if (wants("bosses")) bosses();
         if (wants("weapons")) weapons();
         if (wants("poses")) poses();
         if (wants("skills")) skills();
         if (wants("menus")) menus();
+        if (wants("world")) world();
         at(20, mc -> {
             SLFrontier.LOGGER.info("Client test finished");
             mc.stop();
@@ -148,19 +154,20 @@ public final class ClientTestDriver {
     // ---- Scenes ----------------------------------------------------------------------
 
     private static void creatures() {
-        server(0, sp -> lineUp(sp, List.of(ModEntities.GOBLIN, ModEntities.VORPAL_BUNNY, ModEntities.EMPIRE_BEE,
-                ModEntities.SHADOW_WOLF, ModEntities.EMUL, ModEntities.BILAC, ModEntities.GUIDE,
-                ModEntities.BLACKSMITH, ModEntities.SETSUNA), 1.6, 6));
+        server(0, sp -> lineUp(sp, List.of(ModEntities.GOBLIN, ModEntities.REDCAP_GOBLIN, ModEntities.VORPAL_BUNNY,
+                ModEntities.EMPIRE_BEE, ModEntities.EMUL, ModEntities.BILAC, ModEntities.GUIDE, ModEntities.BLACKSMITH,
+                ModEntities.SETSUNA, ModEntities.PENCILGON, ModEntities.OIKATZO), 1.5, 6));
         shot(120, "01_small_creatures");
         server(10, sp -> {
             clear();
-            lineUp(sp, List.of(ModEntities.QUAD_BEETLE, ModEntities.MUD_DIGGER, ModEntities.WEZAEMON,
-                    ModEntities.VYSACHE, ModEntities.EMPIRE_BEE_QUEEN), 4.0, 12);
+            lineUp(sp, List.of(ModEntities.QUAD_BEETLE, ModEntities.MUD_DIGGER, ModEntities.WEZAEMON, ModEntities.KIRIN,
+                    ModEntities.VYSACHE, ModEntities.WOODMAGE, ModEntities.EMPIRE_BEE_QUEEN), 4.2, 14);
         });
         shot(110, "02_big_creatures");
         server(10, sp -> {
             clear();
-            lineUp(sp, List.of(ModEntities.LYCAGON), 0, 12);
+            lineUp(sp, List.of(ModEntities.LYCAGON, ModEntities.LYCAGON_SHADOW), 9, 14);
+            for (Entity m : spawned) m.setYRot(m == spawned.get(0) ? 140f : 220f);
         });
         shot(110, "03_lycagon");
         server(10, sp -> {
@@ -169,7 +176,115 @@ public final class ClientTestDriver {
             }
         });
         shot(15, "04_lycagon_attack");
+        server(10, sp -> {
+            clear();
+            lineUp(sp, List.of(ModEntities.RAVENOUS_SNAKE), 0, 12);
+            for (Entity m : spawned) {
+                m.setYRot(100f);
+                ((Mob) m).setYBodyRot(100f);
+            }
+        });
+        shot(110, "05_ravenous_snake");
         server(10, sp -> clear());
+    }
+
+    /** Bosses mid-attack, so their ground telegraphs and effects show. */
+    private static void bosses() {
+        int[][] attacks = {{0, 6}, {1, 2}, {2, 3}};  // (boss index, attack id)
+        List<Supplier<? extends EntityType<? extends FrontierBoss>>> types = List.of(ModEntities.WEZAEMON, ModEntities.KIRIN,
+                ModEntities.WOODMAGE);
+        for (int i = 0; i < types.size(); i++) {
+            final int k = i;
+            server(10, sp -> {
+                clear();
+                sp.getAbilities().invulnerable = true;
+                ServerLevel level = sp.serverLevel();
+                FrontierBoss boss = types.get(k).get().create(level);
+                if (boss == null) return;
+                boss.moveTo(sp.getX(), sp.getY() - 1, sp.getZ() + 11, 180f, 0f);
+                boss.setPersistenceRequired();
+                level.addFreshEntity(boss);
+                spawned.add(boss);
+                boss.setTarget(sp);
+            });
+            server(30, sp -> {
+                for (Entity m : spawned) {
+                    if (m instanceof FrontierBoss boss) boss.forceAttack(attacks[k][1]);
+                }
+            });
+            shot(18, "3" + k + "_" + types.get(k).get().getDescriptionId().replace("entity.slfrontier.", "") + "_attack");
+        }
+        server(30, sp -> clear());
+    }
+
+    /** Flyover shots of the hand-built towns and landmarks. */
+    private static void world() {
+        at(0, mc -> {
+            mc.options.hideGui = true;
+            mc.options.renderDistance().set(10);
+        });
+        for (Landmarks.Site site : Landmarks.Site.values()) {
+            server(10, sp -> {
+                ServerLevel level = sp.serverLevel();
+                BlockPos spawn = Landmarks.ensure(level, site);
+                BlockPos planned = com.slfrontier.world.TownData.get(level).planned(site.id);
+                BlockPos c = planned == null ? spawn : new BlockPos(planned.getX(), spawn.getY(), planned.getZ());
+                Vec3i size = Landmarks.size(level, site);
+                // Thirdrema is long and narrow: look up its valley. The rest: from the north-west corner.
+                double d = Math.max(size.getX(), size.getZ()) * 0.8;
+                double dx = site == Landmarks.Site.THIRDREMA ? 0 : -d * 0.7, dz = site == Landmarks.Site.THIRDREMA ? d : -d * 0.7;
+                double x = c.getX() + dx, z = c.getZ() + dz;
+                double y = Math.max(c.getY() + d * 0.55, level.getHeight(Heightmap.Types.MOTION_BLOCKING, (int) x, (int) z) + 12);
+                float yaw = (float) Math.toDegrees(Math.atan2(-(c.getX() - x), c.getZ() - z));
+                float pitch = (float) Math.toDegrees(Math.atan2(y - c.getY(), Math.hypot(c.getX() - x, c.getZ() - z)));
+                sp.getAbilities().mayfly = true;
+                sp.getAbilities().flying = true;
+                sp.onUpdateAbilities();
+                sp.teleportTo(level, x, y, z, yaw, pitch);
+                // The Frontier shares the overworld's clock and weather.
+                sp.server.overworld().setDayTime(5000);
+                sp.server.overworld().setWeatherParameters(12000, 0, false, false);
+                flyover = new int[]{c.getX(), c.getZ(), Math.max(size.getX(), size.getZ()) / 2};
+            });
+            at(300, mc -> stableTicks = 0);
+            // Software rendering is slow: wait until the whole town has arrived and been meshed.
+            waitFor(ClientTestDriver::flyoverReady, 2000);
+            shot(20, "4" + site.ordinal() + "_" + site.id);
+            at(0, mc -> flyover = null);
+        }
+        server(10, sp -> {
+            ServerLevel level = sp.serverLevel();
+            BlockPos c = Landmarks.ensure(level, Landmarks.Site.FIRSTIA);
+            sp.getAbilities().flying = false;
+            sp.onUpdateAbilities();
+            sp.teleportTo(level, c.getX() + 0.5, c.getY() + 1, c.getZ() + 0.5, 0f, 0f);
+        });
+        at(120, mc -> {
+            mc.options.hideGui = false;
+            mc.options.renderDistance().set(6);
+        });
+    }
+
+    /** Centre x, z and half-width of the landmark being photographed. */
+    private static volatile int[] flyover;
+
+    private static int stableTicks;
+
+    /** Every chunk of the footprint has arrived and nothing has been waiting to be meshed for 5 seconds. */
+    private static boolean flyoverReady(Minecraft mc) {
+        stableTicks = flyoverLoaded(mc) ? stableTicks + 1 : 0;
+        return stableTicks >= 100;
+    }
+
+    private static boolean flyoverLoaded(Minecraft mc) {
+        int[] f = flyover;
+        if (f == null || mc.level == null || !mc.levelRenderer.hasRenderedAllSections()) return false;
+        for (int x = f[0] - f[2]; x <= f[0] + f[2]; x += 16) {
+            for (int z = f[1] - f[2]; z <= f[1] + f[2]; z += 16) {
+                if (!mc.level.hasChunk(x >> 4, z >> 4)) return false;
+            }
+        }
+        return true;
     }
 
     private static final List<Supplier<Item>> WEAPONS = List.of(
@@ -379,6 +494,7 @@ public final class ClientTestDriver {
             mc.stop();
         }
         if (mc.player == null || mc.level == null || mc.getSingleplayerServer() == null) return;
+        if (pendingShot != null) return;  // hold the timeline until the requested frame is grabbed
         ticks++;
         while (nextStep < STEPS.size() && STEPS.get(nextStep).at() <= ticks) {
             Step step = STEPS.get(nextStep);

@@ -2,6 +2,7 @@
 
   python3 tools/preview.py items  out.png     # every 3D weapon model, front + 3/4 view
   python3 tools/preview.py mobs   out.png     # every creature in tools/models.py
+  python3 tools/preview.py structure out.png town/firstia   # an isometric view of a template
 
 Rendering is orthographic point-splatting with a z-buffer and Minecraft-style face
 shading. It is only a preview: lighting, render types and animations are not exact.
@@ -249,10 +250,85 @@ def preview_mobs(out, only=None):
     print("wrote", out)
 
 
+# ---------------------------------------------------------------------------------------
+# Structure templates (towns and landmarks)
+# ---------------------------------------------------------------------------------------
+
+BLOCK_COLORS = [
+    ("cherry_leaves", (232, 168, 200)), ("spruce_leaves", (52, 84, 52)), ("leaves", (64, 118, 44)),
+    ("grass_block", (98, 162, 62)), ("short_grass", (98, 162, 62)), ("fern", (80, 140, 60)), ("pink_petals", (240, 170, 200)),
+    ("water", (58, 92, 204)), ("lava", (230, 110, 30)),
+    ("chiseled_sandstone", (205, 188, 138)), ("smooth_sandstone", (224, 212, 164)), ("cut_sandstone", (216, 202, 152)),
+    ("sandstone", (214, 200, 150)), ("red_sand", (190, 100, 40)), ("sand", (219, 207, 163)), ("gravel", (130, 125, 122)),
+    ("dirt_path", (148, 122, 65)), ("coarse_dirt", (119, 85, 59)), ("podzol", (92, 64, 30)), ("farmland", (100, 70, 40)),
+    ("mud_brick", (137, 103, 79)), ("packed_mud", (142, 106, 79)), ("mud", (60, 57, 60)), ("dirt", (134, 96, 67)),
+    ("white_concrete", (207, 213, 214)), ("calcite", (223, 224, 220)), ("quartz", (235, 229, 222)),
+    ("orange_terracotta", (160, 83, 37)), ("red_terracotta", (143, 61, 46)), ("white_terracotta", (209, 178, 161)),
+    ("acacia", (168, 90, 50)), ("oxidized_cut_copper", (82, 162, 132)), ("deepslate_tile", (54, 54, 56)),
+    ("deepslate", (80, 80, 82)), ("blackstone", (42, 36, 40)), ("tuff", (108, 109, 102)),
+    ("dark_oak", (66, 43, 20)), ("spruce", (114, 84, 48)), ("birch", (192, 175, 121)), ("cherry", (226, 178, 172)),
+    ("oak", (162, 130, 78)), ("mossy", (100, 120, 90)), ("cracked_stone", (118, 117, 118)), ("chiseled_stone", (120, 119, 120)),
+    ("stone_brick", (122, 121, 122)), ("cobblestone", (110, 110, 110)), ("andesite", (136, 136, 137)), ("smooth_stone", (158, 158, 158)),
+    ("stone", (125, 125, 125)), ("bricks", (150, 97, 83)), ("brick", (150, 97, 83)),
+    ("glass", (200, 222, 232)), ("lantern", (255, 200, 100)), ("gold", (240, 200, 60)), ("iron_bars", (140, 140, 140)),
+    ("red_wool", (160, 39, 34)), ("red_carpet", (160, 39, 34)), ("yellow_wool", (248, 197, 39)), ("blue_wool", (53, 57, 157)),
+    ("white_wool", (233, 236, 236)), ("orange_wool", (240, 118, 19)), ("lime_wool", (112, 185, 25)), ("pink_wool", (237, 141, 172)),
+    ("banner", (180, 40, 40)), ("bed", (180, 40, 40)), ("hay", (190, 160, 40)), ("carrots", (230, 130, 30)), ("wheat", (200, 180, 80)),
+    ("waypoint", (120, 230, 255)), ("structure_block", (255, 0, 255)), ("lightning_rod", (200, 120, 90)),
+]
+
+
+def block_color(name):
+    n = name.split(":")[-1]
+    for key, col in BLOCK_COLORS:
+        if key in n:
+            return col
+    return (150, 150, 150)
+
+
+def preview_structure(t, out, scale=3):
+    """Isometric render of a structures.Template: top, south and east faces of exposed blocks."""
+    sx, sy, sz = t.size
+    solid = {p: v[0] for p, v in t.blocks.items() if v[0] not in ("minecraft:air", "minecraft:structure_void")}
+    w = int((sx + sz) * scale * 0.9) + 40
+    h = int((sx + sz) * scale * 0.45 + sy * scale) + 40
+    img = Image.new("RGB", (w, h), (150, 170, 190))
+    draw = ImageDraw.Draw(img)
+    ox, oy = sz * scale * 0.9 + 20, sy * scale + 20
+
+    def proj(x, y, z):
+        return (ox + (x - z) * scale * 0.9, oy + (x + z) * scale * 0.45 - y * scale)
+
+    order = sorted(solid.items(), key=lambda kv: (kv[0][0] + kv[0][2], kv[0][1]))
+    for (x, y, z), name in order:
+        top = (x, y + 1, z) not in solid
+        south = (x, y, z + 1) not in solid
+        east = (x + 1, y, z) not in solid
+        if not (top or south or east):
+            continue
+        col = block_color(name)
+        if top:
+            draw.polygon([proj(x, y + 1, z), proj(x + 1, y + 1, z), proj(x + 1, y + 1, z + 1), proj(x, y + 1, z + 1)], fill=col)
+        if south:
+            c2 = tuple(int(v * 0.8) for v in col)
+            draw.polygon([proj(x, y + 1, z + 1), proj(x + 1, y + 1, z + 1), proj(x + 1, y, z + 1), proj(x, y, z + 1)], fill=c2)
+        if east:
+            c3 = tuple(int(v * 0.65) for v in col)
+            draw.polygon([proj(x + 1, y + 1, z), proj(x + 1, y + 1, z + 1), proj(x + 1, y, z + 1), proj(x + 1, y, z)], fill=c3)
+    img.save(out)
+    print("wrote", out, len(solid), "blocks")
+
+
 if __name__ == "__main__":
     kind = sys.argv[1] if len(sys.argv) > 1 else "items"
     out = sys.argv[2] if len(sys.argv) > 2 else f"/tmp/preview_{kind}.png"
     if kind == "items":
         preview_items(out)
+    elif kind == "structure":
+        sys.path.insert(0, os.path.dirname(__file__))
+        import structures
+        import towns
+        fn = {**structures.ALL, **towns.ALL}[sys.argv[3]]
+        preview_structure(fn(), out, int(os.environ.get("PREVIEW_SCALE", 3)))
     else:
         preview_mobs(out, sys.argv[3:] or None)

@@ -110,6 +110,7 @@ public final class FxRenderer {
             case Fx.TELEGRAPH -> telegraph(v, m, c, s, life);
             case Fx.CONE -> cone(v, m, c, s, life);
             case Fx.FLASH -> flash(v, m, c, s, life, camera);
+            case Fx.BEAM -> beam(v, m, c, s, life);
             default -> {
             }
         }
@@ -221,6 +222,27 @@ public final class FxRenderer {
         int core = argb(0xFFFFFFFF, fade * 0.7f);
         quad(v, m, c.add(w), core, c.subtract(w), core, c.add(dir.scale(len)).subtract(w), argb(0xFFFFFFFF, 0), c.add(dir.scale(len)).add(w),
                 argb(0xFFFFFFFF, 0));
+    }
+
+    /** Two crossed glowing strips along a direction, with a white-hot core; it shoots out, then fades. */
+    private static void beam(VertexConsumer v, Matrix4f m, Vec3 c, Fx.Spec s, float life) {
+        double yaw = Math.toRadians(s.yaw()), pitch = Math.toRadians(s.pitch());
+        Vec3 dir = new Vec3(-Math.sin(yaw) * Math.cos(pitch), -Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+        Vec3 side = new Vec3(-Math.cos(yaw), 0, -Math.sin(yaw));
+        Vec3 up = dir.cross(side).normalize();
+        float len = s.param() * easeOut(Math.min(1, life * 4));
+        float fade = life < 0.4f ? 1 : 1 - (life - 0.4f) / 0.6f;
+        float w = s.radius() * (1 + 0.15f * Mth.sin(life * 40));
+        Vec3 end = c.add(dir.scale(len));
+        for (Vec3 axis : new Vec3[]{side, up}) {
+            Vec3 o = axis.scale(w);
+            int edge = argb(s.color(), 0), mid = argb(s.color(), fade * 0.9f);
+            quad(v, m, c.add(o), edge, c, mid, end, mid, end.add(o), edge);
+            quad(v, m, c, mid, c.subtract(o), edge, end.subtract(o), edge, end, mid);
+            Vec3 k = axis.scale(w * 0.3);
+            int core = argb(0xFFFFFFFF, fade * 0.8f);
+            quad(v, m, c.add(k), core, c.subtract(k), core, end.subtract(k), core, end.add(k), core);
+        }
     }
 
     private static void pillar(VertexConsumer v, Matrix4f m, Vec3 c, Fx.Spec s, float life) {

@@ -45,7 +45,7 @@ public class WaypointBlock extends Block {
             Block.box(5, 9, 5, 11, 16, 11));
     /** Structures whose name a crystal inside them takes, checked in order. */
     private static final List<String> NAMED_STRUCTURES = List.of("wezaemon_tomb", "nightslayer_den", "empire_bee_hive",
-            "mud_digger_lair", "divinity_ruins");
+            "mud_digger_lair", "divinity_ruins", "shadow_altar");
 
     public WaypointBlock(Properties properties) {
         super(properties);
