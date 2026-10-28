@@ -10,7 +10,9 @@ import com.slfrontier.registry.ModItems;
 import com.slfrontier.registry.ModArmorMaterials;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +28,9 @@ public class SLFrontier {
     public static final String MODID = "slfrontier";
     public static final Logger LOGGER = LoggerFactory.getLogger("Shangri-La Frontier");
 
-    public SLFrontier(IEventBus modBus) {
+    public SLFrontier(IEventBus modBus, ModContainer container) {
+        container.registerConfig(ModConfig.Type.CLIENT, SlfConfig.CLIENT_SPEC);
+        container.registerConfig(ModConfig.Type.SERVER, SlfConfig.SERVER_SPEC);
         ModBlocks.BLOCKS.register(modBus);
         ModItems.ITEMS.register(modBus);
         ModArmorMaterials.ARMOR_MATERIALS.register(modBus);
@@ -34,6 +38,7 @@ public class SLFrontier {
         ModEffects.EFFECTS.register(modBus);
         ModAttachments.ATTACHMENTS.register(modBus);
         ModCreativeTabs.TABS.register(modBus);
+        com.slfrontier.world.feature.FrontierFeatures.FEATURES.register(modBus);
         modBus.addListener(ModNetwork::register);
         LOGGER.info("Connecting to Shangri-La Frontier...");
     }

@@ -15,6 +15,10 @@ public final class KeyBindings {
     };
     public static final KeyMapping MENU =
             new KeyMapping("key.slfrontier.menu", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, CATEGORY);
+    public static final KeyMapping MAP =
+            new KeyMapping("key.slfrontier.map", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_M, CATEGORY);
+    public static final KeyMapping MINIMAP =
+            new KeyMapping("key.slfrontier.minimap", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_N, CATEGORY);
 
     private KeyBindings() {
     }

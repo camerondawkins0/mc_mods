@@ -2,6 +2,8 @@ package com.slfrontier.registry;
 
 import com.slfrontier.SLFrontier;
 import com.slfrontier.block.NightslayerAltarBlock;
+import com.slfrontier.block.ShadowAltarBlock;
+import com.slfrontier.block.WaypointBlock;
 import net.minecraft.util.valueproviders.UniformInt;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.level.block.AmethystClusterBlock;
@@ -49,6 +51,21 @@ public final class ModBlocks {
             () -> new NightslayerAltarBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.REINFORCED_DEEPSLATE)
                     .mapColor(MapColor.COLOR_BLACK)
                     .lightLevel(s -> 4)));
+
+    public static final DeferredBlock<Block> SHADOW_ALTAR = BLOCKS.register("shadow_altar",
+            () -> new ShadowAltarBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.REINFORCED_DEEPSLATE)
+                    .mapColor(MapColor.COLOR_PURPLE)
+                    .lightLevel(s -> 3)));
+
+    /** Waypoint Crystal: attune to it for fast travel and respawning. Unbreakable in survival. */
+    public static final DeferredBlock<Block> WAYPOINT_CRYSTAL = BLOCKS.register("waypoint_crystal",
+            () -> new WaypointBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.DIAMOND)
+                    .strength(-1f, 3600000f)
+                    .sound(SoundType.AMETHYST)
+                    .lightLevel(s -> 12)
+                    .noOcclusion()
+                    .pushReaction(PushReaction.BLOCK)));
 
     private ModBlocks() {
     }

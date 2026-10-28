@@ -4,7 +4,9 @@ import com.mojang.authlib.GameProfile;
 import com.slfrontier.SLFrontier;
 import com.slfrontier.data.PlayerData;
 import com.slfrontier.data.Stat;
+import com.slfrontier.entity.FrontierBoss;
 import com.slfrontier.entity.boss.LycagonEntity;
+import com.slfrontier.entity.boss.RavenousSnakeEntity;
 import com.slfrontier.entity.boss.WezaemonEntity;
 import com.slfrontier.entity.npc.FrontierNpc;
 import com.slfrontier.progression.Progression;
@@ -17,6 +19,7 @@ import com.slfrontier.skill.Skill;
 import com.slfrontier.skill.SkillExecutor;
 import com.slfrontier.world.Frontier;
 import com.slfrontier.world.FrontierTravel;
+import com.slfrontier.world.Landmarks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
@@ -74,7 +77,7 @@ public final class StoryTest {
 
         List<Supplier<? extends EntityType<? extends FrontierNpc>>> npcs = List.of(
                 ModEntities.GUIDE, ModEntities.BLACKSMITH, ModEntities.VYSACHE, ModEntities.BILAC,
-                ModEntities.SETSUNA, ModEntities.EMUL);
+                ModEntities.SETSUNA, ModEntities.EMUL, ModEntities.PENCILGON, ModEntities.OIKATZO);
         for (QuestStage stage : QuestStage.values()) {
             for (var type : npcs) {
                 check(failures, "dialogue " + stage + " / " + type.get().getDescriptionId(), () -> {
@@ -89,9 +92,10 @@ public final class StoryTest {
                     npc.discard();
                 });
             }
-            if (stage.ordinal() % 3 == 0) {
-                check(failures, "compass " + stage, () -> Story.compassTarget(player));
-            }
+            check(failures, "compass " + stage, () -> {
+                data.setStage(stage);
+                Story.compassTarget(player);
+            });
         }
 
         check(failures, "lycagon story hooks", () -> {
@@ -112,8 +116,61 @@ public final class StoryTest {
             if (wez == null) throw new IllegalStateException("no wezaemon");
             wez.moveTo(player.getX(), player.getY(), player.getZ() + 4, 0f, 0f);
             Story.onWezaemonSlain(player.serverLevel(), wez, player);
-            if (data.stage() != QuestStage.NIGHTSLAYER_FINAL) throw new IllegalStateException("tombguard not cleared");
+            if (data.stage() != QuestStage.LYCAGON_SHADOW) throw new IllegalStateException("tombguard not cleared");
         });
+        check(failures, "new chapter hooks", () -> {
+            ServerLevel level = player.serverLevel();
+            data.setStage(QuestStage.RAVENOUS_SNAKE);
+            Story.onRavenousSnakeSlain(level, player, player);
+            expect(data, QuestStage.REACH_SECONDIL);
+            data.setStage(QuestStage.VORPAL_COLOSSEUM);
+            Story.onColosseumCleared(player);
+            expect(data, QuestStage.MOONBLADES);
+            data.setStage(QuestStage.MUD_DIGGER_ROAD);
+            Story.onMudDiggerSlain(level, player, player);
+            expect(data, QuestStage.THIRDREMA);
+            data.setStage(QuestStage.LYCAGON_SHADOW);
+            Story.onLycagonShadowSlain(level, player, player);
+            expect(data, QuestStage.NIGHTSLAYER_FINAL);
+            if (!data.flag("contusion")) throw new IllegalStateException("contusion not set");
+        });
+        check(failures, "landmarks", () -> {
+            for (Landmarks.Site site : Landmarks.Site.values()) {
+                BlockPos at = Landmarks.ensure(frontier, site);
+                SLFrontier.LOGGER.info("Story test: {} is at {}", site.id, at);
+            }
+            if (Landmarks.marker(frontier, Landmarks.Site.RABITUZA, "arena") == null) throw new IllegalStateException("no colosseum marker");
+            if (Landmarks.marker(frontier, Landmarks.Site.SERPENT_BRIDGE, "arena") == null) throw new IllegalStateException("no bridge marker");
+        });
+        check(failures, "serpent ambush", () -> {
+            BlockPos bridge = Landmarks.built(frontier, Landmarks.Site.SERPENT_BRIDGE);
+            if (bridge == null) throw new IllegalStateException("bridge not built");
+            data.setStage(QuestStage.RAVENOUS_SNAKE);
+            player.moveTo(bridge.getX() + 0.5, bridge.getY(), bridge.getZ() + 0.5);
+            Story.tickPlayer(player);
+            if (frontier.getEntitiesOfClass(RavenousSnakeEntity.class, player.getBoundingBox().inflate(64)).isEmpty()) {
+                throw new IllegalStateException("the snake did not appear");
+            }
+            player.moveTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+        });
+        // Every boss runs its whole moveset once against the test player.
+        List<Supplier<? extends EntityType<? extends FrontierBoss>>> bosses = List.of(ModEntities.LYCAGON, ModEntities.WEZAEMON,
+                ModEntities.KIRIN, ModEntities.MUD_DIGGER, ModEntities.EMPIRE_BEE_QUEEN, ModEntities.RAVENOUS_SNAKE,
+                ModEntities.WOODMAGE, ModEntities.LYCAGON_SHADOW);
+        data.setStage(QuestStage.COMPLETE);
+        player.getAbilities().invulnerable = true;
+        for (var type : bosses) {
+            check(failures, "moveset " + type.get().getDescriptionId(), () -> {
+                FrontierBoss boss = type.get().create(frontier);
+                if (boss == null) throw new IllegalStateException("could not create boss");
+                boss.moveTo(player.getX() + 3, player.getY(), player.getZ() + 3, 0f, 0f);
+                frontier.addFreshEntity(boss);
+                boss.setTarget(player);
+                boss.exerciseAttacks(player, 7);
+                boss.discard();
+            });
+        }
+        player.getAbilities().invulnerable = false;
         check(failures, "travel", () -> {
             FrontierTravel.toRabituza(player);
             FrontierTravel.toFastera(player);
@@ -121,8 +178,9 @@ public final class StoryTest {
         });
 
         // Clean up anything the test summoned.
-        for (var e : player.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.Mob.class,
-                player.getBoundingBox().inflate(64), m -> m instanceof WezaemonEntity || m instanceof com.slfrontier.entity.npc.EmulEntity)) {
+        for (var e : frontier.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, player.getBoundingBox().inflate(128),
+                m -> m instanceof FrontierBoss || m instanceof com.slfrontier.entity.FrontierMonster
+                        || m instanceof com.slfrontier.entity.npc.EmulEntity || m instanceof com.slfrontier.entity.npc.AllyNpc)) {
             e.discard();
         }
         return failures;
@@ -136,6 +194,10 @@ public final class StoryTest {
         player.getInventory().add(new ItemStack(ModItems.QUAD_BEETLE_SHELL.get(), 2));
         player.getInventory().add(new ItemStack(ModItems.MARSH_DAGGER.get()));
         player.getInventory().add(new ItemStack(ModItems.MUD_DIGGER_FIN.get()));
+    }
+
+    private static void expect(PlayerData data, QuestStage stage) {
+        if (data.stage() != stage) throw new IllegalStateException("expected " + stage + " but was " + data.stage());
     }
 
     private static void check(List<String> failures, String name, Runnable test) {

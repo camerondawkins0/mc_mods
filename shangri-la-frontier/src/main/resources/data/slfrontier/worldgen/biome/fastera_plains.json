@@ -75,7 +75,9 @@
     [],
     [],
     [
-      "minecraft:amethyst_geode"
+      "minecraft:amethyst_geode",
+      "slfrontier:rock_arch_rare",
+      "slfrontier:divinity_monolith"
     ],
     [
       "minecraft:monster_room"
@@ -108,6 +110,7 @@
     ],
     [
       "minecraft:glow_lichen",
+      "slfrontier:giant_tree_rare",
       "minecraft:trees_plains",
       "minecraft:flower_plains",
       "minecraft:patch_grass_plain",

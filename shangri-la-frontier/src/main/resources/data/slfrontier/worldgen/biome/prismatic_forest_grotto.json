@@ -97,6 +97,7 @@
     ],
     [
       "minecraft:glow_lichen",
+      "slfrontier:crystal_spire",
       "slfrontier:prismatic_pillars",
       "slfrontier:prismatic_clusters",
       "minecraft:trees_birch_and_oak",

@@ -3,6 +3,8 @@ package com.slfrontier.skill;
 import com.slfrontier.data.PlayerData;
 import com.slfrontier.data.Stat;
 import com.slfrontier.entity.npc.EmulEntity;
+import com.slfrontier.fx.Fx;
+import com.slfrontier.fx.HitFlags;
 import com.slfrontier.entity.npc.FrontierNpc;
 import com.slfrontier.item.MoonbladeItem;
 import com.slfrontier.network.ModNetwork;
@@ -38,6 +40,7 @@ public final class SkillExecutor {
     private static final DustParticleOptions MOON_BLACK = new DustParticleOptions(new Vector3f(0.15f, 0.1f, 0.25f), 1.4f);
     private static final DustParticleOptions VORPAL_RED = new DustParticleOptions(new Vector3f(0.9f, 0.15f, 0.2f), 1.2f);
     private static final DustParticleOptions SKY_BLUE = new DustParticleOptions(new Vector3f(0.55f, 0.85f, 1f), 1.6f);
+    private static final DustParticleOptions STEP_GREEN = new DustParticleOptions(new Vector3f(0.45f, 1f, 0.4f), 1.1f);
 
     private SkillExecutor() {
     }
@@ -111,9 +114,12 @@ public final class SkillExecutor {
         push(player, dir.x * power, player.onGround() ? 0.2 : 0.05, dir.z * power);
         data.iframeTicks = iframes;
         ServerLevel level = player.serverLevel();
-        level.sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY() + 0.2, player.getZ(), 10, 0.3, 0.1, 0.3, 0.02);
+        // The legs glow green as the avatar glides (as in the anime).
+        level.sendParticles(STEP_GREEN, player.getX(), player.getY() + 0.3, player.getZ(), 16, 0.25, 0.2, 0.25, 0);
+        level.sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY() + 0.1, player.getZ(), 6, 0.3, 0.05, 0.3, 0.02);
+        Fx.ring(level, player.position(), power > 1.3 ? 1.6f : 1.1f, 0xC07FFF6A, 10, 0);
         sound(player, SoundEvents.PLAYER_ATTACK_SWEEP, 0.6f, 1.8f);
-        ModNetwork.animate(player, PlayerAnims.DASH, 8);
+        ModNetwork.animate(player, player.isShiftKeyDown() ? PlayerAnims.BACKSTEP : PlayerAnims.DASH, 8);
         return true;
     }
 
@@ -129,6 +135,9 @@ public final class SkillExecutor {
         push(player, motion.x * 1.2, up, motion.z * 1.2);
         player.fallDistance = 0;
         player.serverLevel().sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY(), player.getZ(), 12, 0.4, 0.05, 0.4, 0.01);
+        // Green halo rings around the ankles, like the Boat Leap skills.
+        Fx.ring(player.level(), player.position(), 0.9f, 0xE07FFF6A, 9, 0);
+        Fx.ring(player.level(), player.position().add(0, 0.25, 0), 0.6f, 0xE0B0FFA0, 7, 0);
         sound(player, SoundEvents.PHANTOM_FLAP, 0.6f, 1.6f);
         ModNetwork.animate(player, PlayerAnims.LEAP, 10);
     }
@@ -151,15 +160,23 @@ public final class SkillExecutor {
             if (!glowing) break;
         }
         trail(player, dir, range, glowing ? ParticleTypes.END_ROD : ParticleTypes.CRIT, 18);
+        // A drilling blue spiral; Glowing Pierce adds a golden twister.
+        Fx.spiral(player, dir, (float) range, glowing ? 0xFFFFD34F : 0xFF5FB8FF, 12);
+        if (glowing) Fx.spiral(player, dir, (float) range * 0.8f, 0xFF7FE7FF, 10);
+        if (!line.isEmpty()) Fx.flash(player.level(), line.get(0).position().add(0, line.get(0).getBbHeight() * 0.6, 0), 0.9f,
+                glowing ? 0xFFFFE08A : 0xFF9FD0FF, 6, 0.4f);
         sound(player, SoundEvents.PLAYER_ATTACK_STRONG, 0.8f, glowing ? 1.4f : 1.1f);
-        ModNetwork.animate(player, PlayerAnims.PIERCE, 10);
+        ModNetwork.animate(player, PlayerAnims.PIERCE, 11);
         return true;
     }
 
     private static boolean parry(ServerPlayer player, PlayerData data) {
         data.parryTicks = Math.min(20, 10 + data.stat(Stat.TEC) / 5);
         sound(player, SoundEvents.ARMOR_EQUIP_IRON.value(), 0.8f, 1.6f);
-        ModNetwork.animate(player, PlayerAnims.PARRY, data.parryTicks);
+        // Blades crossed into an X that flares into a blue shield.
+        Fx.arc(player, 0.9f, 62, 70, 0xFF7FD8FF, data.parryTicks + 2);
+        Fx.arc(player, 0.9f, -62, 70, 0xFF7FD8FF, data.parryTicks + 2);
+        ModNetwork.animate(player, PlayerAnims.PARRY, data.parryTicks + 2);
         return true;
     }
 
@@ -169,10 +186,12 @@ public final class SkillExecutor {
             strike(player, target, damage, false);
             knockAway(player, target, 0.6);
         }
-        ring(player, 3.5, ParticleTypes.SWEEP_ATTACK, 12, 1.0);
         ring(player, 3.0, VORPAL_RED, 24, 1.0);
+        Fx.arc(player, 3.0f, 0, 360, 0xFFFF5A6A, 12);
+        Fx.arc(player, 2.4f, 8, 300, 0xFFFFFFFF, 10);
+        Fx.ring(player.level(), player.position(), 3.5f, 0xB0FF5A6A, 12, 0.3f);
         sound(player, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.8f);
-        ModNetwork.animate(player, PlayerAnims.SPIN, 10);
+        ModNetwork.animate(player, PlayerAnims.SPIN, 11);
         return true;
     }
 
@@ -194,8 +213,10 @@ public final class SkillExecutor {
         ModAttachments.get(player).iframeTicks = 10;
         strike(player, target, attack(player) * 2f, true);
         trail(player, dir, Math.min(16, to.length()), ParticleTypes.END_ROD, 24);
+        Fx.spiral(player, dir, (float) Math.min(16, to.length()), 0xFFB57CFF, 12);
+        Fx.flash(player.level(), target.position().add(0, target.getBbHeight() * 0.6, 0), 1.3f, 0xFFC9A0FF, 8, 0.5f);
         sound(player, SoundEvents.FIREWORK_ROCKET_LAUNCH, 1f, 1.2f);
-        ModNetwork.animate(player, PlayerAnims.PIERCE, 12);
+        ModNetwork.animate(player, PlayerAnims.RABBIT_GUN, 12);
         return true;
     }
 
@@ -214,6 +235,10 @@ public final class SkillExecutor {
         }
         data.parryTicks = 6;
         arc(player, 4.5, MOON_WHITE, MOON_BLACK);
+        // Waxing (white) and Waning (night violet) cross into a crescent, then fly forward.
+        Fx.arc(player, 2.6f, 35, 150, 0xFFEFF4FF, 12);
+        Fx.arc(player, 2.6f, -35, 150, 0xFF8E5BE0, 12);
+        Fx.wave(player, 2.2f, 10, 6f, 0xFFDDE6FF, 14);
         sound(player, SoundEvents.AMETHYST_BLOCK_CHIME, 1.5f, 0.7f);
         sound(player, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.3f);
         ModNetwork.animate(player, PlayerAnims.CRESCENT, 12);
@@ -230,6 +255,7 @@ public final class SkillExecutor {
         data.iframeTicks = 14;
         PendingSlam.schedule(player, 14);
         sound(player, SoundEvents.ENDER_DRAGON_FLAP, 1f, 1.4f);
+        Fx.ring(player.level(), player.position(), 1.4f, 0xE0C9A0FF, 10, 0);
         ModNetwork.animate(player, PlayerAnims.LEAP, 14);
         return true;
     }
@@ -244,8 +270,13 @@ public final class SkillExecutor {
         ring(player, 5, MOON_WHITE, 40, 0.3);
         ring(player, 4, MOON_BLACK, 32, 0.3);
         player.serverLevel().sendParticles(ParticleTypes.EXPLOSION, player.getX(), player.getY() + 0.2, player.getZ(), 3, 1, 0.1, 1, 0);
+        // The Twin Moon crashes down: a vertical crescent and a two-tone shockwave.
+        Fx.arc(player, 2.4f, 90, 180, 0xFFEFF4FF, 10);
+        Fx.ring(player.level(), player.position(), 5.5f, 0xFFEFF4FF, 16, 1.4f);
+        Fx.ring(player.level(), player.position(), 4.2f, 0xFF8E5BE0, 18, 0);
+        Fx.flash(player.level(), player.position().add(0, 0.5, 0), 2.5f, 0xFFDDE6FF, 8, 0);
         sound(player, SoundEvents.DRAGON_FIREBALL_EXPLODE, 0.8f, 1.3f);
-        ModNetwork.animate(player, PlayerAnims.CRESCENT, 10);
+        ModNetwork.animate(player, PlayerAnims.SLAM, 12);
     }
 
     private static boolean skyClear(ServerPlayer player) {
@@ -255,11 +286,14 @@ public final class SkillExecutor {
             knockAway(player, target, 0.8);
         }
         ring(player, 7, SKY_BLUE, 60, 1.1);
-        ring(player, 5, ParticleTypes.SWEEP_ATTACK, 16, 1.1);
-        // "Sky Clear" quite literally clears the sky.
+        // A full circle cut so clean it clears the sky.
+        Fx.arc(player, 6.5f, 0, 360, 0xFF8FD8FF, 14);
+        Fx.arc(player, 5.8f, 4, 360, 0xFFFFFFFF, 12);
+        Fx.ring(player.level(), player.position(), 7.5f, 0xE08FD8FF, 18, 1.0f);
+        Fx.pillar(player.level(), player.position(), 1.2f, 18f, 0xC08FD8FF, 20);
         player.serverLevel().setWeatherParameters(6000, 0, false, false);
         sound(player, SoundEvents.WARDEN_SONIC_BOOM, 0.6f, 1.6f);
-        ModNetwork.animate(player, PlayerAnims.SKY_CLEAR, 14);
+        ModNetwork.animate(player, PlayerAnims.SKY_CLEAR, 16);
         return true;
     }
 
@@ -281,6 +315,7 @@ public final class SkillExecutor {
             crit = true;
         }
         target.invulnerableTime = 0;
+        HitFlags.mark(target, crit, weakPoints && isBehind(player, target));
         target.hurt(player.damageSources().playerAttack(player), damage);
         if (crit) {
             player.serverLevel().sendParticles(ParticleTypes.CRIT, target.getX(), target.getY(0.6), target.getZ(), 12, 0.3, 0.3, 0.3, 0.3);

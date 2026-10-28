@@ -90,6 +90,7 @@
     ],
     [
       "minecraft:glow_lichen",
+      "slfrontier:dead_tree_rare",
       "minecraft:dark_forest_vegetation",
       "minecraft:patch_grass_forest",
       "minecraft:brown_mushroom_normal",

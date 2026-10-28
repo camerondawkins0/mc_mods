@@ -2,6 +2,7 @@ package com.slfrontier.entity.boss;
 
 import com.slfrontier.entity.FrontierBoss;
 import com.slfrontier.entity.mob.ShadowWolfEntity;
+import com.slfrontier.fx.Fx;
 import com.slfrontier.quest.QuestStage;
 import com.slfrontier.quest.Story;
 import com.slfrontier.registry.ModAttachments;
@@ -16,6 +17,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.BossEvent;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -43,14 +45,19 @@ import java.util.UUID;
  * player cannot wear chest or leg armor in the Frontier until Lycagon is slain.
  */
 public class LycagonEntity extends FrontierBoss {
-    public static final int BITE = 0, CLAW = 1, SHADOW_DASH = 2, HOWL = 3, NIGHT_REND = 4;
+    public static final int BITE = 0, CLAW = 1, SHADOW_DASH = 2, HOWL = 3, NIGHT_REND = 4, VANISH = 5, SHADOW_CLONE = 6;
+    private static final int PURPLE = 0xFFB040E0, PINK = 0xFFFF60E0;
     private static final DustParticleOptions BLOOD = new DustParticleOptions(new Vector3f(0.7f, 0.05f, 0.1f), 1.5f);
+    private static final DustParticleOptions AURA = new DustParticleOptions(new Vector3f(0.45f, 0.12f, 0.75f), 2.2f);
+    private static final DustParticleOptions AURA_PINK = new DustParticleOptions(new Vector3f(0.85f, 0.25f, 0.85f), 1.4f);
 
     public enum Mode { NORMAL, ENCOUNTER, FINAL }
 
     private Mode mode = Mode.NORMAL;
     private UUID summoner;
     private int encounterTicks;
+    private int cloneCooldown = 300;
+    private Vec3 aim = Vec3.ZERO;
 
     public LycagonEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level, 60, 4000, BossEvent.BossBarColor.PURPLE);
@@ -87,11 +94,13 @@ public class LycagonEntity extends FrontierBoss {
 
     @Override
     protected int chooseAttack(LivingEntity target, double distance) {
-        int roll = random.nextInt(10);
+        int roll = random.nextInt(12);
+        if (phaseTwo() && cloneCooldown <= 0 && mode != Mode.ENCOUNTER) return SHADOW_CLONE;
         if (phaseTwo() && roll == 0) return HOWL;
         if (phaseTwo() && roll == 1 && distance < 8) return NIGHT_REND;
-        if (distance > 7 || roll == 2) return SHADOW_DASH;
-        if (distance < 4.5) return roll < 6 ? BITE : CLAW;
+        if (roll == 2 || (distance > 10 && roll < 6)) return VANISH;
+        if (distance > 7 || roll == 3) return SHADOW_DASH;
+        if (distance < 4.5) return roll < 7 ? BITE : CLAW;
         return -1;
     }
 
@@ -103,6 +112,8 @@ public class LycagonEntity extends FrontierBoss {
             case SHADOW_DASH -> 22;
             case HOWL -> 30;
             case NIGHT_REND -> 36;
+            case VANISH -> 34;
+            case SHADOW_CLONE -> 32;
             default -> 10;
         };
     }
@@ -116,15 +127,18 @@ public class LycagonEntity extends FrontierBoss {
     protected void tickAttack(int attack, int tick, LivingEntity target) {
         switch (attack) {
             case BITE -> {
+                if (tick == 1) Fx.coneAt(level(), position(), getYRot(), 5f, 70, PURPLE, 7);
                 if (tick == 8) hitAround(4.5, 1.0f, 0.3, 0.6);
             }
             case CLAW -> {
+                if (tick == 1) Fx.coneAt(level(), position(), getYRot(), 5f, 150, PURPLE, 16);
                 if (tick == 8 || tick == 17) {
                     hitAround(4.5, 0.8f, 0.0, 0.8);
-                    particles(ParticleTypes.SWEEP_ATTACK, getX(), getY() + 1.5, getZ(), 3, 1.5, 0);
+                    Fx.arc(this, 4.5f, tick == 8 ? 40 : -40, 150, PURPLE, 8);
                 }
             }
             case SHADOW_DASH -> {
+                if (tick == 2 && target != null) Fx.coneAt(level(), position(), Fx.yawTo(position(), target.position()), 7, 30, PINK, 8);
                 if (tick == 1 && target != null) {
                     particles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 1, getZ(), 40, 1.0, 0.02);
                     Vec3 behind = target.position().subtract(target.getLookAngle().multiply(1, 0, 1).normalize().scale(4));
@@ -137,6 +151,8 @@ public class LycagonEntity extends FrontierBoss {
             }
             case HOWL -> {
                 if (tick == 10) {
+                    Fx.ring(level(), position(), 14f, PURPLE, 24, 0.5f);
+                    Fx.pillar(level(), position(), 1.6f, 12f, PURPLE, 20);
                     playSound(SoundEvents.WOLF_HOWL, 5f, 0.4f);
                     for (ServerPlayer p : playersNear(24)) {
                         p.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 140, 0), this);
@@ -149,16 +165,85 @@ public class LycagonEntity extends FrontierBoss {
                     setDeltaMovement(0, 1.1, 0);
                     hasImpulse = true;
                 }
+                if (tick == 4) Fx.telegraph(level(), position(), 6.5f, PURPLE, 22);
                 if (tick == 8) ring(BLOOD, 6, 36, 0.2);
                 if (tick == 26) {
                     hitAround(6.5, 1.4f, -1, 1.5);
+                    Fx.ring(level(), position(), 7f, PURPLE, 14, 1.0f);
+                    Fx.flash(level(), position().add(0, 1, 0), 4f, PINK, 8, 0);
                     ring(ParticleTypes.EXPLOSION, 4, 8, 0.3);
                     playSound(SoundEvents.DRAGON_FIREBALL_EXPLODE, 2f, 0.6f);
+                }
+            }
+            case VANISH -> {
+                // Melts into the shadows, then erupts under its prey.
+                if (tick == 14) {
+                    particles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 1, getZ(), 80, 1.4, 0.03);
+                    setInvisible(true);
+                    playSound(SoundEvents.ENDERMAN_TELEPORT, 1.5f, 0.4f);
+                }
+                if (tick == 16 && target != null) {
+                    aim = target.position();
+                    Fx.telegraph(level(), aim, 3.8f, PINK, 12);
+                }
+                if (tick == 28) {
+                    teleportTo(aim.x, aim.y, aim.z);
+                    setInvisible(false);
+                    setDeltaMovement(0, 0.5, 0);
+                    hasImpulse = true;
+                    hitAt(aim, 3.8, 1.3f, 1.2);
+                    Fx.ring(level(), aim, 4f, PINK, 10, 0.6f);
+                    particles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 1, getZ(), 60, 1.4, 0.03);
+                    playSound(SoundEvents.WOLF_GROWL, 3f, 0.4f);
+                }
+            }
+            case SHADOW_CLONE -> {
+                if (tick == 20) {
+                    cloneCooldown = 600;
+                    spawnClone();
                 }
             }
             default -> {
             }
         }
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (level().isClientSide && !isInvisible()) aura(random.nextInt(3) + 2);
+    }
+
+    /** The flickering purple shadow-flame that edges Lycagon's silhouette. */
+    private void aura(int count) {
+        float yaw = yBodyRot * Mth.DEG_TO_RAD;
+        double fx = -Mth.sin(yaw), fz = Mth.cos(yaw);
+        float size = getBbHeight() / 3.4f;
+        for (int i = 0; i < count; i++) {
+            double along = (random.nextDouble() * 5.5 - 3.0) * size;
+            double side = (random.nextDouble() - 0.5) * 2.6 * size;
+            double x = getX() + fx * along - fz * side;
+            double z = getZ() + fz * along + fx * side;
+            double y = getY() + (0.4 + random.nextDouble() * 2.8) * size;
+            level().addParticle(random.nextInt(3) == 0 ? AURA_PINK : AURA, x, y, z, 0, 0.03, 0);
+        }
+        if (random.nextInt(3) == 0) {
+            level().addParticle(ParticleTypes.REVERSE_PORTAL, getX() + (random.nextDouble() - 0.5) * 2 * size,
+                    getY() + random.nextDouble() * 3 * size, getZ() + (random.nextDouble() - 0.5) * 2 * size, 0, 0.05, 0);
+        }
+    }
+
+    /** Splits off a short-lived shadow of itself that hunts alongside it. */
+    private void spawnClone() {
+        if (!(level() instanceof ServerLevel server)) return;
+        LycagonShadowEntity clone = ModEntities.LYCAGON_SHADOW.get().create(server);
+        if (clone == null) return;
+        clone.moveTo(getX(), getY(), getZ(), getYRot(), 0);
+        clone.makeClone(20 * 15);
+        clone.setTarget(getTarget());
+        server.addFreshEntity(clone);
+        Fx.flash(server, position().add(0, 2, 0), 4f, PURPLE, 10, 0.4f);
+        server.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 1.2, getZ(), 60, 1.2, 1.2, 1.2, 0.02);
     }
 
     private void summonShadows(int count) {
@@ -217,6 +302,7 @@ public class LycagonEntity extends FrontierBoss {
     protected void customServerAiStep() {
         super.customServerAiStep();
         if (!(level() instanceof ServerLevel server)) return;
+        if (cloneCooldown > 0) cloneCooldown--;
         if (tickCount % 3 == 0) {
             server.sendParticles(ParticleTypes.SMOKE, getX(), getY() + 1.2, getZ(), 2, 0.8, 0.6, 0.8, 0.0);
         }

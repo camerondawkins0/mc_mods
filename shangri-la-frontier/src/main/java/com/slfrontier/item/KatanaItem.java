@@ -44,6 +44,7 @@ public class KatanaItem extends SwordItem implements FrontierWeapon {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         if (hand != InteractionHand.MAIN_HAND) return InteractionResultHolder.pass(player.getItemInHand(hand));
         player.startUsingItem(hand);
+        if (player instanceof ServerPlayer sp) ModNetwork.animate(sp, PlayerAnims.DRAW, 1200);
         return InteractionResultHolder.consume(player.getItemInHand(hand));
     }
 
@@ -60,7 +61,11 @@ public class KatanaItem extends SwordItem implements FrontierWeapon {
     @Override
     public void releaseUsing(ItemStack stack, Level level, LivingEntity entity, int timeLeft) {
         int charged = getUseDuration(stack, entity) - timeLeft;
-        if (charged < 10 || !(entity instanceof ServerPlayer player) || !(level instanceof ServerLevel server)) return;
+        if (!(entity instanceof ServerPlayer player) || !(level instanceof ServerLevel server)) return;
+        if (charged < 10) {
+            ModNetwork.animate(player, PlayerAnims.SLASH_A, 1);
+            return;
+        }
         Vec3 dir = player.getLookAngle().multiply(1, 0, 1).normalize();
         double range = Math.min(7, 3 + charged / 8.0);
         float damage = SkillExecutor.attack(player) * 1.6f;
@@ -74,7 +79,10 @@ public class KatanaItem extends SwordItem implements FrontierWeapon {
             server.sendParticles(ParticleTypes.SWEEP_ATTACK, p.x, p.y, p.z, 1, 0, 0, 0, 0);
         }
         level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 1.2f, 1.6f);
-        ModNetwork.animate(player, PlayerAnims.IAI, 10);
+        // The draw releases a flying crescent of wind (like Wezaemon's Tachikaze).
+        com.slfrontier.fx.Fx.arc(player, 2.2f, 8, 170, 0xFFBFE8FF, 9);
+        com.slfrontier.fx.Fx.wave(player, 1.8f, 5, (float) range, 0xFF8FD8FF, 12);
+        ModNetwork.animate(player, PlayerAnims.IAI, 11);
         player.getCooldowns().addCooldown(this, 30);
         stack.hurtAndBreak(1, player, net.minecraft.world.entity.EquipmentSlot.MAINHAND);
     }

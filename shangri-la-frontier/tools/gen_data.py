@@ -53,33 +53,22 @@ def gen_lang():
 # Models & blockstates
 # ---------------------------------------------------------------------------------------
 
-HANDHELD = ["mercenary_twin_blades", "marsh_dagger", "ducusram", "vorpal_choppers", "empire_bee_twinblades",
-            "moonblade_waxing", "moonblade_waning", "tombguard_katana"]
+WEAPONS = ["mercenary_twin_blades", "marsh_dagger", "ducusram", "vorpal_choppers", "empire_bee_twinblades",
+           "moonblade_waxing", "moonblade_waning", "tombguard_katana", "twin_moon"]
 GENERATED = ["fulldive_headset", "holy_water", "rebirth_tearjewel", "vorpal_soul_collar", "seiten_skillbook",
              "vorpal_bell", "reallocation_tonic", "gray_ore_chunk", "quad_beetle_shell", "empire_bee_stinger",
              "empire_bee_queen_crown", "mud_digger_fin", "prismatic_shard", "nightslayer_fur", "lycagon_fang",
              "tombguard_fragment", "goblin_tooth", "bird_mask", "battlehorn_helm"]
 EGGS = ["goblin", "vorpal_bunny", "empire_bee", "quad_beetle", "shadow_wolf", "mud_digger", "empire_bee_queen",
-        "lycagon", "wezaemon", "frontier_guide", "frontier_blacksmith", "emul", "vysache", "bilac", "setsuna"]
+        "lycagon", "wezaemon", "frontier_guide", "frontier_blacksmith", "emul", "vysache", "bilac", "setsuna",
+        "redcap_goblin", "ravenous_snake", "woodmage", "kirin", "lycagon_shadow", "pencilgon", "oikatzo"]
 
 
 def gen_models():
     m = os.path.join(ASSETS, "models")
-    for name in HANDHELD:
-        write(f"{m}/item/{name}.json", {"parent": "minecraft:item/handheld", "textures": {"layer0": ns(f"item/{name}")}})
+    # Weapon models (3D) are written by tools/weapons.py together with their textures.
     for name in GENERATED:
         write(f"{m}/item/{name}.json", {"parent": "minecraft:item/generated", "textures": {"layer0": ns(f"item/{name}")}})
-    # The Twin Moon is drawn bigger in the hand.
-    write(f"{m}/item/twin_moon.json", {
-        "parent": "minecraft:item/handheld",
-        "textures": {"layer0": ns("item/twin_moon")},
-        "display": {
-            "thirdperson_righthand": {"rotation": [0, -90, 55], "translation": [0, 6, 1], "scale": [1.5, 1.5, 0.85]},
-            "thirdperson_lefthand": {"rotation": [0, 90, -55], "translation": [0, 6, 1], "scale": [1.5, 1.5, 0.85]},
-            "firstperson_righthand": {"rotation": [0, -90, 25], "translation": [1.13, 4.2, 1.13], "scale": [1.1, 1.1, 1.1]},
-            "firstperson_lefthand": {"rotation": [0, 90, -25], "translation": [1.13, 4.2, 1.13], "scale": [1.1, 1.1, 1.1]},
-        },
-    })
     for name in EGGS:
         write(f"{m}/item/{name}_spawn_egg.json", {"parent": "minecraft:item/template_spawn_egg"})
     # The compass reuses vanilla needle sprites; Java gives it the "angle" property.
@@ -122,11 +111,34 @@ def gen_models():
     write(f"{m}/item/prismatic_cluster.json", {"parent": "minecraft:item/generated",
                                                "textures": {"layer0": ns("block/prismatic_cluster")}})
 
+    # Waypoint Crystal: a stone pedestal with a floating, glowing crystal (rotated 45 degrees).
+    glow = {"block_light": 15, "sky_light": 15}
+    write(f"{m}/block/waypoint_crystal.json", {
+        "parent": "minecraft:block/block", "render_type": "minecraft:cutout",
+        "textures": {"base": "minecraft:block/polished_deepslate", "trim": "minecraft:block/chiseled_polished_blackstone",
+                     "crystal": ns("block/waypoint_crystal"), "particle": ns("block/waypoint_crystal")},
+        "elements": [
+            {"from": [1, 0, 1], "to": [15, 2, 15], "faces": {f: {"texture": "#base"} for f in ("north", "south", "east", "west", "up", "down")}},
+            {"from": [3, 2, 3], "to": [13, 3, 13], "faces": {f: {"texture": "#trim"} for f in ("north", "south", "east", "west", "up")}},
+            {"from": [5, 3, 5], "to": [11, 8, 11], "faces": {f: {"texture": "#base"} for f in ("north", "south", "east", "west", "up")}},
+            {"from": [5.5, 9, 5.5], "to": [10.5, 16, 10.5], "rotation": {"angle": 45, "axis": "y", "origin": [8, 12, 8]},
+             "shade": False, "neoforge_data": glow,
+             "faces": {f: {"texture": "#crystal", "uv": [5, 0, 11, 8]} for f in ("north", "south", "east", "west", "up", "down")}},
+            {"from": [7, 16, 7], "to": [9, 17.5, 9], "rotation": {"angle": 45, "axis": "y", "origin": [8, 16, 8]},
+             "shade": False, "neoforge_data": glow, "faces": {f: {"texture": "#crystal"} for f in ("north", "south", "east", "west", "up")}},
+        ]})
+    write(f"{bs}/waypoint_crystal.json", {"variants": {"": {"model": ns("block/waypoint_crystal")}}})
+    write(f"{m}/item/waypoint_crystal.json", {"parent": ns("block/waypoint_crystal")})
+
     write(f"{m}/block/nightslayer_altar.json", {"parent": "minecraft:block/cube_bottom_top", "textures": {
         "top": ns("block/nightslayer_altar_top"), "bottom": ns("block/nightslayer_altar_side"),
         "side": ns("block/nightslayer_altar_side")}})
     write(f"{bs}/nightslayer_altar.json", {"variants": {"": {"model": ns("block/nightslayer_altar")}}})
     write(f"{m}/item/nightslayer_altar.json", {"parent": ns("block/nightslayer_altar")})
+    write(f"{m}/block/shadow_altar.json", {"parent": "minecraft:block/cube_bottom_top", "textures": {
+        "top": ns("block/shadow_altar_top"), "bottom": ns("block/shadow_altar_side"), "side": ns("block/shadow_altar_side")}})
+    write(f"{bs}/shadow_altar.json", {"variants": {"": {"model": ns("block/shadow_altar")}}})
+    write(f"{m}/item/shadow_altar.json", {"parent": ns("block/shadow_altar")})
 
 
 # ---------------------------------------------------------------------------------------
@@ -188,6 +200,7 @@ def gen_loot():
     block_loot("prismatic_crystal", silk_or(ns("prismatic_crystal"), ns("prismatic_shard"), 1, 2))
     block_loot("prismatic_cluster", silk_or(ns("prismatic_cluster"), ns("prismatic_shard"), 1, 1))
     block_loot("nightslayer_altar", [{"type": "minecraft:item", "name": ns("nightslayer_altar")}])
+    block_loot("shadow_altar", [{"type": "minecraft:item", "name": ns("shadow_altar")}])
 
     entity_loot("goblin", pool([item_entry(ns("goblin_tooth"), 0, 1, 1)]),
                 pool([item_entry("minecraft:bread")], chance=0.2))
@@ -208,6 +221,17 @@ def gen_loot():
                 pool([item_entry("minecraft:nether_star")], chance=0.5))
     entity_loot("wezaemon", pool([item_entry(ns("tombguard_katana"))]),
                 pool([item_entry(ns("tombguard_fragment"), 3, 6)]),
+                pool([item_entry(ns("rebirth_tearjewel"))]))
+    entity_loot("redcap_goblin", pool([item_entry(ns("goblin_tooth"), 1, 2, 1)]),
+                pool([item_entry(ns("gray_ore_chunk"), 1, 2)], chance=0.35))
+    entity_loot("ravenous_snake", pool([item_entry(ns("rebirth_tearjewel"))]),
+                pool([item_entry("minecraft:golden_apple")]),
+                pool([item_entry("minecraft:emerald", 3, 6)]))
+    entity_loot("woodmage", pool([item_entry("minecraft:experience_bottle", 4, 8)]),
+                pool([item_entry(ns("prismatic_shard"), 2, 4)]),
+                pool([item_entry(ns("rebirth_tearjewel"))], chance=0.5))
+    entity_loot("kirin", pool([item_entry(ns("tombguard_fragment"), 2, 4)]))
+    entity_loot("lycagon_shadow", pool([item_entry(ns("nightslayer_fur"), 3, 6)]),
                 pool([item_entry(ns("rebirth_tearjewel"))]))
 
     write(os.path.join(DATA, "loot_table/chests/divinity_ruins.json"), {
@@ -271,15 +295,16 @@ def tag(path, values, replace=False):
 
 def gen_tags():
     mc = os.path.join(RES, "data/minecraft/tags")
-    tag(f"{mc}/block/mineable/pickaxe.json", [ns("gray_ore"), ns("prismatic_crystal"), ns("prismatic_cluster"), ns("nightslayer_altar")])
+    tag(f"{mc}/block/mineable/pickaxe.json", [ns("gray_ore"), ns("prismatic_crystal"), ns("prismatic_cluster"), ns("nightslayer_altar"),
+                                              ns("shadow_altar")])
     tag(f"{mc}/block/needs_stone_tool.json", [ns("gray_ore")])
     tag(f"{mc}/block/small_flowers.json", [ns("red_spider_lily")])
     tag(f"{mc}/item/small_flowers.json", [ns("red_spider_lily")])
     tag(f"{mc}/entity_type/undead.json", [ns("wezaemon")])
     tag(f"{mc}/entity_type/inverted_healing_and_harm.json", [ns("wezaemon")])
-    tag(f"{mc}/item/swords.json", [ns(x) for x in HANDHELD] + [ns("twin_moon")])
+    tag(f"{mc}/item/swords.json", [ns(x) for x in WEAPONS])
     tag(f"{mc}/item/head_armor.json", [ns("bird_mask"), ns("battlehorn_helm")])
-    for s in ("wezaemon_tomb", "nightslayer_den", "empire_bee_hive", "mud_digger_lair", "divinity_ruins"):
+    for s in ("wezaemon_tomb", "nightslayer_den", "empire_bee_hive", "mud_digger_lair", "divinity_ruins", "shadow_altar"):
         tag(os.path.join(DATA, f"tags/worldgen/structure/{s}.json"), [ns(s)])
 
 
@@ -287,11 +312,12 @@ def gen_tags():
 # The Frontier dimension
 # ---------------------------------------------------------------------------------------
 
-LAND_BIOMES = ["fastera_plains", "diremarsh_waste", "prismatic_forest_grotto", "hidden_garden", "nightslayer_woods"]
+LAND_BIOMES = ["fastera_plains", "diremarsh_waste", "prismatic_forest_grotto", "hidden_garden", "nightslayer_woods",
+               "rampant_forest", "lightless_barrens", "thirdrema_highlands"]
 
 # Placed features available to every biome, in one global order (avoids feature-order cycles).
 STEP_ORDER = {
-    2: ["minecraft:amethyst_geode"],
+    2: ["minecraft:amethyst_geode", ns("rock_arch"), ns("rock_arch_rare"), ns("divinity_monolith")],
     3: ["minecraft:monster_room"],
     6: ["minecraft:ore_dirt", "minecraft:ore_gravel", "minecraft:ore_granite_upper", "minecraft:ore_diorite_upper",
         "minecraft:ore_andesite_upper", "minecraft:ore_coal_upper", "minecraft:ore_coal_lower", "minecraft:ore_iron_upper",
@@ -299,12 +325,14 @@ STEP_ORDER = {
         "minecraft:ore_diamond", "minecraft:ore_lapis", "minecraft:ore_copper", ns("ore_gray"), ns("ore_gray_surface"),
         ns("mud_disk"), "minecraft:disk_sand", "minecraft:disk_clay", "minecraft:disk_gravel"],
     8: ["minecraft:spring_water"],
-    9: ["minecraft:glow_lichen", ns("prismatic_pillars"), ns("prismatic_clusters"), "minecraft:trees_plains",
+    9: ["minecraft:glow_lichen", ns("giant_tree"), ns("giant_tree_rare"), ns("crystal_spire"), ns("dead_tree"),
+        ns("dead_tree_rare"), ns("prismatic_pillars"), ns("prismatic_clusters"), "minecraft:trees_taiga", "minecraft:trees_plains",
         "minecraft:trees_swamp", "minecraft:trees_cherry", "minecraft:dark_forest_vegetation", "minecraft:trees_birch_and_oak",
         "minecraft:flower_plains", "minecraft:flower_swamp", "minecraft:flower_cherry", ns("spider_lily_patch"),
         "minecraft:patch_grass_plain", "minecraft:patch_grass_normal", "minecraft:patch_grass_forest",
         "minecraft:patch_tall_grass", "minecraft:patch_waterlily", "minecraft:patch_sugar_cane",
-        "minecraft:brown_mushroom_normal", "minecraft:patch_dead_bush", "minecraft:patch_berry_common"],
+        "minecraft:brown_mushroom_normal", "minecraft:patch_dead_bush", "minecraft:patch_berry_common",
+        "minecraft:forest_flowers", "minecraft:flower_default", "minecraft:patch_grass_taiga"],
     10: ["minecraft:freeze_top_layer"],
 }
 
@@ -319,7 +347,8 @@ BIOME_DEFS = {
     "fastera_plains": {
         "temperature": 0.8, "downfall": 0.4, "sky": 0x78A7FF, "fog": 0xC0D8FF, "water": 0x3F76E4, "grass": 0x79C05A,
         "features": {"minecraft:trees_plains", "minecraft:flower_plains", "minecraft:patch_grass_plain",
-                     "minecraft:patch_sugar_cane", "minecraft:patch_tall_grass"},
+                     "minecraft:patch_sugar_cane", "minecraft:patch_tall_grass", ns("giant_tree_rare"), ns("rock_arch_rare"),
+                     ns("divinity_monolith")},
         "monsters": [("goblin", 100, 2, 4), ("vorpal_bunny", 35, 1, 2)],
         "creatures": [("minecraft:sheep", 12, 2, 4), ("minecraft:cow", 8, 2, 3), ("minecraft:pig", 10, 2, 4),
                       ("minecraft:chicken", 10, 2, 4)],
@@ -329,15 +358,15 @@ BIOME_DEFS = {
         "foliage": 0x6A7042, "water_fog": 0x23301A,
         "features": {"minecraft:trees_swamp", "minecraft:flower_swamp", "minecraft:patch_grass_normal",
                      "minecraft:patch_waterlily", "minecraft:brown_mushroom_normal", "minecraft:patch_dead_bush",
-                     ns("ore_gray"), ns("ore_gray_surface"), ns("mud_disk")},
-        "monsters": [("goblin", 40, 2, 3), ("vorpal_bunny", 20, 1, 2)],
+                     ns("ore_gray"), ns("ore_gray_surface"), ns("mud_disk"), ns("dead_tree_rare")},
+        "monsters": [("goblin", 40, 2, 3), ("vorpal_bunny", 20, 1, 2), ("redcap_goblin", 35, 1, 3)],
         "creatures": [("minecraft:frog", 10, 2, 4)],
     },
     "prismatic_forest_grotto": {
         "temperature": 0.6, "downfall": 0.8, "sky": 0x9FD8FF, "fog": 0xD8C8FF, "water": 0x7FE7FF, "grass": 0x7FD8B0,
         "foliage": 0x9F7FE0, "particle": ("minecraft:end_rod", 0.0008),
         "features": {"minecraft:trees_birch_and_oak", "minecraft:flower_cherry", "minecraft:patch_grass_forest",
-                     ns("prismatic_pillars"), ns("prismatic_clusters")},
+                     ns("prismatic_pillars"), ns("prismatic_clusters"), ns("crystal_spire")},
         "monsters": [("empire_bee", 60, 2, 3), ("quad_beetle", 25, 1, 1)],
         "creatures": [("minecraft:rabbit", 8, 2, 3)],
     },
@@ -353,9 +382,31 @@ BIOME_DEFS = {
         "temperature": 0.5, "downfall": 0.7, "sky": 0x2A2440, "fog": 0x3A3050, "water": 0x2A2A50, "grass": 0x3E5A3A,
         "foliage": 0x2E4A2E, "particle": ("minecraft:ash", 0.006),
         "features": {"minecraft:dark_forest_vegetation", "minecraft:patch_grass_forest", "minecraft:brown_mushroom_normal",
-                     "minecraft:patch_berry_common"},
+                     "minecraft:patch_berry_common", ns("dead_tree_rare")},
         "monsters": [("shadow_wolf", 60, 2, 3), ("goblin", 30, 2, 3)],
         "creatures": [],
+    },
+    "rampant_forest": {
+        "temperature": 0.7, "downfall": 0.8, "sky": 0x7FB3FF, "fog": 0xC8E0FF, "water": 0x3F76E4, "grass": 0x6FBF4A,
+        "foliage": 0x59AE30,
+        "features": {"minecraft:trees_birch_and_oak", "minecraft:forest_flowers", "minecraft:patch_grass_forest",
+                     "minecraft:brown_mushroom_normal", "minecraft:patch_berry_common", ns("giant_tree"), ns("rock_arch_rare")},
+        "monsters": [("goblin", 90, 2, 4), ("vorpal_bunny", 30, 1, 2)],
+        "creatures": [("minecraft:rabbit", 6, 2, 3), ("minecraft:fox", 4, 1, 2), ("minecraft:pig", 6, 2, 3)],
+    },
+    "lightless_barrens": {
+        "temperature": 0.4, "downfall": 0.2, "sky": 0x0E0A18, "fog": 0x1A1428, "water": 0x2A2A50, "grass": 0x4A4A3A,
+        "foliage": 0x3A3A2A, "water_fog": 0x0A0A14, "particle": ("minecraft:ash", 0.02),
+        "features": {"minecraft:patch_dead_bush", ns("dead_tree"), ns("rock_arch")},
+        "monsters": [("shadow_wolf", 70, 2, 3), ("redcap_goblin", 30, 1, 3)],
+        "creatures": [],
+    },
+    "thirdrema_highlands": {
+        "temperature": 0.4, "downfall": 0.5, "sky": 0x8AB4FF, "fog": 0xC8D8F0, "water": 0x3F76E4, "grass": 0x7AB050,
+        "foliage": 0x5A9A40,
+        "features": {"minecraft:trees_taiga", "minecraft:patch_grass_taiga", "minecraft:flower_default", ns("rock_arch")},
+        "monsters": [("goblin", 40, 2, 3), ("redcap_goblin", 15, 1, 2)],
+        "creatures": [("minecraft:goat", 6, 1, 3), ("minecraft:sheep", 8, 2, 3)],
     },
     "frontier_sea": {
         "temperature": 0.5, "downfall": 0.5, "sky": 0x7BA4FF, "fog": 0xC0D8FF, "water": 0x3F76E4, "grass": 0x79C05A,
@@ -375,6 +426,9 @@ BIOME_POINTS = {
     "prismatic_forest_grotto": dict(temperature=-0.4, humidity=0.45, continentalness=0.35, erosion=-0.2, weirdness=0.5, offset=0.0),
     "hidden_garden": dict(temperature=0.35, humidity=-0.5, continentalness=0.45, erosion=0.0, weirdness=-0.55, offset=0.0),
     "nightslayer_woods": dict(temperature=-0.45, humidity=-0.35, continentalness=0.3, erosion=0.1, weirdness=-0.2, offset=0.0),
+    "rampant_forest": dict(temperature=0.2, humidity=0.35, continentalness=0.3, erosion=0.2, weirdness=0.15, offset=0.0),
+    "lightless_barrens": dict(temperature=-0.6, humidity=-0.7, continentalness=0.5, erosion=0.3, weirdness=0.6, offset=0.0),
+    "thirdrema_highlands": dict(temperature=0.0, humidity=0.0, continentalness=0.6, erosion=-0.6, weirdness=-0.1, offset=0.0),
 }
 
 
@@ -499,6 +553,23 @@ def gen_features():
         {"type": "minecraft:heightmap", "heightmap": "MOTION_BLOCKING"}, {"type": "minecraft:biome"}])
 
 
+def gen_landmark_features():
+    """Placements for the Java features in world/feature/FrontierFeatures (giant trees, spires...)."""
+    def surface(rarity, water=False):
+        p = [{"type": "minecraft:rarity_filter", "chance": rarity}, {"type": "minecraft:in_square"},
+             {"type": "minecraft:heightmap", "heightmap": "OCEAN_FLOOR"}]
+        if not water:
+            p.append({"type": "minecraft:surface_water_depth_filter", "max_water_depth": 0})
+        p.append({"type": "minecraft:biome"})
+        return p
+    for name, feature, rarity in (("giant_tree", "giant_tree", 3), ("giant_tree_rare", "giant_tree", 24),
+                                  ("crystal_spire", "crystal_spire", 4), ("rock_arch", "rock_arch", 10),
+                                  ("rock_arch_rare", "rock_arch", 40), ("divinity_monolith", "divinity_monolith", 36),
+                                  ("dead_tree", "dead_tree", 2), ("dead_tree_rare", "dead_tree", 8)):
+        configured(feature, {"type": ns(feature), "config": {}})
+        placed(name, ns(feature), surface(rarity))
+
+
 def gen_dimension():
     write(os.path.join(DATA, "dimension_type/frontier.json"), {
         "ultrawarm": False, "natural": True, "coordinate_scale": 1.0, "has_skylight": True, "has_ceiling": False,
@@ -531,11 +602,27 @@ def gen_dimension():
                                                 {"type": "minecraft:condition", "if_true": noisy(0.25, 10.0),
                                                  "then_run": block("minecraft:coarse_dirt")},
                                                 block("minecraft:podzol", {"snowy": "false"})]}),
+                                            top("lightless_barrens", {"type": "minecraft:sequence", "sequence": [
+                                                {"type": "minecraft:condition", "if_true": noisy(0.2, 10.0),
+                                                 "then_run": block("minecraft:tuff")},
+                                                {"type": "minecraft:condition", "if_true": noisy(-0.2, 0.2),
+                                                 "then_run": block("minecraft:coarse_dirt")},
+                                                block("minecraft:gravel")]}),
                                             top("prismatic_forest_grotto", {"type": "minecraft:condition",
                                                                             "if_true": noisy(0.3, 10.0),
                                                                             "then_run": block("minecraft:moss_block")}),
                                         ]}}}}
     noise["surface_rule"] = {"type": "minecraft:sequence", "sequence": [custom, noise["surface_rule"]]}
+    # Grander terrain: blend the vanilla shape with amplified mountains (62% / 38%).
+    for fn in ("sloped_cheese", "depth", "factor"):
+        write(os.path.join(DATA, f"worldgen/density_function/frontier/{fn}.json"), {
+            "type": "minecraft:add",
+            "argument1": {"type": "minecraft:mul", "argument1": 0.62, "argument2": f"minecraft:overworld/{fn}"},
+            "argument2": {"type": "minecraft:mul", "argument1": 0.38, "argument2": f"minecraft:overworld_amplified/{fn}"}})
+    router = json.dumps(noise["noise_router"])
+    for fn in ("sloped_cheese", "depth", "factor"):
+        router = router.replace(f'"minecraft:overworld/{fn}"', f'"{NS}:frontier/{fn}"')
+    noise["noise_router"] = json.loads(router)
     write(os.path.join(DATA, "worldgen/noise_settings/frontier.json"), noise)
 
     biomes = []
@@ -556,6 +643,7 @@ STRUCTURES = {
     "empire_bee_hive": (["prismatic_forest_grotto"], "surface_structures", 18, 6, 7712303),
     "mud_digger_lair": (["diremarsh_waste"], "surface_structures", 18, 6, 7712304),
     "divinity_ruins": (LAND_BIOMES, "surface_structures", 28, 10, 7712305),
+    "shadow_altar": (["lightless_barrens"], "surface_structures", 22, 8, 7712306),
 }
 
 
@@ -586,6 +674,7 @@ if __name__ == "__main__":
     gen_recipes()
     gen_tags()
     gen_features()
+    gen_landmark_features()
     gen_biomes()
     gen_dimension()
     gen_structures()

@@ -2,6 +2,7 @@ package com.slfrontier.entity.boss;
 
 import com.slfrontier.entity.FrontierBoss;
 import com.slfrontier.entity.mob.EmpireBeeEntity;
+import com.slfrontier.fx.Fx;
 import com.slfrontier.registry.ModEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -31,6 +32,7 @@ import net.minecraft.world.phys.Vec3;
 
 /** Queen of the Empire Bees. Her parts let Bilac forge the Empire Bee Twinblades. */
 public class EmpireBeeQueenEntity extends FrontierBoss {
+    private static final int HONEY = 0xFFFFC84A;
     public static final int STING_DIVE = 0, SUMMON = 1, BARRAGE = 2;
 
     public EmpireBeeQueenEntity(EntityType<? extends Monster> type, Level level) {
@@ -83,6 +85,10 @@ public class EmpireBeeQueenEntity extends FrontierBoss {
     protected void tickAttack(int attack, int tick, LivingEntity target) {
         switch (attack) {
             case STING_DIVE -> {
+                if (tick == 1 && target != null) {
+                    Fx.coneAt(level(), new Vec3(getX(), target.getY(), getZ()), Fx.yawTo(position(), target.position()),
+                            (float) Math.min(12, distanceTo(target) + 3), 24, HONEY, 9);
+                }
                 if (tick == 10 && target != null) {
                     Vec3 d = target.getEyePosition().subtract(position()).normalize();
                     setDeltaMovement(d.scale(1.3));
@@ -95,6 +101,7 @@ public class EmpireBeeQueenEntity extends FrontierBoss {
                 }
             }
             case SUMMON -> {
+                if (tick == 4) Fx.ring(level(), position(), 4f, HONEY, 14, 0);
                 if (tick == 15 && level() instanceof ServerLevel server) {
                     for (int i = 0; i < 3; i++) {
                         EmpireBeeEntity bee = ModEntities.EMPIRE_BEE.get().create(server);

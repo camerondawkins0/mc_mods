@@ -65,6 +65,16 @@ public enum Skill {
         return "skill.slfrontier." + id + ".desc";
     }
 
+    /** How the skill is learned, shown on locked skill cards. */
+    public String unlockKey() {
+        return "skill.slfrontier." + id + ".unlock";
+    }
+
+    /** Icon texture name under textures/gui/skill. */
+    public String icon() {
+        return id;
+    }
+
     @Nullable
     public static Skill byId(String id) {
         for (Skill s : values()) {

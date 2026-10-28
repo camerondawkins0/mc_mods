@@ -1,6 +1,7 @@
 package com.slfrontier.entity.mob;
 
 import com.slfrontier.entity.FrontierMonster;
+import com.slfrontier.fx.Fx;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -86,6 +87,7 @@ public class QuadBeetleEntity extends FrontierMonster {
             if (target != null) {
                 Vec3 d = target.position().subtract(position());
                 direction = new Vec3(d.x, 0, d.z).normalize();
+                Fx.coneAt(level(), position(), Fx.yawTo(position(), target.position()), 14, 16, 0xFF4A78C8, 14);
             }
         }
 
@@ -104,6 +106,12 @@ public class QuadBeetleEntity extends FrontierMonster {
                     server.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, getBlockStateOn()), getX(), getY(), getZ(), 6, 0.5, 0.1, 0.5, 0.1);
                 }
                 return;
+            }
+            if (ticks == 15) {
+                // The drill: it spins its whole body as it charges.
+                Vec3 eye = position().add(0, getBbHeight() * 0.5, 0);
+                float yaw = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
+                Fx.send(level(), new Fx.Spec(Fx.SPIRAL, (float) eye.x, (float) eye.y, (float) eye.z, yaw, 0, 12, 0xFF6A9AE8, 22, 0, 0));
             }
             setDeltaMovement(direction.x * 0.7, getDeltaMovement().y, direction.z * 0.7);
             setYRot((float) (Math.atan2(direction.z, direction.x) * 180 / Math.PI) - 90f);
