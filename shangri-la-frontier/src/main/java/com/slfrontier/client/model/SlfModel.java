@@ -4,6 +4,8 @@ import com.slfrontier.client.anim.AnimSet;
 import com.slfrontier.entity.SlfAnimated;
 import net.minecraft.client.model.HierarchicalModel;
 import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.AnimationState;
 import net.minecraft.world.entity.Mob;
@@ -11,10 +13,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 /**
  * A data-driven model: geometry comes from a generated layer definition, motion from
- * an {@link AnimSet} of keyframe animations. Used by every non-humanoid creature.
+ * an {@link AnimSet} of keyframe animations. Used by every Frontier creature and NPC.
  */
 public class SlfModel<T extends Mob & SlfAnimated> extends HierarchicalModel<T> {
     private final ModelPart root;
@@ -27,6 +30,12 @@ public class SlfModel<T extends Mob & SlfAnimated> extends HierarchicalModel<T> 
     }
 
     public SlfModel(ModelPart root, AnimSet anims, @Nullable BiConsumer<T, SlfModel<T>> hook) {
+        this(root, anims, hook, RenderType::entityCutoutNoCull);
+    }
+
+    public SlfModel(ModelPart root, AnimSet anims, @Nullable BiConsumer<T, SlfModel<T>> hook,
+                    Function<ResourceLocation, RenderType> renderType) {
+        super(renderType);
         this.root = root;
         this.anims = anims;
         this.hook = hook;

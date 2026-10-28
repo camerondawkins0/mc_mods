@@ -16,6 +16,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.BossEvent;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -45,6 +46,8 @@ import java.util.UUID;
 public class LycagonEntity extends FrontierBoss {
     public static final int BITE = 0, CLAW = 1, SHADOW_DASH = 2, HOWL = 3, NIGHT_REND = 4;
     private static final DustParticleOptions BLOOD = new DustParticleOptions(new Vector3f(0.7f, 0.05f, 0.1f), 1.5f);
+    private static final DustParticleOptions AURA = new DustParticleOptions(new Vector3f(0.45f, 0.12f, 0.75f), 2.2f);
+    private static final DustParticleOptions AURA_PINK = new DustParticleOptions(new Vector3f(0.85f, 0.25f, 0.85f), 1.4f);
 
     public enum Mode { NORMAL, ENCOUNTER, FINAL }
 
@@ -158,6 +161,31 @@ public class LycagonEntity extends FrontierBoss {
             }
             default -> {
             }
+        }
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (level().isClientSide && !isInvisible()) aura(random.nextInt(3) + 2);
+    }
+
+    /** The flickering purple shadow-flame that edges Lycagon's silhouette. */
+    private void aura(int count) {
+        float yaw = yBodyRot * Mth.DEG_TO_RAD;
+        double fx = -Mth.sin(yaw), fz = Mth.cos(yaw);
+        float size = getBbHeight() / 3.4f;
+        for (int i = 0; i < count; i++) {
+            double along = (random.nextDouble() * 5.5 - 3.0) * size;
+            double side = (random.nextDouble() - 0.5) * 2.6 * size;
+            double x = getX() + fx * along - fz * side;
+            double z = getZ() + fz * along + fx * side;
+            double y = getY() + (0.4 + random.nextDouble() * 2.8) * size;
+            level().addParticle(random.nextInt(3) == 0 ? AURA_PINK : AURA, x, y, z, 0, 0.03, 0);
+        }
+        if (random.nextInt(3) == 0) {
+            level().addParticle(ParticleTypes.REVERSE_PORTAL, getX() + (random.nextDouble() - 0.5) * 2 * size,
+                    getY() + random.nextDouble() * 3 * size, getZ() + (random.nextDouble() - 0.5) * 2 * size, 0, 0.05, 0);
         }
     }
 

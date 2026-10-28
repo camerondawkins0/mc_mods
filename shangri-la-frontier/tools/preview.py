@@ -135,8 +135,9 @@ def preview_items(out):
 # Entity models (tools/models.py specs + generated textures)
 # ---------------------------------------------------------------------------------------
 
-def entity_quads(model, uv, tex, part_pose=None):
-    """Box-UV cubes from a models.py spec, with part pivots/rotations applied (Y up, facing -Z)."""
+def entity_quads(model, uv, tex, part_pose=None, res=1):
+    """Box-UV cubes from a models.py spec, with part pivots/rotations applied (Y up, facing -Z).
+    {@code res} is texels per model unit (tools/creatures.py paints at RES)."""
     tw, th = tex.size
     parts = {p["name"]: p for p in model}
 
@@ -170,7 +171,7 @@ def entity_quads(model, uv, tex, part_pose=None):
             (fx, fy, fz) = c["from"]
             (sx, sy, sz) = c["size"]
             u, v = uv[(p["name"], i)]
-            w, h, d = (int(round(s)) for s in c["size"])
+            w, h, d = c["size"]
             infl = c.get("inflate", 0.0)
             x0, y0, z0 = fx - infl, fy - infl, fz - infl
             x1, y1, z1 = fx + sx + infl, fy + sy + infl, fz + sz + infl
@@ -200,8 +201,8 @@ def entity_quads(model, uv, tex, part_pose=None):
                     return transform(pt, name)
 
                 def texel(a, b, rx0=rx0, ry0=ry0, rw=rw, rh=rh):
-                    px = rx0 + a * rw
-                    py = ry0 + b * rh
+                    px = (rx0 + a * rw) * res
+                    py = (ry0 + b * rh) * res
                     return tex.getpixel((min(tw - 1, int(px)), min(th - 1, int(py))))
 
                 size = {"north": (sx, sy), "south": (sx, sy), "east": (sz, sy), "west": (sz, sy), "up": (sx, sz),
@@ -212,20 +213,21 @@ def entity_quads(model, uv, tex, part_pose=None):
 
 def preview_mobs(out, only=None):
     sys.path.insert(0, os.path.dirname(__file__))
-    import gen_assets
+    import creatures
     import models
     layouts = {}
     for name, model in models.MODELS.items():
-        layouts[name] = gen_assets.pack(model)
+        layouts[name] = creatures.pack(model)
     variants = [v for v in models.VARIANTS if not only or v[1] in only]
-    cell = 300
-    img = Image.new("RGB", (cell * 2, (cell + 20) * len(variants)), (32, 36, 48))
+    cell = int(os.environ.get("PREVIEW_CELL", 300))
+    bg = tuple(int(x) for x in os.environ.get("PREVIEW_BG", "32,36,48").split(","))
+    img = Image.new("RGB", (cell * 3, (cell + 20) * len(variants)), bg)
     draw = ImageDraw.Draw(img)
     for i, (model_name, tex_name, _) in enumerate(variants):
         model = models.MODELS[model_name]
         uv, tw, th = layouts[model_name]
         tex = Image.open(os.path.join(ASSETS, f"textures/entity/{tex_name}.png")).convert("RGBA")
-        quads = entity_quads(model, uv, tex)
+        quads = entity_quads(model, uv, tex, res=tex.size[0] / tw)
         # fit
         pts = []
         for corner, _, _, _ in quads[::3]:
@@ -236,8 +238,10 @@ def preview_mobs(out, only=None):
         center = [(lo[k] + hi[k]) / 2 for k in range(3)]
         extent = max(hi[k] - lo[k] for k in range(3))
         sc = (cell * 0.8) / max(1, extent)
-        for col, view in enumerate([(math.radians(180 + 30), math.radians(15), 0), (math.radians(90 + 180), math.radians(5), 0)]):
-            c = Canvas(cell, cell)
+        views = [(math.radians(180 + 30), math.radians(15), 0), (math.radians(90 + 180), math.radians(5), 0),
+                 (math.radians(-35), math.radians(20), 0)]
+        for col, view in enumerate(views):
+            c = Canvas(cell, cell, bg)
             render_quads(c, quads, view, center, sc, (cell / 2, cell / 2))
             img.paste(c.img, (col * cell, i * (cell + 20)))
         draw.text((4, i * (cell + 20) + cell + 2), tex_name, fill=(220, 220, 220))

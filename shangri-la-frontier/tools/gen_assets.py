@@ -3,8 +3,8 @@
   python3 tools/gen_assets.py
 
 Outputs:
-  * src/main/java/com/slfrontier/client/model/ModelDefs.java  (entity geometry)
-  * textures for entities, humanoid skins, items, blocks, armor, effects and the logo
+  * src/main/java/com/slfrontier/client/model/ModelDefs.java  (entity geometry, via tools/creatures.py)
+  * textures for entities, items, blocks, armor, effects, GUI icons and the logo
 
 Everything is procedural pixel art so the whole mod can be rebuilt from source.
 Swap any PNG for hand-drawn art later; the generator only overwrites when re-run.
@@ -18,13 +18,13 @@ import sys
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(__file__))
-from models import HUMANOID_SKINS, MODELS, VARIANTS  # noqa: E402
+from models import MODELS, VARIANTS  # noqa: E402
+import creatures  # noqa: E402
 import icons  # noqa: E402
 import weapons  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 ASSETS = os.path.join(ROOT, "src/main/resources/assets/slfrontier")
-JAVA_OUT = os.path.join(ROOT, "src/main/java/com/slfrontier/client/model/ModelDefs.java")
 
 
 def hex_rgb(h):
@@ -104,145 +104,6 @@ def paint_box(img, u, v, size, mat, decals, palette, rnd):
                     else:
                         c = shade(hex_rgb(color[0]), FACE_SHADE[face] if face in ("top", "bottom") else 1.0)
                         img.putpixel((fx + x, fy + y), noisy(c, color[1], rnd) + (255,))
-
-
-# ---------------------------------------------------------------------------------------
-# Packing + Java generation
-# ---------------------------------------------------------------------------------------
-
-def pack(model):
-    boxes = []
-    for p in model:
-        for i, c in enumerate(p["cubes"]):
-            w, h, d = (int(round(s)) for s in c["size"])
-            boxes.append((p["name"], i, 2 * (w + d), d + h))
-    for width in (64, 128, 256, 512):
-        placed = {}
-        x = y = row = 0
-        ok = True
-        for name, i, bw, bh in sorted(boxes, key=lambda b: (-b[3], -b[2])):
-            if bw > width:
-                ok = False
-                break
-            if x + bw > width:
-                x = 0
-                y += row
-                row = 0
-            placed[(name, i)] = (x, y)
-            x += bw
-            row = max(row, bh)
-        used = y + row
-        if ok and used <= width:
-            height = 1
-            while height < used:
-                height *= 2
-            return placed, width, max(height, 32)
-    raise RuntimeError("model too big")
-
-
-def fmt(f):
-    s = f"{float(f):.4f}".rstrip("0").rstrip(".")
-    if s in ("-0", ""):
-        s = "0"
-    return s + "F"
-
-
-def java_for(name, model, uv, tw, th):
-    pivots = {"root": (0, 0, 0)}
-    for p in model:
-        pivots[p["name"]] = p["pivot"]
-    lines = [f"    public static LayerDefinition {camel(name)}() {{",
-             "        MeshDefinition mesh = new MeshDefinition();",
-             "        PartDefinition root = mesh.getRoot().addOrReplaceChild(\"root\", CubeListBuilder.create(), PartPose.offset(0.0F, 24.0F, 0.0F));"]
-    for p in model:
-        px, py, pz = p["pivot"]
-        qx, qy, qz = pivots[p["parent"]]
-        cubes = "CubeListBuilder.create()"
-        for i, c in enumerate(p["cubes"]):
-            fx, fy, fz = c["from"]
-            sx, sy, sz = c["size"]
-            u, v = uv[(p["name"], i)]
-            ox, oy, oz = fx - px, -(fy + sy - py), fz - pz
-            cubes += (f"\n                .texOffs({u}, {v}).addBox({fmt(ox)}, {fmt(oy)}, {fmt(oz)}, "
-                      f"{fmt(sx)}, {fmt(sy)}, {fmt(sz)}, new CubeDeformation({fmt(c['inflate'])}))")
-        rx, ry, rz = (math.radians(a) for a in p["rot"])
-        pose = (f"PartPose.offsetAndRotation({fmt(px - qx)}, {fmt(-(py - qy))}, {fmt(pz - qz)}, "
-                f"{fmt(rx)}, {fmt(ry)}, {fmt(rz)})")
-        parent_var = "root" if p["parent"] == "root" else var(p["parent"])
-        lines.append(f"        PartDefinition {var(p['name'])} = {parent_var}.addOrReplaceChild(\"{p['name']}\", {cubes}, {pose});")
-    lines.append(f"        return LayerDefinition.create(mesh, {tw}, {th});")
-    lines.append("    }")
-    return "\n".join(lines)
-
-
-def camel(s):
-    parts = s.split("_")
-    return parts[0] + "".join(x.title() for x in parts[1:])
-
-
-def var(s):
-    return "p_" + s
-
-
-def generate_models():
-    methods = []
-    layouts = {}
-    for name, model in MODELS.items():
-        uv, tw, th = pack(model)
-        layouts[name] = (uv, tw, th)
-        methods.append(java_for(name, model, uv, tw, th))
-    java = f"""package com.slfrontier.client.model;
-
-import net.minecraft.client.model.geom.PartPose;
-import net.minecraft.client.model.geom.builders.CubeDeformation;
-import net.minecraft.client.model.geom.builders.CubeListBuilder;
-import net.minecraft.client.model.geom.builders.LayerDefinition;
-import net.minecraft.client.model.geom.builders.MeshDefinition;
-import net.minecraft.client.model.geom.builders.PartDefinition;
-
-/**
- * Entity geometry. GENERATED by tools/gen_assets.py from tools/models.py — edit the
- * spec and re-run the script instead of editing this file.
- */
-@SuppressWarnings("unused")
-public final class ModelDefs {{
-    private ModelDefs() {{
-    }}
-
-{chr(10).join(methods)}
-}}
-"""
-    with open(JAVA_OUT, "w") as f:
-        f.write(java)
-    for model_name, tex_name, palette in VARIANTS:
-        uv, tw, th = layouts[model_name]
-        img = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
-        rnd = rng_for(tex_name)
-        for p in MODELS[model_name]:
-            for i, c in enumerate(p["cubes"]):
-                u, v = uv[(p["name"], i)]
-                paint_box(img, u, v, c["size"], c["mat"], c["decals"], palette, rnd)
-        save(img, f"textures/entity/{tex_name}.png")
-
-
-HUMANOID_BOXES = {
-    "head": ((0, 0), (8, 8, 8)),
-    "hat": ((32, 0), (8, 8, 8)),
-    "body": ((16, 16), (8, 12, 4)),
-    "arm": ((40, 16), (4, 12, 4)),
-    "leg": ((0, 16), (4, 12, 4)),
-}
-
-
-def generate_skins():
-    for name, skin in HUMANOID_SKINS.items():
-        img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-        rnd = rng_for(name)
-        palette = skin["palette"]
-        for box, ((u, v), size) in HUMANOID_BOXES.items():
-            mat, decals = skin[box]
-            paint_box(img, u, v, size, mat, decals, palette, rnd)
-        save(img, f"textures/entity/{name}.png")
 
 
 # ---------------------------------------------------------------------------------------
@@ -612,8 +473,7 @@ def generate_logo():
 
 
 if __name__ == "__main__":
-    generate_models()
-    generate_skins()
+    creatures.build_all(MODELS, VARIANTS)
     generate_items()
     generate_blocks()
     generate_effects()

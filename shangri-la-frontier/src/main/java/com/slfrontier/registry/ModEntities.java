@@ -29,25 +29,25 @@ public final class ModEntities {
 
     // Monsters
     public static final DeferredHolder<EntityType<?>, EntityType<GoblinEntity>> GOBLIN = ENTITIES.register("goblin",
-            () -> EntityType.Builder.of(GoblinEntity::new, MobCategory.MONSTER).sized(0.6f, 1.5f).clientTrackingRange(8).build("goblin"));
+            () -> EntityType.Builder.of(GoblinEntity::new, MobCategory.MONSTER).sized(0.6f, 1.05f).clientTrackingRange(8).build("goblin"));
     public static final DeferredHolder<EntityType<?>, EntityType<VorpalBunnyEntity>> VORPAL_BUNNY = ENTITIES.register("vorpal_bunny",
-            () -> EntityType.Builder.of(VorpalBunnyEntity::new, MobCategory.MONSTER).sized(0.5f, 0.6f).clientTrackingRange(8).build("vorpal_bunny"));
+            () -> EntityType.Builder.of(VorpalBunnyEntity::new, MobCategory.MONSTER).sized(0.5f, 0.65f).clientTrackingRange(8).build("vorpal_bunny"));
     public static final DeferredHolder<EntityType<?>, EntityType<EmpireBeeEntity>> EMPIRE_BEE = ENTITIES.register("empire_bee",
             () -> EntityType.Builder.of(EmpireBeeEntity::new, MobCategory.MONSTER).sized(0.8f, 0.7f).clientTrackingRange(8).build("empire_bee"));
     public static final DeferredHolder<EntityType<?>, EntityType<QuadBeetleEntity>> QUAD_BEETLE = ENTITIES.register("quad_beetle",
-            () -> EntityType.Builder.of(QuadBeetleEntity::new, MobCategory.MONSTER).sized(1.8f, 1.3f).clientTrackingRange(10).build("quad_beetle"));
+            () -> EntityType.Builder.of(QuadBeetleEntity::new, MobCategory.MONSTER).sized(2.2f, 1.5f).clientTrackingRange(10).build("quad_beetle"));
     public static final DeferredHolder<EntityType<?>, EntityType<ShadowWolfEntity>> SHADOW_WOLF = ENTITIES.register("shadow_wolf",
             () -> EntityType.Builder.of(ShadowWolfEntity::new, MobCategory.MONSTER).sized(0.8f, 0.9f).clientTrackingRange(10).build("shadow_wolf"));
 
     // Bosses
     public static final DeferredHolder<EntityType<?>, EntityType<LycagonEntity>> LYCAGON = ENTITIES.register("lycagon",
-            () -> EntityType.Builder.of(LycagonEntity::new, MobCategory.MONSTER).sized(2.4f, 2.8f).clientTrackingRange(16).fireImmune().build("lycagon"));
+            () -> EntityType.Builder.of(LycagonEntity::new, MobCategory.MONSTER).sized(2.8f, 3.4f).clientTrackingRange(16).fireImmune().build("lycagon"));
     public static final DeferredHolder<EntityType<?>, EntityType<WezaemonEntity>> WEZAEMON = ENTITIES.register("wezaemon",
-            () -> EntityType.Builder.of(WezaemonEntity::new, MobCategory.MONSTER).sized(1.0f, 3.0f).clientTrackingRange(16).fireImmune().build("wezaemon"));
+            () -> EntityType.Builder.of(WezaemonEntity::new, MobCategory.MONSTER).sized(1.0f, 2.7f).clientTrackingRange(16).fireImmune().build("wezaemon"));
     public static final DeferredHolder<EntityType<?>, EntityType<MudDiggerEntity>> MUD_DIGGER = ENTITIES.register("mud_digger",
-            () -> EntityType.Builder.of(MudDiggerEntity::new, MobCategory.MONSTER).sized(2.0f, 1.5f).clientTrackingRange(12).build("mud_digger"));
+            () -> EntityType.Builder.of(MudDiggerEntity::new, MobCategory.MONSTER).sized(2.0f, 2.2f).clientTrackingRange(12).build("mud_digger"));
     public static final DeferredHolder<EntityType<?>, EntityType<EmpireBeeQueenEntity>> EMPIRE_BEE_QUEEN = ENTITIES.register("empire_bee_queen",
-            () -> EntityType.Builder.of(EmpireBeeQueenEntity::new, MobCategory.MONSTER).sized(1.5f, 1.4f).clientTrackingRange(12).build("empire_bee_queen"));
+            () -> EntityType.Builder.of(EmpireBeeQueenEntity::new, MobCategory.MONSTER).sized(1.6f, 1.6f).clientTrackingRange(12).build("empire_bee_queen"));
 
     // NPCs
     public static final DeferredHolder<EntityType<?>, EntityType<FrontierNpc>> GUIDE = npc("frontier_guide", 0.6f, 1.95f);
@@ -56,7 +56,7 @@ public final class ModEntities {
     public static final DeferredHolder<EntityType<?>, EntityType<FrontierNpc>> BILAC = npc("bilac", 0.5f, 1.2f);
     public static final DeferredHolder<EntityType<?>, EntityType<FrontierNpc>> SETSUNA = npc("setsuna", 0.6f, 1.8f);
     public static final DeferredHolder<EntityType<?>, EntityType<EmulEntity>> EMUL = ENTITIES.register("emul",
-            () -> EntityType.Builder.of(EmulEntity::new, MobCategory.MISC).sized(0.5f, 1.1f).clientTrackingRange(10).build("emul"));
+            () -> EntityType.Builder.of(EmulEntity::new, MobCategory.MISC).sized(0.45f, 0.75f).clientTrackingRange(10).build("emul"));
 
     // Projectiles
     public static final DeferredHolder<EntityType<?>, EntityType<HolyWaterEntity>> HOLY_WATER = ENTITIES.register("holy_water",
