@@ -1,6 +1,7 @@
 package com.slfrontier.data;
 
 import com.slfrontier.quest.QuestStage;
+import com.slfrontier.quest.SideQuest;
 import com.slfrontier.skill.Skill;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -14,6 +15,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -42,6 +45,16 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
     private int questProgress = 0;
     private final Set<String> flags = new HashSet<>();
     private boolean cursed = false;
+    /** Active side quests and their progress, in the order they were accepted. */
+    private final Map<String, Integer> sideProgress = new LinkedHashMap<>();
+    private final Set<String> sideDone = new LinkedHashSet<>();
+    /** Quest shown in the HUD tracker: "" for the main story, otherwise a side quest id. */
+    private String tracked = "";
+
+    // Map & fast travel
+    private final Set<String> waypoints = new LinkedHashSet<>();
+    private String respawnWaypoint = "";
+    private long fastTravelReadyAt;
 
     private boolean hasReturn = false;
     private String returnDim = "minecraft:overworld";
@@ -197,6 +210,10 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
         return uses.getOrDefault(skill, 0);
     }
 
+    public void setUses(Skill skill, int count) {
+        uses.put(skill, Math.max(0, count));
+    }
+
     public int addUse(Skill skill) {
         int n = uses(skill) + 1;
         uses.put(skill, n);
@@ -237,6 +254,77 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
 
     public void setCursed(boolean cursed) {
         this.cursed = cursed;
+    }
+
+    // ---- Side quests -----------------------------------------------------------------
+
+    public enum SideState { LOCKED, AVAILABLE, ACTIVE, DONE }
+
+    public SideState sideState(SideQuest quest) {
+        if (sideDone.contains(quest.id)) return SideState.DONE;
+        if (sideProgress.containsKey(quest.id)) return SideState.ACTIVE;
+        return stage.atLeast(quest.unlockedAt) ? SideState.AVAILABLE : SideState.LOCKED;
+    }
+
+    public int sideProgress(SideQuest quest) {
+        return sideProgress.getOrDefault(quest.id, 0);
+    }
+
+    public void setSideProgress(SideQuest quest, int progress) {
+        if (sideProgress.containsKey(quest.id)) sideProgress.put(quest.id, Math.max(0, progress));
+    }
+
+    public void acceptSide(SideQuest quest) {
+        if (!sideDone.contains(quest.id)) sideProgress.putIfAbsent(quest.id, 0);
+    }
+
+    public void completeSide(SideQuest quest) {
+        sideProgress.remove(quest.id);
+        sideDone.add(quest.id);
+        if (tracked.equals(quest.id)) tracked = "";
+    }
+
+    public Set<String> activeSideIds() {
+        return sideProgress.keySet();
+    }
+
+    public String tracked() {
+        return tracked;
+    }
+
+    public void setTracked(String id) {
+        this.tracked = id == null ? "" : id;
+    }
+
+    // ---- Waypoints -------------------------------------------------------------------
+
+    public boolean knowsWaypoint(String id) {
+        return waypoints.contains(id);
+    }
+
+    /** @return true if newly discovered */
+    public boolean discoverWaypoint(String id) {
+        return waypoints.add(id);
+    }
+
+    public Set<String> waypoints() {
+        return waypoints;
+    }
+
+    public String respawnWaypoint() {
+        return respawnWaypoint;
+    }
+
+    public void setRespawnWaypoint(String id) {
+        this.respawnWaypoint = id == null ? "" : id;
+    }
+
+    public long fastTravelReadyAt() {
+        return fastTravelReadyAt;
+    }
+
+    public void setFastTravelReadyAt(long gameTime) {
+        this.fastTravelReadyAt = gameTime;
     }
 
     // ---- Login / logout ------------------------------------------------------------
@@ -303,8 +391,20 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
         CompoundTag useTag = new CompoundTag();
         uses.forEach((k, v) -> useTag.putInt(k.id, v));
         tag.put("uses", useTag);
-        tag.putInt("stage", stage.ordinal());
+        tag.putString("stageName", stage.name());
         tag.putInt("questProgress", questProgress);
+        CompoundTag side = new CompoundTag();
+        sideProgress.forEach(side::putInt);
+        tag.put("sideProgress", side);
+        ListTag done = new ListTag();
+        for (String d : sideDone) done.add(StringTag.valueOf(d));
+        tag.put("sideDone", done);
+        tag.putString("tracked", tracked);
+        ListTag wps = new ListTag();
+        for (String w : waypoints) wps.add(StringTag.valueOf(w));
+        tag.put("waypoints", wps);
+        tag.putString("respawnWaypoint", respawnWaypoint);
+        tag.putLong("fastTravelReadyAt", fastTravelReadyAt);
         ListTag flagList = new ListTag();
         for (String f : flags) flagList.add(StringTag.valueOf(f));
         tag.put("flags", flagList);
@@ -348,8 +448,21 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
             Skill s = Skill.byId(key);
             if (s != null) uses.put(s, useTag.getInt(key));
         }
-        stage = QuestStage.byOrdinal(tag.getInt("stage"));
+        QuestStage named = tag.contains("stageName") ? QuestStage.byName(tag.getString("stageName")) : null;
+        stage = named != null ? named : QuestStage.fromLegacyOrdinal(tag.getInt("stage"));
         questProgress = tag.getInt("questProgress");
+        sideProgress.clear();
+        CompoundTag side = tag.getCompound("sideProgress");
+        for (String key : side.getAllKeys()) {
+            if (SideQuest.byId(key) != null) sideProgress.put(key, side.getInt(key));
+        }
+        sideDone.clear();
+        for (Tag t : tag.getList("sideDone", Tag.TAG_STRING)) sideDone.add(t.getAsString());
+        tracked = tag.getString("tracked");
+        waypoints.clear();
+        for (Tag t : tag.getList("waypoints", Tag.TAG_STRING)) waypoints.add(t.getAsString());
+        respawnWaypoint = tag.getString("respawnWaypoint");
+        fastTravelReadyAt = tag.getLong("fastTravelReadyAt");
         flags.clear();
         for (Tag t : tag.getList("flags", Tag.TAG_STRING)) flags.add(t.getAsString());
         cursed = tag.getBoolean("cursed");
@@ -386,6 +499,12 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
         h = 31 * h + questProgress;
         h = 31 * h + flags.hashCode();
         h = 31 * h + (cursed ? 1 : 0);
+        h = 31 * h + sideProgress.hashCode();
+        h = 31 * h + sideDone.hashCode();
+        h = 31 * h + tracked.hashCode();
+        h = 31 * h + waypoints.hashCode();
+        h = 31 * h + respawnWaypoint.hashCode();
+        h = 31 * h + Long.hashCode(fastTravelReadyAt);
         return h;
     }
 }

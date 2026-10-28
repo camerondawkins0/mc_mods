@@ -15,31 +15,247 @@ import com.slfrontier.world.FrontierTravel;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
  * Automated client walkthrough used only by CI (enabled with -Dslfrontier.clientTest=true).
- * It logs the player into the Frontier, lines up every creature, opens the menus and takes
- * screenshots, then quits. Never active in normal play.
+ * It logs the player into the Frontier, then plays a list of scenes — lining up creatures,
+ * showing weapons, opening menus — taking screenshots, and quits. Never active in normal play.
+ *
+ * <p>{@code -Dslfrontier.clientTest.only=weapons,menus} runs a subset of scenes.
  */
 public final class ClientTestDriver {
     public static final boolean ENABLED = Boolean.getBoolean("slfrontier.clientTest");
+    private static final Set<String> ONLY = new HashSet<>(Arrays.asList(
+            System.getProperty("slfrontier.clientTest.only", "").split(",")));
+
+    private record Step(int at, Consumer<Minecraft> action) {
+    }
+
+    private static final List<Step> STEPS = new ArrayList<>();
+    private static int cursor;
     private static int ticks = -1;
     private static int clientTicks;
-    private static final List<Mob> spawned = new ArrayList<>();
+    private static int nextStep;
+    private static final List<Entity> spawned = new ArrayList<>();
 
     private ClientTestDriver() {
     }
+
+    // ---- Timeline building -----------------------------------------------------------
+
+    private static void at(int delay, Consumer<Minecraft> action) {
+        cursor += delay;
+        STEPS.add(new Step(cursor, action));
+    }
+
+    private static void server(int delay, Consumer<ServerPlayer> action) {
+        at(delay, mc -> {
+            MinecraftServer server = mc.getSingleplayerServer();
+            if (server != null) server.execute(() -> action.accept(server.getPlayerList().getPlayers().get(0)));
+        });
+    }
+
+    private static void shot(int delay, String name) {
+        at(delay, mc -> Screenshot.grab(mc.gameDirectory, name + ".png", mc.getMainRenderTarget(),
+                msg -> SLFrontier.LOGGER.info("Screenshot {}: {}", name, msg.getString())));
+    }
+
+    private static boolean wants(String scene) {
+        return ONLY.size() <= 1 && ONLY.contains("") || ONLY.contains(scene);
+    }
+
+    static {
+        server(60, FrontierTravel::login);
+        server(140, sp -> {
+            ServerLevel level = sp.serverLevel();
+            level.setDayTime(6000);
+            level.setWeatherParameters(6000, 0, false, false);
+            Progression.grantExp(sp, 3000);
+            var data = ModAttachments.get(sp);
+            for (Skill s : Skill.values()) data.unlock(s);
+            data.setCursed(true);
+            sp.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.MOONBLADE_WAXING.get()));
+            sp.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(ModItems.MOONBLADE_WANING.get()));
+            sp.setItemSlot(EquipmentSlot.HEAD, new ItemStack(ModItems.BIRD_MASK.get()));
+            sp.getAbilities().invulnerable = true;
+            sp.getAbilities().mayfly = true;
+            sp.getAbilities().flying = true;
+            sp.onUpdateAbilities();
+            sp.teleportTo(level, sp.getX(), sp.getY() + 1, sp.getZ(), 0f, 15f);
+        });
+        cursor += 40;
+        if (wants("creatures")) creatures();
+        if (wants("weapons")) weapons();
+        if (wants("poses")) poses();
+        if (wants("menus")) menus();
+        at(20, mc -> {
+            SLFrontier.LOGGER.info("Client test finished");
+            mc.stop();
+        });
+    }
+
+    // ---- Scenes ----------------------------------------------------------------------
+
+    private static void creatures() {
+        server(0, sp -> lineUp(sp, List.of(ModEntities.GOBLIN, ModEntities.VORPAL_BUNNY, ModEntities.EMPIRE_BEE,
+                ModEntities.SHADOW_WOLF, ModEntities.EMUL, ModEntities.BILAC, ModEntities.GUIDE,
+                ModEntities.BLACKSMITH, ModEntities.SETSUNA), 1.6, 6));
+        shot(120, "01_small_creatures");
+        server(10, sp -> {
+            clear();
+            lineUp(sp, List.of(ModEntities.QUAD_BEETLE, ModEntities.MUD_DIGGER, ModEntities.WEZAEMON,
+                    ModEntities.VYSACHE, ModEntities.EMPIRE_BEE_QUEEN), 4.0, 12);
+        });
+        shot(110, "02_big_creatures");
+        server(10, sp -> {
+            clear();
+            lineUp(sp, List.of(ModEntities.LYCAGON), 0, 12);
+        });
+        shot(110, "03_lycagon");
+        server(10, sp -> {
+            for (Entity m : spawned) {
+                if (m instanceof FrontierBoss boss) boss.playAnim(5);
+            }
+        });
+        shot(15, "04_lycagon_attack");
+        server(10, sp -> clear());
+    }
+
+    private static final List<Supplier<Item>> WEAPONS = List.of(
+            ModItems.MERCENARY_TWIN_BLADES::get, ModItems.MARSH_DAGGER::get, ModItems.DUCUSRAM::get,
+            ModItems.VORPAL_CHOPPERS::get, ModItems.EMPIRE_BEE_TWINBLADES::get, ModItems.MOONBLADE_WAXING::get,
+            ModItems.MOONBLADE_WANING::get, ModItems.TWIN_MOON::get, ModItems.TOMBGUARD_KATANA::get);
+
+    private static void weapons() {
+        // Armor stands show the third-person transforms, dropped items the ground ones.
+        server(0, sp -> {
+            ServerLevel level = sp.serverLevel();
+            double width = 1.3 * (WEAPONS.size() - 1);
+            for (int i = 0; i < WEAPONS.size(); i++) {
+                ArmorStand stand = EntityType.ARMOR_STAND.create(level);
+                if (stand == null) continue;
+                stand.setShowArms(true);
+                stand.setNoBasePlate(true);
+                stand.setNoGravity(true);
+                stand.moveTo(sp.getX() - width / 2 + i * 1.3, sp.getY() - 1, sp.getZ() + 4.5, 180f, 0f);
+                stand.setYBodyRot(180f);
+                stand.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(WEAPONS.get(i).get()));
+                level.addFreshEntity(stand);
+                spawned.add(stand);
+                ItemEntity drop = new ItemEntity(level, sp.getX() - width / 2 + i * 1.3, sp.getY() - 0.6, sp.getZ() + 2.6,
+                        new ItemStack(WEAPONS.get(i).get()), 0, 0, 0);
+                drop.setNeverPickUp();
+                drop.setNoGravity(true);
+                drop.setUnlimitedLifetime();
+                level.addFreshEntity(drop);
+                spawned.add(drop);
+            }
+            sp.teleportTo(level, sp.getX(), sp.getY(), sp.getZ(), 0f, 20f);
+            for (int i = 0; i < WEAPONS.size(); i++) sp.getInventory().setItem(i, new ItemStack(WEAPONS.get(i).get()));
+        });
+        shot(100, "10_weapons_held");
+        at(5, mc -> mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT));
+        shot(30, "11_weapons_third_person");
+        at(5, mc -> mc.options.setCameraType(CameraType.FIRST_PERSON));
+        server(5, sp -> {
+            sp.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.TOMBGUARD_KATANA.get()));
+            sp.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
+            sp.teleportTo(sp.serverLevel(), sp.getX(), sp.getY(), sp.getZ(), 0f, 0f);
+        });
+        shot(30, "12_first_person_katana");
+        server(5, sp -> sp.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.TWIN_MOON.get())));
+        shot(30, "13_first_person_twin_moon");
+        server(5, sp -> {
+            sp.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.MOONBLADE_WAXING.get()));
+            sp.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(ModItems.MOONBLADE_WANING.get()));
+        });
+        shot(30, "14_first_person_moonblades");
+        at(5, mc -> mc.setScreen(new InventoryScreen(mc.player)));
+        shot(30, "15_inventory_icons");
+        at(5, mc -> mc.setScreen(null));
+        server(5, sp -> clear());
+    }
+
+    private static void poses() {
+        at(0, mc -> {
+            mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+            ClientAnims.start(mc.player.getId(), PlayerAnims.PARRY, 200);
+        });
+        shot(40, "05_player_parry_pose");
+        at(10, mc -> ClientAnims.start(mc.player.getId(), PlayerAnims.CRESCENT, 200));
+        shot(50, "06_player_crescent_pose");
+        at(10, mc -> mc.options.setCameraType(CameraType.FIRST_PERSON));
+    }
+
+    private static void menus() {
+        // A mid-story avatar: a side quest in progress, a waypoint attuned, a goblin to target.
+        server(0, sp -> {
+            var data = ModAttachments.get(sp);
+            data.setStage(com.slfrontier.quest.QuestStage.GRAY_ORE);
+            data.acceptSide(com.slfrontier.quest.SideQuest.GOBLIN_CULL);
+            data.setSideProgress(com.slfrontier.quest.SideQuest.GOBLIN_CULL, 7);
+            data.setTracked(com.slfrontier.quest.SideQuest.GOBLIN_CULL.id);
+            data.setUses(Skill.TAP_STEP, 23);
+            ServerLevel level = sp.serverLevel();
+            net.minecraft.core.BlockPos crystal = sp.blockPosition().offset(-3, -1, 3);
+            level.setBlock(crystal, com.slfrontier.registry.ModBlocks.WAYPOINT_CRYSTAL.get().defaultBlockState(), 3);
+            com.slfrontier.block.WaypointBlock.attune(level, crystal, sp);
+            sp.getAbilities().flying = false;
+            sp.onUpdateAbilities();
+            sp.teleportTo(level, sp.getX(), sp.getY() - 1, sp.getZ(), 0f, 5f);
+            lineUp(sp, List.of(ModEntities.GOBLIN), 0, 3.5);
+            com.slfrontier.world.MapSync.invalidate(sp);
+        });
+        shot(120, "16_hud");
+        server(5, sp -> clear());
+        at(5, mc -> mc.setScreen(new FrontierScreen(FrontierScreen.Tab.STATUS)));
+        shot(30, "07_status_menu");
+        at(5, mc -> mc.setScreen(new FrontierScreen(FrontierScreen.Tab.SKILLS)));
+        shot(30, "17_skills_menu");
+        at(5, mc -> mc.setScreen(new FrontierScreen(FrontierScreen.Tab.QUESTS)));
+        shot(30, "18_quest_journal");
+        at(5, mc -> mc.setScreen(new com.slfrontier.client.screen.MapScreen()));
+        shot(40, "19_map");
+        at(5, mc -> mc.setScreen(null));
+        server(5, sp -> lineUp(sp, List.of(ModEntities.EMUL), 0, 2.5));
+        at(30, mc -> {
+            int id = spawned.isEmpty() ? mc.player.getId() : spawned.get(0).getId();
+            mc.setScreen(new DialogueScreen(new ModNetwork.OpenDialogue(id, "entity.slfrontier.emul",
+                    List.of("dialogue.slfrontier.emul.invite.5"), List.of("dialogue.slfrontier.option.accept_invitation",
+                    "dialogue.slfrontier.option.side_offer|@sidequest.slfrontier.lily_offering.title",
+                    "dialogue.slfrontier.option.decline"))));
+        });
+        shot(50, "08_dialogue");
+        at(10, mc -> {
+            mc.setScreen(null);
+            mc.player.setXRot(10f);
+        });
+        server(0, sp -> clear());
+        shot(40, "09_fastera");
+    }
+
+    // ---- Driver ----------------------------------------------------------------------
 
     public static void tick() {
         Minecraft mc = Minecraft.getInstance();
@@ -60,95 +276,28 @@ public final class ClientTestDriver {
             }
         }
         if (mc.player == null && clientTicks == 4000) {
-            shot(mc, "00_never_joined_world");
+            Screenshot.grab(mc.gameDirectory, "00_never_joined_world.png", mc.getMainRenderTarget(), msg -> {
+            });
         }
         if (mc.player == null && clientTicks == 4040) {
             SLFrontier.LOGGER.error("Client test never joined the world");
             mc.stop();
         }
-        if (mc.player == null || mc.level == null) return;
+        if (mc.player == null || mc.level == null || mc.getSingleplayerServer() == null) return;
         ticks++;
-        MinecraftServer server = mc.getSingleplayerServer();
-        if (server == null) return;
-        switch (ticks) {
-            case 60 -> server.execute(() -> {
-                ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
-                FrontierTravel.login(sp);
-            });
-            case 200 -> server.execute(() -> {
-                ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
-                ServerLevel level = sp.serverLevel();
-                level.setDayTime(6000);
-                level.setWeatherParameters(6000, 0, false, false);
-                Progression.grantExp(sp, 3000);
-                var data = ModAttachments.get(sp);
-                for (Skill s : Skill.values()) data.unlock(s);
-                data.setCursed(true);
-                sp.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.MOONBLADE_WAXING.get()));
-                sp.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(ModItems.MOONBLADE_WANING.get()));
-                sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new ItemStack(ModItems.BIRD_MASK.get()));
-                sp.getAbilities().invulnerable = true;
-                sp.getAbilities().mayfly = true;
-                sp.getAbilities().flying = true;
-                sp.onUpdateAbilities();
-                sp.teleportTo(level, sp.getX(), sp.getY() + 1, sp.getZ(), 0f, 15f);
-                lineUp(level, sp, List.of(ModEntities.GOBLIN, ModEntities.VORPAL_BUNNY, ModEntities.EMPIRE_BEE,
-                        ModEntities.SHADOW_WOLF, ModEntities.EMUL, ModEntities.BILAC, ModEntities.GUIDE,
-                        ModEntities.BLACKSMITH, ModEntities.SETSUNA), 1.6, 6);
-            });
-            case 320 -> shot(mc, "01_small_creatures");
-            case 330 -> server.execute(() -> {
-                ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
-                clear();
-                lineUp(sp.serverLevel(), sp, List.of(ModEntities.QUAD_BEETLE, ModEntities.MUD_DIGGER, ModEntities.WEZAEMON,
-                        ModEntities.VYSACHE, ModEntities.EMPIRE_BEE_QUEEN), 4.0, 12);
-            });
-            case 440 -> shot(mc, "02_big_creatures");
-            case 450 -> server.execute(() -> {
-                ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
-                clear();
-                lineUp(sp.serverLevel(), sp, List.of(ModEntities.LYCAGON), 0, 12);
-            });
-            case 560 -> shot(mc, "03_lycagon");
-            case 570 -> server.execute(() -> {
-                for (Mob m : spawned) {
-                    if (m instanceof FrontierBoss boss) boss.playAnim(5);
-                }
-            });
-            case 585 -> shot(mc, "04_lycagon_attack");
-            case 600 -> {
-                server.execute(ClientTestDriver::clear);
-                mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
-                ClientAnims.start(mc.player.getId(), PlayerAnims.PARRY, 200);
+        while (nextStep < STEPS.size() && STEPS.get(nextStep).at() <= ticks) {
+            try {
+                STEPS.get(nextStep).action().accept(mc);
+            } catch (Throwable t) {
+                SLFrontier.LOGGER.error("Client test step {} failed", nextStep, t);
             }
-            case 640 -> shot(mc, "05_player_parry_pose");
-            case 650 -> ClientAnims.start(mc.player.getId(), PlayerAnims.CRESCENT, 200);
-            case 700 -> shot(mc, "06_player_crescent_pose");
-            case 710 -> {
-                mc.options.setCameraType(CameraType.FIRST_PERSON);
-                mc.setScreen(new FrontierScreen());
-            }
-            case 740 -> shot(mc, "07_status_menu");
-            case 750 -> mc.setScreen(new DialogueScreen(new ModNetwork.OpenDialogue(mc.player.getId(), "entity.slfrontier.emul",
-                    List.of("dialogue.slfrontier.emul.invite.1"), List.of("dialogue.slfrontier.option.accept_invitation",
-                    "dialogue.slfrontier.option.decline"))));
-            case 800 -> shot(mc, "08_dialogue");
-            case 810 -> {
-                mc.setScreen(null);
-                mc.player.setXRot(10f);
-            }
-            case 850 -> shot(mc, "09_fastera");
-            case 870 -> {
-                SLFrontier.LOGGER.info("Client test finished");
-                mc.stop();
-            }
-            default -> {
-            }
+            nextStep++;
         }
     }
 
-    private static void lineUp(ServerLevel level, ServerPlayer sp, List<? extends Supplier<? extends EntityType<? extends Mob>>> types,
+    private static void lineUp(ServerPlayer sp, List<? extends Supplier<? extends EntityType<? extends Mob>>> types,
                                double spacing, double distance) {
+        ServerLevel level = sp.serverLevel();
         double width = spacing * (types.size() - 1);
         for (int i = 0; i < types.size(); i++) {
             Mob mob = types.get(i).get().create(level);
@@ -166,12 +315,7 @@ public final class ClientTestDriver {
     }
 
     private static void clear() {
-        for (Mob m : spawned) m.discard();
+        for (Entity m : spawned) m.discard();
         spawned.clear();
-    }
-
-    private static void shot(Minecraft mc, String name) {
-        Screenshot.grab(mc.gameDirectory, name + ".png", mc.getMainRenderTarget(),
-                msg -> SLFrontier.LOGGER.info("Screenshot {}: {}", name, msg.getString()));
     }
 }

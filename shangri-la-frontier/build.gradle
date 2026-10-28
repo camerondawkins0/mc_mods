@@ -33,6 +33,8 @@ neoForge {
         clientTest {
             client()
             systemProperty 'slfrontier.clientTest', 'true'
+            // ./gradlew runClientTest -PslfScenes=weapons,menus runs only those scenes
+            systemProperty 'slfrontier.clientTest.only', (project.findProperty('slfScenes') ?: '').toString()
             programArguments.addAll '--quickPlaySingleplayer', 'ci_world', '--width', '1280', '--height', '720'
         }
         configureEach {

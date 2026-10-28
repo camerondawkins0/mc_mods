@@ -115,5 +115,6 @@ def write(path, root):
     out += struct.pack(">b", TAG_COMPOUND)
     out += struct.pack(">H", 0)
     _payload(root, out)
-    with gzip.open(path, "wb") as f:
+    # mtime=0 keeps the files byte-identical between runs.
+    with open(path, "wb") as raw, gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as f:
         f.write(bytes(out))

@@ -19,6 +19,9 @@ import com.slfrontier.skill.Skill;
 import com.slfrontier.skill.SkillExecutor;
 import com.slfrontier.world.Frontier;
 import com.slfrontier.world.FrontierTravel;
+import com.slfrontier.world.MapSync;
+import com.slfrontier.world.Waypoints;
+import com.slfrontier.SlfConfig;
 import com.slfrontier.world.TownData;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -72,6 +75,7 @@ public final class CommonEvents {
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             Story.forget(player);
+            MapSync.forget(player);
         }
     }
 
@@ -89,7 +93,12 @@ public final class CommonEvents {
         PlayerData data = ModAttachments.get(player);
         if (data.flag("died_in_frontier")) {
             data.setFlag("died_in_frontier", false);
-            if (!Frontier.isIn(player)) {
+            Waypoints.Waypoint wp = data.respawnWaypoint().isEmpty() || player.getServer() == null ? null
+                    : Waypoints.get(player.getServer().overworld()).byId(data.respawnWaypoint());
+            if (SlfConfig.RESPAWN_AT_WAYPOINT.get() && wp != null) {
+                // Like an MMO save point: wake up at the last waypoint you attuned to.
+                FrontierTravel.toWaypoint(player, wp);
+            } else if (!Frontier.isIn(player)) {
                 // No bed in the Frontier: respawn in Fastera like a fresh avatar.
                 FrontierTravel.toFastera(player);
             }
@@ -139,6 +148,11 @@ public final class CommonEvents {
         }
         if (player.tickCount % 40 == 0) {
             Progression.applyStats(player);
+        }
+        if (player.tickCount % 20 == 0) {
+            Story.tickSideQuests(player);
+            if (inFrontier && player.tickCount % 200 == 0) FrontierTravel.registerTownWaypoints(player.serverLevel());
+            MapSync.tick(player);
         }
         if (data.syncHash() != data.lastSyncedHash) {
             ModNetwork.sync(player);

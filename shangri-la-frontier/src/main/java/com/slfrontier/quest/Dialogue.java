@@ -44,6 +44,21 @@ public final class Dialogue {
         return this;
     }
 
+    /**
+     * An option with a full translation key and arguments ({@code key|arg|...}); arguments
+     * starting with '@' are translation keys themselves.
+     */
+    public Dialogue optionKey(String key, Consumer<ServerPlayer> action, Object... args) {
+        StringBuilder sb = new StringBuilder(key);
+        for (Object a : args) sb.append('|').append(a);
+        options.add(new Option(sb.toString(), action));
+        return this;
+    }
+
+    public boolean hasOptions() {
+        return !options.isEmpty();
+    }
+
     public Dialogue close() {
         return option("bye", p -> {
         });

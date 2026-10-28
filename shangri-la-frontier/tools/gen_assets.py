@@ -19,6 +19,8 @@ from PIL import Image
 
 sys.path.insert(0, os.path.dirname(__file__))
 from models import HUMANOID_SKINS, MODELS, VARIANTS  # noqa: E402
+import icons  # noqa: E402
+import weapons  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 ASSETS = os.path.join(ROOT, "src/main/resources/assets/slfrontier")
@@ -293,35 +295,6 @@ class Canvas:
                 self.px(x, y, color, noise)
 
 
-def blade(c, length, color, edge, guard, grip, pommel=None, start=(3, 12)):
-    """A diagonal sword from the lower-left grip to the upper right."""
-    gx, gy = start
-    for i in range(length):
-        x, y = gx + 2 + i, gy - 2 - i
-        c.px(x, y, color, 6)
-        c.px(x + 1, y, edge)
-        c.px(x, y - 1, edge)
-    c.line(gx, gy - 2, gx + 2, gy, guard)
-    c.line(gx - 1, gy - 3, gx + 3, gy + 1, guard)
-    c.line(gx - 1, gy + 1, gx + 0, gy + 2, grip)
-    c.px(gx + 1, gy + 1, grip)
-    c.px(gx - 1, gy + 2, pommel or grip)
-    c.px(gx - 2, gy + 3, pommel or grip)
-
-
-def twin(c, color, edge, guard, grip):
-    """Two crossed short blades."""
-    for i in range(9):
-        c.px(3 + i, 12 - i, color, 6)
-        c.px(4 + i, 12 - i, edge)
-        c.px(12 - i, 12 - i, color, 6)
-        c.px(11 - i, 12 - i, edge)
-    c.line(1, 11, 4, 14, guard)
-    c.line(11, 14, 14, 11, guard)
-    c.rect(1, 13, 2, 2, grip)
-    c.rect(13, 13, 2, 2, grip)
-
-
 def item(name, painter, size=16):
     c = Canvas(size, name)
     painter(c)
@@ -336,15 +309,8 @@ def save(img, rel):
 
 
 def generate_items():
-    item("mercenary_twin_blades", lambda c: twin(c, "#B8BEC6", "#E8ECF0", "#6B4A2E", "#3A2A1E"))
-    item("marsh_dagger", lambda c: blade(c, 7, "#7E8E86", "#B8C8C0", "#4E5E56", "#2E3A2E"))
-    item("ducusram", lambda c: blade(c, 10, "#8E9EA8", "#D8E4EC", "#5E6E78", "#2A3038", "#C9B07A"))
-    item("vorpal_choppers", lambda c: twin(c, "#E8E4F4", "#FFFFFF", "#C0283A", "#6F5BD1"))
-    item("empire_bee_twinblades", lambda c: twin(c, "#E8B530", "#FFE890", "#2B1D0E", "#2B1D0E"))
-    item("moonblade_waxing", lambda c: crescent_blade(c, "#F4F4FF", "#FFFFFF", "#9FC3E8"))
-    item("moonblade_waning", lambda c: crescent_blade(c, "#2A2238", "#5A4A78", "#6E2FA8"))
-    item("twin_moon", twin_moon, 32)
-    item("tombguard_katana", lambda c: katana(c))
+    # Weapons are 3D models: see tools/weapons.py.
+    weapons.build_all()
 
     item("fulldive_headset", headset)
     item("holy_water", lambda c: bottle(c, "#9FE2FF", "#F4FBFF"))
@@ -366,45 +332,6 @@ def generate_items():
     item("goblin_tooth", tooth)
     item("bird_mask", bird_mask_icon)
     item("battlehorn_helm", battlehorn_icon)
-
-
-def crescent_blade(c, color, edge, accent):
-    for i in range(11):
-        x, y = 4 + i, 12 - i
-        bend = int(2 * math.sin(i / 10 * math.pi))
-        c.px(x - bend, y - bend, color, 6)
-        c.px(x - bend + 1, y - bend, edge)
-        c.px(x - bend, y - bend - 1, color, 4)
-    c.line(1, 11, 4, 14, accent)
-    c.rect(1, 13, 2, 2, "#2A2238")
-    c.px(0, 15, accent)
-
-
-def twin_moon(c):
-    # Two crescents back to back, forming a full moon blade (32x32).
-    for a in range(0, 360, 2):
-        r = 12
-        x = 16 + r * math.cos(math.radians(a))
-        y = 15 + r * math.sin(math.radians(a))
-        color = "#F4F4FF" if 90 < a < 270 else "#2A2238"
-        c.px(round(x), round(y), color, 4)
-        c.px(round(16 + (r - 1) * math.cos(math.radians(a))), round(15 + (r - 1) * math.sin(math.radians(a))),
-             "#FFFFFF" if 90 < a < 270 else "#5A4A78")
-        c.px(round(16 + (r - 2) * math.cos(math.radians(a))), round(15 + (r - 2) * math.sin(math.radians(a))),
-             "#D8DCF0" if 90 < a < 270 else "#3A2E50", 4)
-    c.rect(15, 3, 2, 25, "#9FC3E8")
-    c.rect(14, 26, 4, 5, "#2A2238")
-    c.rect(13, 25, 6, 1, "#C9B07A")
-
-
-def katana(c):
-    for i in range(12):
-        x, y = 3 + i, 12 - i
-        c.px(x, y, "#D8E4EC", 4)
-        c.px(x, y - 1, "#FFFFFF")
-    c.rect(2, 11, 3, 3, "#C9B07A")
-    c.line(0, 15, 2, 13, "#2A1A12")
-    c.px(1, 13, "#7A1E2C")
 
 
 def headset(c):
@@ -587,6 +514,18 @@ def generate_blocks():
         c.px(x0, 16 - h, "#FFFFFF")
     save(c.img, "textures/block/prismatic_cluster.png")
 
+    # Waypoint crystal: bright cyan facets with a white core
+    img = Image.new("RGBA", (16, 16))
+    rnd = rng_for("waypoint")
+    for x in range(16):
+        for y in range(16):
+            t = abs(x - 7.5) / 8 + y / 32
+            col = (int(150 + 90 * (1 - t)), int(230 + 25 * (1 - t)), 255)
+            if (x + y) % 5 == 0:
+                col = (min(255, col[0] + 40), 255, 255)
+            img.putpixel((x, y), noisy(col, 6, rnd) + (255,))
+    save(img, "textures/block/waypoint_crystal.png")
+
     # Nightslayer altar
     c = Canvas(16, "altar_side")
     c.fill_noise((28, 24, 36), 6)
@@ -680,4 +619,5 @@ if __name__ == "__main__":
     generate_effects()
     generate_armor()
     generate_logo()
+    icons.build_all()
     print("assets generated")

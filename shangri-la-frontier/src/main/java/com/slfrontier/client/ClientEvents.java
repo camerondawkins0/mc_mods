@@ -2,7 +2,14 @@ package com.slfrontier.client;
 
 import com.mojang.math.Axis;
 import com.slfrontier.SLFrontier;
+import com.slfrontier.SlfConfig;
+import com.slfrontier.client.map.MapStore;
 import com.slfrontier.client.screen.FrontierScreen;
+import com.slfrontier.client.screen.MapScreen;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.client.event.CustomizeGuiOverlayEvent;
+import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
+import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import com.slfrontier.data.PlayerData;
 import com.slfrontier.network.ModNetwork;
 import com.slfrontier.registry.ModAttachments;
@@ -34,8 +41,15 @@ public final class ClientEvents {
         LocalPlayer player = mc.player;
         if (player == null) return;
 
+        MapStore.tick();
         while (KeyBindings.MENU.consumeClick()) {
             if (mc.screen == null) mc.setScreen(new FrontierScreen());
+        }
+        while (KeyBindings.MAP.consumeClick()) {
+            if (mc.screen == null) mc.setScreen(new MapScreen());
+        }
+        while (KeyBindings.MINIMAP.consumeClick()) {
+            SlfConfig.SHOW_MINIMAP.set(!SlfConfig.SHOW_MINIMAP.get());
         }
         for (int i = 0; i < KeyBindings.SKILLS.length; i++) {
             while (KeyBindings.SKILLS[i].consumeClick()) {
@@ -61,6 +75,35 @@ public final class ClientEvents {
             PacketDistributor.sendToServer(new ModNetwork.DoubleJump());
         }
         jumpWasDown = jumpDown;
+    }
+
+    @SubscribeEvent
+    public static void onGuiLayer(RenderGuiLayerEvent.Pre event) {
+        var name = event.getName();
+        if ((name.equals(VanillaGuiLayers.PLAYER_HEALTH) || name.equals(VanillaGuiLayers.ARMOR_LEVEL)
+                || name.equals(VanillaGuiLayers.EXPERIENCE_BAR) || name.equals(VanillaGuiLayers.EXPERIENCE_LEVEL))
+                && FrontierHud.hideVanillaBars()) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onBossBar(CustomizeGuiOverlayEvent.BossEventProgress event) {
+        if (FrontierHud.renderBossBar(event.getGuiGraphics(), event.getBossEvent(), event.getX(), event.getY())) {
+            event.setIncrement(event.getIncrement() + 6);
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onJoin(ClientPlayerNetworkEvent.LoggingIn event) {
+        MapStore.onJoin();
+    }
+
+    @SubscribeEvent
+    public static void onLeave(ClientPlayerNetworkEvent.LoggingOut event) {
+        MapStore.onLeave();
+        ClientState.reset();
     }
 
     @SubscribeEvent

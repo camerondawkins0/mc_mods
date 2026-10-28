@@ -73,6 +73,7 @@ public final class Story {
             case "setsuna" -> setsuna(player, npc);
             default -> Dialogue.of(npc.npcId()).node("generic", 1).close();
         };
+        addSideQuestOptions(player, npc.npcId(), dialogue);
         open(player, npc, dialogue);
     }
 
@@ -188,16 +189,6 @@ public final class Story {
                 Progression.takeItem(p, ModItems.GRAY_ORE_CHUNK.get(), 1);
                 Progression.takeItem(p, Items.GLASS_BOTTLE, 1);
                 give(p, new ItemStack(ModItems.HOLY_WATER.get(), 2));
-            });
-        }
-        if (!data.flag("mud_bounty") && Progression.hasItem(player, ModItems.MUD_DIGGER_FIN.get())) {
-            d.option("show_fin", p -> {
-                PlayerData pd = ModAttachments.get(p);
-                if (pd.flag("mud_bounty") || Progression.takeItem(p, ModItems.MUD_DIGGER_FIN.get(), 1) < 1) return;
-                pd.setFlag("mud_bounty", true);
-                give(p, new ItemStack(ModItems.REBIRTH_TEARJEWEL.get()));
-                Progression.grantExp(p, 300);
-                p.sendSystemMessage(Component.translatable("message.slfrontier.smith.bounty").withStyle(ChatFormatting.GOLD));
             });
         }
         return d.close();
@@ -410,6 +401,16 @@ public final class Story {
 
     public static void onKill(ServerPlayer player, LivingEntity killed) {
         PlayerData data = ModAttachments.get(player);
+        String typeId = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(killed.getType()).toString();
+        for (String id : List.copyOf(data.activeSideIds())) {
+            SideQuest q = SideQuest.byId(id);
+            if (q != null && q.objective == SideQuest.Objective.KILL && q.target.equals(typeId) && data.sideProgress(q) < q.goal) {
+                data.setSideProgress(q, data.sideProgress(q) + 1);
+                player.displayClientMessage(Component.translatable("message.slfrontier.side_progress",
+                        Component.translatable(q.titleKey()), data.sideProgress(q), q.goal).withStyle(ChatFormatting.AQUA), true);
+                if (data.sideProgress(q) >= q.goal) sideReady(player, q);
+            }
+        }
         if (data.stage() == QuestStage.GOBLIN_HUNT && killed instanceof GoblinEntity && data.questProgress() < QuestStage.GOBLIN_HUNT.goal) {
             data.setQuestProgress(data.questProgress() + 1);
             player.displayClientMessage(Component.translatable("message.slfrontier.goblins", data.questProgress(), QuestStage.GOBLIN_HUNT.goal)
@@ -484,6 +485,105 @@ public final class Story {
         return players;
     }
 
+    // ---- Side quests ----------------------------------------------------------------
+
+    /** NPCs offer the side quests they give, and accept them back when they are done. */
+    private static void addSideQuestOptions(ServerPlayer player, String npcId, Dialogue dialogue) {
+        PlayerData data = ModAttachments.get(player);
+        for (SideQuest q : SideQuest.values()) {
+            if (!q.giver.equals(npcId)) continue;
+            switch (data.sideState(q)) {
+                case AVAILABLE -> dialogue.optionKey("dialogue.slfrontier.option.side_offer",
+                        p -> followUp(p, npcId, Dialogue.of(npcId).line(q.descKey())
+                                .optionKey("dialogue.slfrontier.option.side_accept", pp -> acceptSide(pp, q), "@" + q.titleKey())
+                                .option("decline", pp -> {
+                                })), "@" + q.titleKey());
+                case ACTIVE -> {
+                    if (sideComplete(player, data, q)) {
+                        dialogue.optionKey("dialogue.slfrontier.option.side_turn_in", p -> turnInSide(p, q), "@" + q.titleKey());
+                    }
+                }
+                default -> {
+                }
+            }
+        }
+    }
+
+    private static void acceptSide(ServerPlayer player, SideQuest q) {
+        PlayerData data = ModAttachments.get(player);
+        if (data.sideState(q) != PlayerData.SideState.AVAILABLE) return;
+        data.acceptSide(q);
+        if (data.tracked().isEmpty() || SideQuest.byId(data.tracked()) == null) data.setTracked(q.id);
+        updateSideProgress(player, data, q);
+        player.sendSystemMessage(Component.translatable("message.slfrontier.side_accepted",
+                Component.translatable(q.titleKey()).withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.YELLOW));
+        player.sendSystemMessage(Component.translatable(q.objectiveKey()).withStyle(ChatFormatting.GRAY));
+        player.level().playSound(null, player.blockPosition(), SoundEvents.BOOK_PAGE_TURN, SoundSource.PLAYERS, 1f, 1f);
+        ModNetwork.sync(player);
+    }
+
+    private static boolean sideComplete(ServerPlayer player, PlayerData data, SideQuest q) {
+        updateSideProgress(player, data, q);
+        return data.sideProgress(q) >= q.goal;
+    }
+
+    private static void turnInSide(ServerPlayer player, SideQuest q) {
+        PlayerData data = ModAttachments.get(player);
+        if (data.sideState(q) != PlayerData.SideState.ACTIVE || !sideComplete(player, data, q)) return;
+        if (q.objective == SideQuest.Objective.COLLECT) {
+            Item item = itemById(q.target);
+            if (item == null || Progression.takeItem(player, item, q.goal) < q.goal) return;
+        }
+        data.completeSide(q);
+        for (ItemStack reward : q.rewards()) give(player, reward);
+        if (q.exp > 0) Progression.grantExp(player, q.exp);
+        ModNetwork.announce(player, "announce.slfrontier.side_complete", q.titleKey(), 0x7FE7FF);
+        player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.7f, 1.4f);
+        ModNetwork.sync(player);
+    }
+
+    private static void sideReady(ServerPlayer player, SideQuest q) {
+        player.sendSystemMessage(Component.translatable("message.slfrontier.side_ready",
+                Component.translatable(q.titleKey()).withStyle(ChatFormatting.AQUA),
+                Component.translatable("entity.slfrontier." + q.giver)).withStyle(ChatFormatting.GREEN));
+    }
+
+    /** Collect and level objectives are measured from the player's state. */
+    private static void updateSideProgress(ServerPlayer player, PlayerData data, SideQuest q) {
+        int before = data.sideProgress(q);
+        switch (q.objective) {
+            case COLLECT -> {
+                Item item = itemById(q.target);
+                data.setSideProgress(q, item == null ? 0 : Math.min(q.goal, Progression.countItem(player, item)));
+            }
+            case LEVEL -> data.setSideProgress(q, Math.min(q.goal, data.level()));
+            default -> {
+            }
+        }
+        if (before < q.goal && data.sideProgress(q) >= q.goal && q.objective != SideQuest.Objective.KILL) sideReady(player, q);
+    }
+
+    /** Runs once a second from the player tick. */
+    public static void tickSideQuests(ServerPlayer player) {
+        PlayerData data = ModAttachments.get(player);
+        // Saves from before side quests existed: the Mud Digger bounty was a flag.
+        if (data.flag("mud_bounty") && data.sideState(SideQuest.SOLO_KILLER) != PlayerData.SideState.DONE) {
+            data.completeSide(SideQuest.SOLO_KILLER);
+        }
+        for (String id : List.copyOf(data.activeSideIds())) {
+            SideQuest q = SideQuest.byId(id);
+            if (q != null && q.objective != SideQuest.Objective.KILL) updateSideProgress(player, data, q);
+        }
+    }
+
+    @Nullable
+    private static Item itemById(String id) {
+        net.minecraft.resources.ResourceLocation rl = net.minecraft.resources.ResourceLocation.tryParse(id);
+        if (rl == null) return null;
+        Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(rl);
+        return item == Items.AIR ? null : item;
+    }
+
     // ---- Stage helpers ---------------------------------------------------------------
 
     public static void advance(ServerPlayer player, QuestStage stage) {
@@ -527,16 +627,36 @@ public final class Story {
         };
     }
 
+    /** Structure and biome searches are expensive; reuse results while the player stays nearby. */
+    private record Located(BlockPos origin, @Nullable BlockPos found, long time) {
+    }
+
+    private static final Map<String, Located> LOCATE_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    @Nullable
+    private static BlockPos cachedLocate(ServerLevel level, BlockPos from, String key, java.util.function.Supplier<BlockPos> search) {
+        Located hit = LOCATE_CACHE.get(key);
+        long now = level.getGameTime();
+        if (hit != null && hit.origin().distSqr(from) < 256 * 256 && now - hit.time() < 20 * 120) return hit.found();
+        BlockPos found = search.get();
+        LOCATE_CACHE.put(key, new Located(from, found, now));
+        return found;
+    }
+
     @Nullable
     private static Target structure(ServerLevel level, BlockPos from, TagKey<Structure> tag, String name) {
-        BlockPos pos = level.findNearestMapStructure(tag, from, 100, false);
+        BlockPos pos = cachedLocate(level, from, "s:" + tag.location() + "@" + (from.getX() >> 8) + "," + (from.getZ() >> 8),
+                () -> level.findNearestMapStructure(tag, from, 100, false));
         return pos == null ? null : new Target(pos, name);
     }
 
     @Nullable
     private static Target biome(ServerLevel level, BlockPos from, ResourceKey<Biome> biome, String name) {
-        Pair<BlockPos, Holder<Biome>> found = level.findClosestBiome3d(h -> h.is(biome), from, 4000, 32, 64);
-        return found == null ? null : new Target(found.getFirst(), name);
+        BlockPos pos = cachedLocate(level, from, "b:" + biome.location() + "@" + (from.getX() >> 8) + "," + (from.getZ() >> 8), () -> {
+            Pair<BlockPos, Holder<Biome>> found = level.findClosestBiome3d(h -> h.is(biome), from, 4000, 32, 64);
+            return found == null ? null : found.getFirst();
+        });
+        return pos == null ? null : new Target(pos, name);
     }
 
     public static void forget(ServerPlayer player) {

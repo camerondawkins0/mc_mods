@@ -89,6 +89,13 @@ public final class FrontierTravel {
         player.teleportTo(frontier, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, player.getYRot(), player.getXRot());
     }
 
+    public static void toWaypoint(ServerPlayer player, Waypoints.Waypoint wp) {
+        ServerLevel frontier = frontierLevel(player);
+        if (frontier == null) return;
+        BlockPos pos = FastTravel.arrival(frontier, wp);
+        player.teleportTo(frontier, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, player.getYRot(), player.getXRot());
+    }
+
     public static void toRabituza(ServerPlayer player) {
         ServerLevel frontier = frontierLevel(player);
         if (frontier == null) return;
@@ -111,6 +118,7 @@ public final class FrontierTravel {
         BlockPos land = findLand(frontier, 0, 0);
         BlockPos spawn = placeTown(frontier, FASTERA_TEMPLATE, land.getX(), land.getZ());
         data.setFastera(spawn);
+        registerTownWaypoints(frontier);
         return spawn;
     }
 
@@ -121,6 +129,7 @@ public final class FrontierTravel {
         BlockPos land = findLand(frontier, Frontier.RABITUZA_X, Frontier.RABITUZA_Z);
         BlockPos pos = placeTown(frontier, RABITUZA_TEMPLATE, land.getX(), land.getZ());
         data.setRabituza(pos);
+        registerTownWaypoints(frontier);
         return pos;
     }
 
@@ -174,6 +183,18 @@ public final class FrontierTravel {
         template.get().placeInWorld(level, origin, origin, settings, level.getRandom(), 2);
         SLFrontier.LOGGER.info("Built {} at {}", id, origin);
         return new BlockPos(x, y + 1, z);
+    }
+
+    /** Towns are fast-travel waypoints; also fills them in for worlds made before waypoints existed. */
+    public static void registerTownWaypoints(ServerLevel level) {
+        TownData towns = TownData.get(level);
+        Waypoints all = Waypoints.get(level);
+        if (towns.fastera() != null) {
+            all.put(new Waypoints.Waypoint("fastera", "waypoint.slfrontier.fastera", towns.fastera(), Waypoints.Kind.TOWN));
+        }
+        if (towns.rabituza() != null) {
+            all.put(new Waypoints.Waypoint("rabituza", "waypoint.slfrontier.rabituza", towns.rabituza(), Waypoints.Kind.TOWN));
+        }
     }
 
     public static boolean isFrontierLevel(Level level) {

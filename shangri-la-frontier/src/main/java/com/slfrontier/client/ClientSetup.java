@@ -70,6 +70,8 @@ public final class ClientSetup {
     public static void registerKeys(RegisterKeyMappingsEvent event) {
         for (var key : KeyBindings.SKILLS) event.register(key);
         event.register(KeyBindings.MENU);
+        event.register(KeyBindings.MAP);
+        event.register(KeyBindings.MINIMAP);
     }
 
     @SubscribeEvent

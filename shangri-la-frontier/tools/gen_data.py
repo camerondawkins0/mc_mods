@@ -53,8 +53,8 @@ def gen_lang():
 # Models & blockstates
 # ---------------------------------------------------------------------------------------
 
-HANDHELD = ["mercenary_twin_blades", "marsh_dagger", "ducusram", "vorpal_choppers", "empire_bee_twinblades",
-            "moonblade_waxing", "moonblade_waning", "tombguard_katana"]
+WEAPONS = ["mercenary_twin_blades", "marsh_dagger", "ducusram", "vorpal_choppers", "empire_bee_twinblades",
+           "moonblade_waxing", "moonblade_waning", "tombguard_katana", "twin_moon"]
 GENERATED = ["fulldive_headset", "holy_water", "rebirth_tearjewel", "vorpal_soul_collar", "seiten_skillbook",
              "vorpal_bell", "reallocation_tonic", "gray_ore_chunk", "quad_beetle_shell", "empire_bee_stinger",
              "empire_bee_queen_crown", "mud_digger_fin", "prismatic_shard", "nightslayer_fur", "lycagon_fang",
@@ -65,21 +65,9 @@ EGGS = ["goblin", "vorpal_bunny", "empire_bee", "quad_beetle", "shadow_wolf", "m
 
 def gen_models():
     m = os.path.join(ASSETS, "models")
-    for name in HANDHELD:
-        write(f"{m}/item/{name}.json", {"parent": "minecraft:item/handheld", "textures": {"layer0": ns(f"item/{name}")}})
+    # Weapon models (3D) are written by tools/weapons.py together with their textures.
     for name in GENERATED:
         write(f"{m}/item/{name}.json", {"parent": "minecraft:item/generated", "textures": {"layer0": ns(f"item/{name}")}})
-    # The Twin Moon is drawn bigger in the hand.
-    write(f"{m}/item/twin_moon.json", {
-        "parent": "minecraft:item/handheld",
-        "textures": {"layer0": ns("item/twin_moon")},
-        "display": {
-            "thirdperson_righthand": {"rotation": [0, -90, 55], "translation": [0, 6, 1], "scale": [1.5, 1.5, 0.85]},
-            "thirdperson_lefthand": {"rotation": [0, 90, -55], "translation": [0, 6, 1], "scale": [1.5, 1.5, 0.85]},
-            "firstperson_righthand": {"rotation": [0, -90, 25], "translation": [1.13, 4.2, 1.13], "scale": [1.1, 1.1, 1.1]},
-            "firstperson_lefthand": {"rotation": [0, 90, -25], "translation": [1.13, 4.2, 1.13], "scale": [1.1, 1.1, 1.1]},
-        },
-    })
     for name in EGGS:
         write(f"{m}/item/{name}_spawn_egg.json", {"parent": "minecraft:item/template_spawn_egg"})
     # The compass reuses vanilla needle sprites; Java gives it the "angle" property.
@@ -121,6 +109,25 @@ def gen_models():
         f"facing={f}": dict({"model": ns("block/prismatic_cluster")}, **r) for f, r in rot.items()}})
     write(f"{m}/item/prismatic_cluster.json", {"parent": "minecraft:item/generated",
                                                "textures": {"layer0": ns("block/prismatic_cluster")}})
+
+    # Waypoint Crystal: a stone pedestal with a floating, glowing crystal (rotated 45 degrees).
+    glow = {"block_light": 15, "sky_light": 15}
+    write(f"{m}/block/waypoint_crystal.json", {
+        "parent": "minecraft:block/block", "render_type": "minecraft:cutout",
+        "textures": {"base": "minecraft:block/polished_deepslate", "trim": "minecraft:block/chiseled_polished_blackstone",
+                     "crystal": ns("block/waypoint_crystal"), "particle": ns("block/waypoint_crystal")},
+        "elements": [
+            {"from": [1, 0, 1], "to": [15, 2, 15], "faces": {f: {"texture": "#base"} for f in ("north", "south", "east", "west", "up", "down")}},
+            {"from": [3, 2, 3], "to": [13, 3, 13], "faces": {f: {"texture": "#trim"} for f in ("north", "south", "east", "west", "up")}},
+            {"from": [5, 3, 5], "to": [11, 8, 11], "faces": {f: {"texture": "#base"} for f in ("north", "south", "east", "west", "up")}},
+            {"from": [5.5, 9, 5.5], "to": [10.5, 16, 10.5], "rotation": {"angle": 45, "axis": "y", "origin": [8, 12, 8]},
+             "shade": False, "neoforge_data": glow,
+             "faces": {f: {"texture": "#crystal", "uv": [5, 0, 11, 8]} for f in ("north", "south", "east", "west", "up", "down")}},
+            {"from": [7, 16, 7], "to": [9, 17.5, 9], "rotation": {"angle": 45, "axis": "y", "origin": [8, 16, 8]},
+             "shade": False, "neoforge_data": glow, "faces": {f: {"texture": "#crystal"} for f in ("north", "south", "east", "west", "up")}},
+        ]})
+    write(f"{bs}/waypoint_crystal.json", {"variants": {"": {"model": ns("block/waypoint_crystal")}}})
+    write(f"{m}/item/waypoint_crystal.json", {"parent": ns("block/waypoint_crystal")})
 
     write(f"{m}/block/nightslayer_altar.json", {"parent": "minecraft:block/cube_bottom_top", "textures": {
         "top": ns("block/nightslayer_altar_top"), "bottom": ns("block/nightslayer_altar_side"),
@@ -277,7 +284,7 @@ def gen_tags():
     tag(f"{mc}/item/small_flowers.json", [ns("red_spider_lily")])
     tag(f"{mc}/entity_type/undead.json", [ns("wezaemon")])
     tag(f"{mc}/entity_type/inverted_healing_and_harm.json", [ns("wezaemon")])
-    tag(f"{mc}/item/swords.json", [ns(x) for x in HANDHELD] + [ns("twin_moon")])
+    tag(f"{mc}/item/swords.json", [ns(x) for x in WEAPONS])
     tag(f"{mc}/item/head_armor.json", [ns("bird_mask"), ns("battlehorn_helm")])
     for s in ("wezaemon_tomb", "nightslayer_den", "empire_bee_hive", "mud_digger_lair", "divinity_ruins"):
         tag(os.path.join(DATA, f"tags/worldgen/structure/{s}.json"), [ns(s)])

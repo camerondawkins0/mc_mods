@@ -89,7 +89,44 @@ public final class ModNetwork {
         }
     }
 
+    /** A point of interest for the map, minimap and quest tracker. */
+    public record Marker(String id, String nameKey, int kind, net.minecraft.core.BlockPos pos) {
+        public static final int QUEST = 0, SIDE_QUEST = 1, WAYPOINT = 2, TOWN = 3, RESPAWN = 4;
+        public static final StreamCodec<ByteBuf, Marker> CODEC = StreamCodec.composite(
+                ByteBufCodecs.STRING_UTF8, Marker::id,
+                ByteBufCodecs.STRING_UTF8, Marker::nameKey,
+                ByteBufCodecs.VAR_INT, Marker::kind,
+                net.minecraft.core.BlockPos.STREAM_CODEC, Marker::pos,
+                Marker::new);
+    }
+
+    /** Every marker the player should see, replaced wholesale whenever it changes. */
+    public record Markers(List<Marker> markers, boolean fastTravel) implements CustomPacketPayload {
+        public static final Type<Markers> TYPE = new Type<>(SLFrontier.id("markers"));
+        public static final StreamCodec<ByteBuf, Markers> CODEC = StreamCodec.composite(
+                Marker.CODEC.apply(ByteBufCodecs.list()), Markers::markers,
+                ByteBufCodecs.BOOL, Markers::fastTravel,
+                Markers::new);
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     // ---- Client -> server ----------------------------------------------------------
+
+    /** Fast travel to a waypoint chosen on the map. */
+    public record FastTravel(String waypoint) implements CustomPacketPayload {
+        public static final Type<FastTravel> TYPE = new Type<>(SLFrontier.id("fast_travel"));
+        public static final StreamCodec<ByteBuf, FastTravel> CODEC =
+                ByteBufCodecs.STRING_UTF8.map(FastTravel::new, FastTravel::waypoint);
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
 
     public record UseSkill(int slot) implements CustomPacketPayload {
         public static final Type<UseSkill> TYPE = new Type<>(SLFrontier.id("use_skill"));
@@ -149,6 +186,18 @@ public final class ModNetwork {
         }
     }
 
+    /** Chooses the quest shown in the HUD tracker ("" = main story). */
+    public record TrackQuest(String id) implements CustomPacketPayload {
+        public static final Type<TrackQuest> TYPE = new Type<>(SLFrontier.id("track_quest"));
+        public static final StreamCodec<ByteBuf, TrackQuest> CODEC =
+                ByteBufCodecs.STRING_UTF8.map(TrackQuest::new, TrackQuest::id);
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     // ---- Registration --------------------------------------------------------------
 
     public static void register(RegisterPayloadHandlersEvent event) {
@@ -162,12 +211,18 @@ public final class ModNetwork {
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientHooks.playAnimation(payload)));
         registrar.playToClient(Announce.TYPE, Announce.CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientHooks.announce(payload)));
+        registrar.playToClient(Markers.TYPE, Markers.CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientHooks.markers(payload)));
 
         registrar.playToServer(UseSkill.TYPE, UseSkill.CODEC, ModNetwork::handleUseSkill);
         registrar.playToServer(DoubleJump.TYPE, DoubleJump.CODEC, ModNetwork::handleDoubleJump);
         registrar.playToServer(AllocateStat.TYPE, AllocateStat.CODEC, ModNetwork::handleAllocate);
         registrar.playToServer(EquipSkill.TYPE, EquipSkill.CODEC, ModNetwork::handleEquip);
         registrar.playToServer(DialogueChoice.TYPE, DialogueChoice.CODEC, ModNetwork::handleDialogue);
+        registrar.playToServer(TrackQuest.TYPE, TrackQuest.CODEC, ModNetwork::handleTrack);
+        registrar.playToServer(FastTravel.TYPE, FastTravel.CODEC, (payload, ctx) -> ctx.enqueueWork(() -> {
+            if (ctx.player() instanceof ServerPlayer player) com.slfrontier.world.FastTravel.request(player, payload.waypoint());
+        }));
     }
 
     private static void handleUseSkill(UseSkill payload, IPayloadContext ctx) {
@@ -217,6 +272,19 @@ public final class ModNetwork {
         ctx.enqueueWork(() -> {
             if (ctx.player() instanceof ServerPlayer player) {
                 Story.onDialogueChoice(player, payload.entityId(), payload.option());
+            }
+        });
+    }
+
+    private static void handleTrack(TrackQuest payload, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> {
+            if (ctx.player() instanceof ServerPlayer player) {
+                PlayerData data = ModAttachments.get(player);
+                com.slfrontier.quest.SideQuest q = com.slfrontier.quest.SideQuest.byId(payload.id());
+                if (payload.id().isEmpty() || (q != null && data.sideState(q) == PlayerData.SideState.ACTIVE)) {
+                    data.setTracked(payload.id());
+                    com.slfrontier.world.MapSync.invalidate(player);
+                }
             }
         });
     }

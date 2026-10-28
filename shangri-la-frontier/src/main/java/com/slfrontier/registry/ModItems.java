@@ -96,6 +96,7 @@ public final class ModItems {
     public static final DeferredItem<?> PRISMATIC_CRYSTAL = ITEMS.registerSimpleBlockItem(ModBlocks.PRISMATIC_CRYSTAL);
     public static final DeferredItem<?> PRISMATIC_CLUSTER = ITEMS.registerSimpleBlockItem(ModBlocks.PRISMATIC_CLUSTER);
     public static final DeferredItem<?> NIGHTSLAYER_ALTAR = ITEMS.registerSimpleBlockItem(ModBlocks.NIGHTSLAYER_ALTAR);
+    public static final DeferredItem<?> WAYPOINT_CRYSTAL = ITEMS.registerSimpleBlockItem(ModBlocks.WAYPOINT_CRYSTAL);
 
     // ---- Spawn eggs ---------------------------------------------------------------
     static {
