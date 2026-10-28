@@ -47,7 +47,11 @@ import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
+import com.slfrontier.fx.Fx;
+import com.slfrontier.fx.HitFlags;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -202,6 +206,7 @@ public final class CommonEvents {
         target.hurt(player.damageSources().playerAttack(player), damage);
         off.hurtAndBreak(1, player, EquipmentSlot.OFFHAND);
         player.serverLevel().sendParticles(ParticleTypes.SWEEP_ATTACK, target.getX(), target.getY(0.6), target.getZ(), 1, 0, 0, 0, 0);
+        Fx.arc(player, 1.6f, -40, 120, 0xFFD8E8FF, 6);
         player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_WEAK, SoundSource.PLAYERS, 0.8f, 1.4f);
         ModNetwork.animate(player, PlayerAnims.OFFHAND, 6);
     }
@@ -242,11 +247,14 @@ public final class CommonEvents {
             float amount = event.getAmount();
             ItemStack weapon = player.getMainHandItem();
             if (weapon.getItem() instanceof MoonbladeItem moon) amount *= moon.timeBonus(player.level());
-            if (weapon.getItem() instanceof FrontierWeapon && SkillExecutor.isBehind(player, victim)) amount *= 1.25f;
-            if (player.getRandom().nextFloat() < Progression.critChance(player)) {
+            boolean weak = weapon.getItem() instanceof FrontierWeapon && SkillExecutor.isBehind(player, victim);
+            if (weak) amount *= 1.25f;
+            boolean crit = player.getRandom().nextFloat() < Progression.critChance(player);
+            if (crit) {
                 amount *= 1.5f;
                 player.serverLevel().sendParticles(ParticleTypes.CRIT, victim.getX(), victim.getY(0.6), victim.getZ(), 10, 0.3, 0.3, 0.3, 0.3);
             }
+            HitFlags.mark(victim, crit, weak);
             if (weapon.is(ModItems.EMPIRE_BEE_TWINBLADES.get())) {
                 victim.addEffect(new MobEffectInstance(MobEffects.POISON, 60, 0), player);
             }
@@ -261,13 +269,26 @@ public final class CommonEvents {
         level.sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY(1.0), player.getZ(), 16, 0.4, 0.4, 0.4, 0.3);
         player.displayClientMessage(Component.translatable("message.slfrontier.parry").withStyle(ChatFormatting.AQUA), true);
         data.parryTicks = Math.min(data.parryTicks, 4);
+        Fx.flash(level, player.position().add(player.getLookAngle().scale(0.8)).add(0, 1.3, 0), 1.4f, 0xFFBFE8FF, 6, 0.8f);
+        ModNetwork.animate(player, PlayerAnims.PARRY_HIT, 7);
         if (data.hasSkill(Skill.PERFECT_PARRY)) SkillExecutor.countUse(player, data, Skill.PERFECT_PARRY);
         if (attacker instanceof WezaemonEntity wezaemon) wezaemon.onParried(player);
         if (data.hasSkill(Skill.REPEL_COUNTER) && attacker instanceof LivingEntity living && living.distanceToSqr(player) < 6 * 6) {
             SkillExecutor.strike(player, living, SkillExecutor.attack(player) * 2f, false);
             living.knockback(1.0, player.getX() - living.getX(), player.getZ() - living.getZ());
-            ModNetwork.animate(player, PlayerAnims.SPIN, 8);
+            Fx.arc(player, 2.2f, -20, 220, 0xFFFF5A6A, 9);
+            ModNetwork.animate(player, PlayerAnims.COUNTER, 9);
         }
+    }
+
+    /** Tells the attacking player how much damage landed, for floating damage numbers. */
+    @SubscribeEvent
+    public static void onDamageDealt(LivingDamageEvent.Post event) {
+        LivingEntity victim = event.getEntity();
+        int flags = HitFlags.take(victim);
+        if (victim.level().isClientSide || !(event.getSource().getEntity() instanceof ServerPlayer player) || victim == player) return;
+        if (!Frontier.isIn(player) || event.getNewDamage() <= 0) return;
+        PacketDistributor.sendToPlayer(player, new ModNetwork.Hit(victim.getId(), event.getNewDamage(), flags));
     }
 
     // ---- Deaths ----------------------------------------------------------------------

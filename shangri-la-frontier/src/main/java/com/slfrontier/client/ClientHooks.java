@@ -33,6 +33,14 @@ public final class ClientHooks {
         FrontierHud.announce(payload.titleKey(), payload.subtitleKey(), payload.color());
     }
 
+    public static void fx(ModNetwork.FxPayload payload) {
+        com.slfrontier.client.fx.FxRenderer.add(payload.spec());
+    }
+
+    public static void hit(ModNetwork.Hit payload) {
+        com.slfrontier.client.fx.DamageNumbers.add(payload.entityId(), payload.amount(), payload.flags());
+    }
+
     public static void markers(ModNetwork.Markers payload) {
         ClientState.setMarkers(payload.markers(), payload.fastTravel());
     }

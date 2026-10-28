@@ -244,6 +244,7 @@
   "gui.slfrontier.tracking": "Tracking",
   "gui.slfrontier.unlock": "How to learn: %s",
   "gui.slfrontier.waypoints": "WAYPOINTS",
+  "hud.slfrontier.crit": "CRITICAL",
   "hud.slfrontier.cursed": "Lycagon's Mark",
   "hud.slfrontier.distance": "%sm · %s",
   "hud.slfrontier.level": "Lv. %s",

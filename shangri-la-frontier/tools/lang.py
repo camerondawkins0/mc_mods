@@ -515,6 +515,7 @@ GUI = {
     "announce.slfrontier.fast_travel": "FAST TRAVEL",
     "hud.slfrontier.distance": "%sm · %s",
     "hud.slfrontier.weak_point": "WEAK POINT",
+    "hud.slfrontier.crit": "CRITICAL",
     "hud.slfrontier.region": "— Now entering —",
     "key.slfrontier.map": "Frontier Map",
     "key.slfrontier.minimap": "Toggle Minimap",

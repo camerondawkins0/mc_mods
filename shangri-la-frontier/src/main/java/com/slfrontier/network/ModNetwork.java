@@ -114,6 +114,48 @@ public final class ModNetwork {
         }
     }
 
+    /** Draw a world-space effect (see {@link com.slfrontier.fx.Fx}). */
+    public record FxPayload(com.slfrontier.fx.Fx.Spec spec) implements CustomPacketPayload {
+        public static final Type<FxPayload> TYPE = new Type<>(SLFrontier.id("fx"));
+        public static final StreamCodec<ByteBuf, FxPayload> CODEC = StreamCodec.of((buf, p) -> {
+            var s = p.spec();
+            ByteBufCodecs.VAR_INT.encode(buf, s.kind());
+            buf.writeFloat(s.x());
+            buf.writeFloat(s.y());
+            buf.writeFloat(s.z());
+            buf.writeFloat(s.yaw());
+            buf.writeFloat(s.pitch());
+            buf.writeFloat(s.radius());
+            buf.writeInt(s.color());
+            ByteBufCodecs.VAR_INT.encode(buf, s.duration());
+            buf.writeFloat(s.param());
+            buf.writeFloat(s.shake());
+        }, buf -> new FxPayload(new com.slfrontier.fx.Fx.Spec(ByteBufCodecs.VAR_INT.decode(buf), buf.readFloat(), buf.readFloat(),
+                buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readInt(), ByteBufCodecs.VAR_INT.decode(buf),
+                buf.readFloat(), buf.readFloat())));
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    /** Damage the player dealt, for floating damage numbers. Flags: 1 = critical, 2 = weak point. */
+    public record Hit(int entityId, float amount, int flags) implements CustomPacketPayload {
+        public static final int CRIT = 1, WEAK = 2;
+        public static final Type<Hit> TYPE = new Type<>(SLFrontier.id("hit"));
+        public static final StreamCodec<ByteBuf, Hit> CODEC = StreamCodec.composite(
+                ByteBufCodecs.VAR_INT, Hit::entityId,
+                ByteBufCodecs.FLOAT, Hit::amount,
+                ByteBufCodecs.VAR_INT, Hit::flags,
+                Hit::new);
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     // ---- Client -> server ----------------------------------------------------------
 
     /** Fast travel to a waypoint chosen on the map. */
@@ -213,6 +255,10 @@ public final class ModNetwork {
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientHooks.announce(payload)));
         registrar.playToClient(Markers.TYPE, Markers.CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientHooks.markers(payload)));
+        registrar.playToClient(FxPayload.TYPE, FxPayload.CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientHooks.fx(payload)));
+        registrar.playToClient(Hit.TYPE, Hit.CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientHooks.hit(payload)));
 
         registrar.playToServer(UseSkill.TYPE, UseSkill.CODEC, ModNetwork::handleUseSkill);
         registrar.playToServer(DoubleJump.TYPE, DoubleJump.CODEC, ModNetwork::handleDoubleJump);

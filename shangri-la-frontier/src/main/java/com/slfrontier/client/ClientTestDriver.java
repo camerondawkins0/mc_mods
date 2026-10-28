@@ -49,7 +49,8 @@ public final class ClientTestDriver {
     private static final Set<String> ONLY = new HashSet<>(Arrays.asList(
             System.getProperty("slfrontier.clientTest.only", "").split(",")));
 
-    private record Step(int at, Consumer<Minecraft> action) {
+    /** A timeline step; a step with a condition holds the timeline until it is true (or times out). */
+    private record Step(int at, Consumer<Minecraft> action, java.util.function.Predicate<Minecraft> until, int maxWait) {
     }
 
     private static final List<Step> STEPS = new ArrayList<>();
@@ -57,6 +58,7 @@ public final class ClientTestDriver {
     private static int ticks = -1;
     private static int clientTicks;
     private static int nextStep;
+    private static int waited;
     private static final List<Entity> spawned = new ArrayList<>();
 
     private ClientTestDriver() {
@@ -66,7 +68,13 @@ public final class ClientTestDriver {
 
     private static void at(int delay, Consumer<Minecraft> action) {
         cursor += delay;
-        STEPS.add(new Step(cursor, action));
+        STEPS.add(new Step(cursor, action, null, 0));
+    }
+
+    /** Pauses the timeline until {@code until} holds (the integrated server can lag behind the client). */
+    private static void waitFor(java.util.function.Predicate<Minecraft> until, int maxWait) {
+        STEPS.add(new Step(cursor, mc -> {
+        }, until, maxWait));
     }
 
     private static void server(int delay, Consumer<ServerPlayer> action) {
@@ -77,8 +85,29 @@ public final class ClientTestDriver {
     }
 
     private static void shot(int delay, String name) {
-        at(delay, mc -> Screenshot.grab(mc.gameDirectory, name + ".png", mc.getMainRenderTarget(),
-                msg -> SLFrontier.LOGGER.info("Screenshot {}: {}", name, msg.getString())));
+        // Software rendering is slow: grab after the next freshly rendered frame, not the stale one.
+        at(delay, mc -> {
+            pendingShot = name;
+            shotFrame = frames;
+        });
+    }
+
+    private static String pendingShot;
+    private static long frames;
+    private static long shotFrame;
+
+    /** Called after every rendered frame. */
+    public static void onFrame() {
+        frames++;
+        if (pendingShot != null && frames > shotFrame + 1) {
+            Minecraft mc = Minecraft.getInstance();
+            String name = pendingShot;
+            pendingShot = null;
+            SLFrontier.LOGGER.info("Client test: shot {} anim={} fx={}", name,
+                    mc.player == null ? -1 : ClientAnims.playing(mc.player.getId()), com.slfrontier.client.fx.FxRenderer.count());
+            Screenshot.grab(mc.gameDirectory, name + ".png", mc.getMainRenderTarget(),
+                    msg -> SLFrontier.LOGGER.info("Screenshot {}: {}", name, msg.getString()));
+        }
     }
 
     private static boolean wants(String scene) {
@@ -108,6 +137,7 @@ public final class ClientTestDriver {
         if (wants("creatures")) creatures();
         if (wants("weapons")) weapons();
         if (wants("poses")) poses();
+        if (wants("skills")) skills();
         if (wants("menus")) menus();
         at(20, mc -> {
             SLFrontier.LOGGER.info("Client test finished");
@@ -208,6 +238,71 @@ public final class ClientTestDriver {
         at(10, mc -> mc.options.setCameraType(CameraType.FIRST_PERSON));
     }
 
+    private static void useSkill(ServerPlayer sp, Skill skill) {
+        var data = ModAttachments.get(sp);
+        data.setCooldown(skill, 0);
+        data.setStamina(data.maxStamina());
+        boolean used = com.slfrontier.skill.SkillExecutor.use(sp, skill);
+        SLFrontier.LOGGER.info("Client test: skill {} used={} main={} cd={}", skill.id, used, sp.getMainHandItem(), data.cooldown(skill));
+    }
+
+    private static void skills() {
+        server(0, sp -> {
+            // Slow the game down so the (slow, software-rendered) client gets frames mid-animation.
+            sp.getServer().tickRateManager().setTickRate(4f);
+            clear();
+            ServerLevel level = sp.serverLevel();
+            sp.getAbilities().flying = false;
+            sp.onUpdateAbilities();
+            sp.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.MOONBLADE_WAXING.get()));
+            sp.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(ModItems.MOONBLADE_WANING.get()));
+            sp.teleportTo(level, sp.getX(), sp.getY() - 1, sp.getZ(), 0f, 10f);
+            lineUp(sp, List.of(ModEntities.GOBLIN, ModEntities.GOBLIN, ModEntities.GOBLIN), 2.2, 4.5);
+        });
+        at(20, mc -> mc.options.setCameraType(CameraType.THIRD_PERSON_BACK));
+        String[] names = {"20_skill_drill_piercer", "21_skill_cyclone_slash", "22_skill_moon_reflection",
+                "23_skill_perfect_parry", "24_skill_sky_clear", "25_skill_slide_step"};
+        Skill[] list = {Skill.GLOWING_PIERCE, Skill.CYCLONE_SLASH, Skill.MOON_REFLECTION, Skill.PERFECT_PARRY, Skill.SKY_CLEAR,
+                Skill.SLIDE_STEP};
+        int[] delays = {4, 4, 4, 3, 9, 2};
+        int[] anims = {PlayerAnims.PIERCE, PlayerAnims.SPIN, PlayerAnims.CRESCENT, PlayerAnims.PARRY, PlayerAnims.SKY_CLEAR,
+                PlayerAnims.DASH};
+        for (int i = 0; i < list.length; i++) {
+            Skill skill = list[i];
+            server(25, sp -> {
+                sp.teleportTo(sp.serverLevel(), sp.getX(), sp.getY(), sp.getZ(), 0f, 10f);
+                useSkill(sp, skill);
+            });
+            int anim = anims[i];
+            waitFor(mc -> ClientAnims.playing(mc.player.getId()) == anim, 200);
+            shot(delays[i], names[i]);
+        }
+        server(25, sp -> {
+            sp.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.TWIN_MOON.get()));
+            sp.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
+            useSkill(sp, Skill.CRESCENT_VORPAL);
+        });
+        waitFor(mc -> ClientAnims.playing(mc.player.getId()) == PlayerAnims.LEAP, 200);
+        shot(5, "26_skill_crescent_vorpal_leap");
+        waitFor(mc -> ClientAnims.playing(mc.player.getId()) == PlayerAnims.SLAM, 200);
+        shot(4, "27_skill_crescent_vorpal_slam");
+        at(25, mc -> mc.options.setCameraType(CameraType.FIRST_PERSON));
+        server(5, sp -> {
+            sp.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.MOONBLADE_WAXING.get()));
+            sp.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(ModItems.MOONBLADE_WANING.get()));
+            useSkill(sp, Skill.MOON_REFLECTION);
+        });
+        waitFor(mc -> ClientAnims.playing(mc.player.getId()) == PlayerAnims.CRESCENT, 200);
+        shot(4, "28_first_person_moon_reflection");
+        server(20, sp -> useSkill(sp, Skill.GLOWING_PIERCE));
+        waitFor(mc -> ClientAnims.playing(mc.player.getId()) == PlayerAnims.PIERCE, 200);
+        shot(5, "29_first_person_pierce");
+        server(20, sp -> {
+            clear();
+            sp.getServer().tickRateManager().setTickRate(20f);
+        });
+    }
+
     private static void menus() {
         // A mid-story avatar: a side quest in progress, a waypoint attuned, a goblin to target.
         server(0, sp -> {
@@ -286,8 +381,16 @@ public final class ClientTestDriver {
         if (mc.player == null || mc.level == null || mc.getSingleplayerServer() == null) return;
         ticks++;
         while (nextStep < STEPS.size() && STEPS.get(nextStep).at() <= ticks) {
+            Step step = STEPS.get(nextStep);
+            if (step.until() != null && !step.until().test(mc) && waited < step.maxWait()) {
+                // Hold the timeline: everything after this step slides back by a tick.
+                waited++;
+                ticks--;
+                break;
+            }
+            waited = 0;
             try {
-                STEPS.get(nextStep).action().accept(mc);
+                step.action().accept(mc);
             } catch (Throwable t) {
                 SLFrontier.LOGGER.error("Client test step {} failed", nextStep, t);
             }
