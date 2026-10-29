@@ -1,0 +1,21 @@
+{
+  "id": "slfrontier:bandage",
+  "station": "workbench",
+  "category": "consumable",
+  "result": {
+    "item": "slfrontier:bandage",
+    "count": 3
+  },
+  "ingredients": [
+    {
+      "tag": "minecraft:wool",
+      "count": 1
+    },
+    {
+      "item": "slfrontier:frontier_herb",
+      "count": 2
+    }
+  ],
+  "min_level": 1,
+  "time": 30
+}

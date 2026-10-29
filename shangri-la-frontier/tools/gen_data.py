@@ -14,6 +14,7 @@ import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
+import crafting_data  # noqa: E402
 import lang  # noqa: E402
 import structures  # noqa: E402
 
@@ -266,24 +267,7 @@ def gen_recipes():
         "key": {"I": {"item": "minecraft:iron_ingot"}, "G": {"item": "minecraft:glass_pane"},
                 "R": {"item": "minecraft:redstone_block"}},
         "result": {"id": ns("fulldive_headset"), "count": 1}})
-    write(f"{r}/frontier_compass.json", {
-        "type": "minecraft:crafting_shapeless", "category": "equipment",
-        "ingredients": [{"item": "minecraft:compass"}, {"item": "minecraft:amethyst_shard"}],
-        "result": {"id": ns("frontier_compass"), "count": 1}})
-    write(f"{r}/holy_water.json", {
-        "type": "minecraft:crafting_shapeless", "category": "misc",
-        "ingredients": [{"item": "minecraft:glass_bottle"}, {"item": ns("gray_ore_chunk")}, {"item": "minecraft:glowstone_dust"}],
-        "result": {"id": ns("holy_water"), "count": 2}})
-    write(f"{r}/mercenary_twin_blades.json", {
-        "type": "minecraft:crafting_shaped", "category": "equipment",
-        "pattern": [" I", "S "],
-        "key": {"I": {"item": "minecraft:iron_ingot"}, "S": {"item": "minecraft:stick"}},
-        "result": {"id": ns("mercenary_twin_blades"), "count": 1}})
-    write(f"{r}/bird_mask.json", {
-        "type": "minecraft:crafting_shaped", "category": "equipment",
-        "pattern": ["FFF", "FBF"],
-        "key": {"F": {"item": "minecraft:feather"}, "B": {"item": "minecraft:blue_dye"}},
-        "result": {"id": ns("bird_mask"), "count": 1}})
+    # Gameplay items (compass, holy water, blades, bird mask) are Frontier recipes: see tools/crafting_data.py.
     write(f"{r}/gray_ore_chunk_from_smelting.json", {
         "type": "minecraft:smelting", "category": "misc", "ingredient": {"item": ns("gray_ore")},
         "result": {"id": ns("gray_ore_chunk")}, "experience": 0.7, "cookingtime": 200})
@@ -296,7 +280,8 @@ def tag(path, values, replace=False):
 def gen_tags():
     mc = os.path.join(RES, "data/minecraft/tags")
     tag(f"{mc}/block/mineable/pickaxe.json", [ns("gray_ore"), ns("prismatic_crystal"), ns("prismatic_cluster"), ns("nightslayer_altar"),
-                                              ns("shadow_altar")])
+                                              ns("shadow_altar"), ns("frontier_forge")])
+    tag(f"{mc}/block/mineable/axe.json", [ns("alchemy_table"), ns("frontier_workbench")])
     tag(f"{mc}/block/needs_stone_tool.json", [ns("gray_ore")])
     tag(f"{mc}/block/small_flowers.json", [ns("red_spider_lily")])
     tag(f"{mc}/item/small_flowers.json", [ns("red_spider_lily")])
@@ -678,4 +663,5 @@ if __name__ == "__main__":
     gen_biomes()
     gen_dimension()
     gen_structures()
+    crafting_data.build()
     print("data generated")

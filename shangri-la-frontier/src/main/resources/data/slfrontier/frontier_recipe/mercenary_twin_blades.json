@@ -1,0 +1,21 @@
+{
+  "id": "slfrontier:mercenary_twin_blades",
+  "station": "forge",
+  "category": "weapon",
+  "result": {
+    "item": "slfrontier:mercenary_twin_blades",
+    "count": 1
+  },
+  "ingredients": [
+    {
+      "item": "minecraft:iron_ingot",
+      "count": 2
+    },
+    {
+      "item": "slfrontier:leather_grip",
+      "count": 1
+    }
+  ],
+  "min_level": 1,
+  "time": 50
+}

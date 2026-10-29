@@ -1,0 +1,21 @@
+{
+  "id": "slfrontier:gray_steel_ingot",
+  "station": "forge",
+  "category": "material",
+  "result": {
+    "item": "slfrontier:gray_steel_ingot",
+    "count": 1
+  },
+  "ingredients": [
+    {
+      "item": "slfrontier:gray_ore_chunk",
+      "count": 2
+    },
+    {
+      "tag": "minecraft:coals",
+      "count": 1
+    }
+  ],
+  "min_level": 3,
+  "time": 40
+}

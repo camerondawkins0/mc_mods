@@ -1,0 +1,21 @@
+{
+  "id": "slfrontier:chainmail_chestplate",
+  "station": "forge",
+  "category": "armor",
+  "result": {
+    "item": "minecraft:chainmail_chestplate",
+    "count": 1
+  },
+  "ingredients": [
+    {
+      "item": "slfrontier:gray_steel_ingot",
+      "count": 5
+    },
+    {
+      "item": "slfrontier:leather_grip",
+      "count": 1
+    }
+  ],
+  "min_level": 10,
+  "time": 80
+}

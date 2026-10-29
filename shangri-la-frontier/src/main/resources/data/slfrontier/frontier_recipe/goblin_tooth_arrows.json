@@ -1,0 +1,25 @@
+{
+  "id": "slfrontier:goblin_tooth_arrows",
+  "station": "workbench",
+  "category": "gear",
+  "result": {
+    "item": "minecraft:arrow",
+    "count": 4
+  },
+  "ingredients": [
+    {
+      "item": "slfrontier:goblin_tooth",
+      "count": 1
+    },
+    {
+      "item": "minecraft:stick",
+      "count": 1
+    },
+    {
+      "item": "minecraft:feather",
+      "count": 1
+    }
+  ],
+  "min_level": 1,
+  "time": 20
+}

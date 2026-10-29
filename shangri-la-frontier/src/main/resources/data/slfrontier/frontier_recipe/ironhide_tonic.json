@@ -1,0 +1,25 @@
+{
+  "id": "slfrontier:ironhide_tonic",
+  "station": "alchemy",
+  "category": "consumable",
+  "result": {
+    "item": "slfrontier:ironhide_tonic",
+    "count": 2
+  },
+  "ingredients": [
+    {
+      "item": "minecraft:glass_bottle",
+      "count": 2
+    },
+    {
+      "item": "slfrontier:frontier_herb",
+      "count": 1
+    },
+    {
+      "item": "slfrontier:quad_beetle_shell",
+      "count": 1
+    }
+  ],
+  "min_level": 14,
+  "time": 60
+}

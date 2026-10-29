@@ -1,0 +1,21 @@
+{
+  "id": "slfrontier:bird_mask",
+  "station": "workbench",
+  "category": "armor",
+  "result": {
+    "item": "slfrontier:bird_mask",
+    "count": 1
+  },
+  "ingredients": [
+    {
+      "item": "minecraft:feather",
+      "count": 5
+    },
+    {
+      "item": "minecraft:blue_dye",
+      "count": 1
+    }
+  ],
+  "min_level": 3,
+  "time": 50
+}
