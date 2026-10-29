@@ -17,6 +17,9 @@ public final class SlfConfig {
     public static final ModConfigSpec.IntValue MINIMAP_SIZE;
     public static final ModConfigSpec.BooleanValue MINIMAP_ROTATES;
     public static final ModConfigSpec.BooleanValue DAMAGE_NUMBERS;
+    public static final ModConfigSpec.BooleanValue QUEST_POINTER;
+    public static final ModConfigSpec.BooleanValue ENEMY_HEALTH_BARS;
+    public static final ModConfigSpec.BooleanValue TRAVEL_SCREEN;
     public static final ModConfigSpec.BooleanValue CAMERA_SHAKE;
     public static final ModConfigSpec.BooleanValue FIRST_PERSON_SKILL_ANIMS;
 
@@ -35,6 +38,12 @@ public final class SlfConfig {
         HIDE_VANILLA_BARS = c.comment("Hide vanilla hearts, armor and the XP bar inside the Frontier (the avatar frame shows them).")
                 .define("hideVanillaBars", true);
         DAMAGE_NUMBERS = c.comment("Show floating damage numbers when you hit monsters.").define("damageNumbers", true);
+        QUEST_POINTER = c.comment("Mark the current objective in the world (beam and marker) and on screen (pointer, arrow at the edge).")
+                .define("questPointer", true);
+        ENEMY_HEALTH_BARS = c.comment("Show health bars over nearby monsters that are fighting you, were just hit or are under the crosshair.")
+                .define("enemyHealthBars", true);
+        TRAVEL_SCREEN = c.comment("Show a short loading screen with tips when fast traveling or warping into the Frontier.")
+                .define("travelScreen", true);
         c.pop();
         c.push("minimap");
         SHOW_MINIMAP = c.comment("Show the minimap in the corner of the screen inside the Frontier (toggle in game with N).")

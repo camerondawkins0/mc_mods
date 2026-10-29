@@ -61,6 +61,7 @@ public final class ClientEvents {
         }
         while (KeyBindings.MINIMAP.consumeClick()) {
             SlfConfig.SHOW_MINIMAP.set(!SlfConfig.SHOW_MINIMAP.get());
+            com.slfrontier.client.overlay.HudNotice.minimapToggled(SlfConfig.SHOW_MINIMAP.get());
         }
         for (int i = 0; i < KeyBindings.SKILLS.length; i++) {
             while (KeyBindings.SKILLS[i].consumeClick()) {

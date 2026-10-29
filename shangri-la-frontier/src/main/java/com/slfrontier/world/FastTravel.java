@@ -4,6 +4,7 @@ import com.slfrontier.SlfConfig;
 import com.slfrontier.data.PlayerData;
 import com.slfrontier.entity.FrontierBoss;
 import com.slfrontier.network.ModNetwork;
+import com.slfrontier.network.OverlayNetwork;
 import com.slfrontier.registry.ModAttachments;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -58,6 +59,7 @@ public final class FastTravel {
         Waypoints.Waypoint wp = Waypoints.get(level).byId(id);
         if (wp == null) return;
         BlockPos dest = arrival(level, wp);
+        OverlayNetwork.travel(player, OverlayNetwork.TRAVEL, wp.nameKey(), dest);
         level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1, player.getZ(), 60, 0.4, 0.9, 0.4, 0.05);
         level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.8f, 1.5f);
         player.teleportTo(level, dest.getX() + 0.5, dest.getY(), dest.getZ() + 0.5, player.getYRot(), player.getXRot());

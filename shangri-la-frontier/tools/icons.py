@@ -352,10 +352,43 @@ def ui_icons():
     save(g.render("#F0F0F0", "#B8B8C8", "#6A6A80"), "textures/gui/icon/ruins.png")
 
 
+# ---------------------------------------------------------------------------------------
+# Quest pointer (on-screen objective marker, edge arrow, tracker arrow)
+# ---------------------------------------------------------------------------------------
+
+def pointer_icons():
+    gold = ("#FFF6C8", "#F2B530", "#C98A10")
+
+    g = Glyph(32)  # objective marker: a gold diamond frame with a pin tip...
+    g.poly([(16, 1.5), (27.5, 13), (16, 24.5), (4.5, 13)])
+    g.poly([(16, 5), (24, 13), (16, 21), (8, 13)], erase=True)
+    g.poly([(12.5, 25.5), (19.5, 25.5), (16, 30.5)])
+    frame = g.render(*gold)
+    g = Glyph(32)  # ...around a bright four-pointed star
+    pts = []
+    for i in range(8):
+        a = math.radians(-90 + i * 45)
+        r = 6 if i % 2 == 0 else 2
+        pts.append((16 + math.cos(a) * r, 13 + math.sin(a) * r))
+    g.poly(pts)
+    save(Image.alpha_composite(frame, g.render("#FFFFFF", "#FFF0B0", "#FFD34F")), "textures/gui/icon/quest_marker.png")
+
+    g = Glyph(32)  # edge arrow: a notched arrowhead pointing up (rotated in code), with a trailing chevron
+    g.poly([(16, 1.5), (28, 17), (16, 12.5), (4, 17)])
+    g.poly([(16, 15), (25, 26), (16, 22.5), (7, 26)])
+    save(g.render(*gold, angle=-90), "textures/gui/icon/quest_edge_arrow.png")
+
+    g = Glyph(16)  # tracker arrow: double chevron pointing up (rotated in code)
+    g.poly([(8, 0.8), (14.5, 8.5), (8, 6), (1.5, 8.5)])
+    g.poly([(8, 7.2), (13, 14.8), (8, 12.2), (3, 14.8)])
+    save(g.render(*gold, angle=-90), "textures/gui/icon/quest_arrow.png")
+
+
 def build_all():
     skill_icons()
     stat_icons()
     ui_icons()
+    pointer_icons()
 
 
 if __name__ == "__main__":
