@@ -2,6 +2,7 @@
 import lang_inventory
 
 import lang_overlays
+import lang_crafting
 
 ITEMS = {
     "fulldive_headset": ("Full-Dive VR Headset", "Hold use to log in to Shangri-La Frontier. Use again inside to log out."),
@@ -805,4 +806,5 @@ def build():
         lang[f"dialogue.slfrontier.option.{k}"] = text
     lang.update(lang_inventory.STRINGS)
     lang.update(lang_overlays.STRINGS)
+    lang.update(lang_crafting.STRINGS)
     return lang

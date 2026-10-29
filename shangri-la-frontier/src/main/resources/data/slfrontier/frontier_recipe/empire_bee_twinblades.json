@@ -1,0 +1,22 @@
+{
+  "id": "slfrontier:empire_bee_twinblades",
+  "station": "forge",
+  "category": "weapon",
+  "result": {
+    "item": "slfrontier:empire_bee_twinblades",
+    "count": 2
+  },
+  "ingredients": [
+    {
+      "item": "slfrontier:empire_bee_queen_crown",
+      "count": 1
+    },
+    {
+      "item": "slfrontier:empire_bee_stinger",
+      "count": 4
+    }
+  ],
+  "min_level": 20,
+  "time": 90,
+  "npc": "bilac"
+}

@@ -44,6 +44,10 @@ public class SLFrontier {
         modBus.addListener(ModNetwork::register);
         modBus.addListener(com.slfrontier.network.InventoryNetwork::register);
         modBus.addListener(com.slfrontier.network.OverlayNetwork::register);
+        com.slfrontier.registry.CraftingRegistry.BLOCKS.register(modBus);
+        com.slfrontier.registry.CraftingRegistry.ITEMS.register(modBus);
+        modBus.addListener(com.slfrontier.registry.CraftingRegistry::addToCreativeTab);
+        modBus.addListener(com.slfrontier.network.CraftingNetwork::register);
         LOGGER.info("Connecting to Shangri-La Frontier...");
     }
 

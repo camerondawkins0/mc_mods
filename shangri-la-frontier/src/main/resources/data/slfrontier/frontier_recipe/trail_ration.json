@@ -1,0 +1,25 @@
+{
+  "id": "slfrontier:trail_ration",
+  "station": "workbench",
+  "category": "consumable",
+  "result": {
+    "item": "slfrontier:trail_ration",
+    "count": 2
+  },
+  "ingredients": [
+    {
+      "item": "minecraft:bread",
+      "count": 1
+    },
+    {
+      "tag": "slfrontier:cooked_meats",
+      "count": 1
+    },
+    {
+      "item": "slfrontier:frontier_herb",
+      "count": 1
+    }
+  ],
+  "min_level": 1,
+  "time": 40
+}

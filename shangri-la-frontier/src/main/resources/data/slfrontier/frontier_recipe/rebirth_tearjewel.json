@@ -1,0 +1,26 @@
+{
+  "id": "slfrontier:rebirth_tearjewel",
+  "station": "alchemy",
+  "category": "gear",
+  "result": {
+    "item": "slfrontier:rebirth_tearjewel",
+    "count": 1
+  },
+  "ingredients": [
+    {
+      "item": "slfrontier:prismatic_shard",
+      "count": 4
+    },
+    {
+      "item": "slfrontier:tombguard_fragment",
+      "count": 2
+    },
+    {
+      "item": "slfrontier:nightslayer_fur",
+      "count": 1
+    }
+  ],
+  "min_level": 35,
+  "time": 120,
+  "requires_stage": "LYCAGON_SHADOW"
+}

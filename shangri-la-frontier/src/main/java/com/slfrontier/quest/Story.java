@@ -1,6 +1,8 @@
 package com.slfrontier.quest;
 
 import com.mojang.datafixers.util.Pair;
+import com.slfrontier.crafting.FrontierCrafting;
+import com.slfrontier.crafting.Station;
 import com.slfrontier.data.PlayerData;
 import com.slfrontier.entity.boss.LycagonEntity;
 import com.slfrontier.entity.boss.RavenousSnakeEntity;
@@ -200,6 +202,9 @@ public final class Story {
         } else {
             d.node("smith.regular", 1);
         }
+        if (data.stage().atLeast(QuestStage.GRAY_ORE)) {
+            d.option("open_forge", p -> FrontierCrafting.openNear(p, Station.FORGE, "frontier_blacksmith"));
+        }
         if (data.stage().atLeast(QuestStage.NIGHTSLAYER_ENCOUNTER)) {
             d.option("buy_holy_water", p -> {
                 if (Progression.countItem(p, ModItems.GRAY_ORE_CHUNK.get()) < 1 || Progression.countItem(p, Items.GLASS_BOTTLE) < 1) {
@@ -322,61 +327,11 @@ public final class Story {
 
     private static Dialogue bilac(ServerPlayer player) {
         Dialogue d = Dialogue.of("bilac").node("bilac.hello", 2);
-        d.option("forge_ducusram", p -> craft(p, new ItemStack(ModItems.DUCUSRAM.get()),
-                req(ModItems.MARSH_DAGGER.get(), 1), req(ModItems.GRAY_ORE_CHUNK.get(), 3)));
-        d.option("forge_bee_blades", p -> craft(p, new ItemStack(ModItems.EMPIRE_BEE_TWINBLADES.get(), 2),
-                req(ModItems.EMPIRE_BEE_QUEEN_CROWN.get(), 1), req(ModItems.EMPIRE_BEE_STINGER.get(), 4)));
-        d.option("forge_battlehorn", p -> craft(p, new ItemStack(ModItems.BATTLEHORN_HELM.get()),
-                req(ModItems.QUAD_BEETLE_SHELL.get(), 2)));
-        d.option("brew_tonic", p -> craft(p, new ItemStack(ModItems.REALLOCATION_TONIC.get()),
-                req(ModItems.PRISMATIC_SHARD.get(), 4)));
+        d.option("open_forge", p -> FrontierCrafting.openNear(p, Station.FORGE, "bilac"));
         if (ModAttachments.get(player).stage().atLeast(QuestStage.VORPAL_COLOSSEUM)) {
             d.option("return_fastera", FrontierTravel::toFastera);
         }
         return d.close();
-    }
-
-    private record Req(Item item, int count) {
-    }
-
-    private static Req req(Item item, int count) {
-        return new Req(item, count);
-    }
-
-    private static void craft(ServerPlayer player, ItemStack result, Req... reqs) {
-        for (Req r : reqs) {
-            if (Progression.countItem(player, r.item()) < r.count()) {
-                MutableList missing = new MutableList();
-                for (Req q : reqs) {
-                    missing.add(Component.literal(q.count() + "x ").append(q.item().getDescription()));
-                }
-                player.sendSystemMessage(Component.translatable("message.slfrontier.bilac.missing", missing.join())
-                        .withStyle(ChatFormatting.GRAY));
-                return;
-            }
-        }
-        for (Req r : reqs) Progression.takeItem(player, r.item(), r.count());
-        give(player, result);
-        player.level().playSound(null, player.blockPosition(), SoundEvents.ANVIL_USE, SoundSource.PLAYERS, 1f, 1.2f);
-        player.sendSystemMessage(Component.translatable("message.slfrontier.bilac.done", result.getHoverName()).withStyle(ChatFormatting.GOLD));
-    }
-
-    /** Tiny helper to join components with commas. */
-    private static final class MutableList {
-        private final java.util.ArrayList<Component> parts = new java.util.ArrayList<>();
-
-        void add(Component c) {
-            parts.add(c);
-        }
-
-        Component join() {
-            var out = Component.empty();
-            for (int i = 0; i < parts.size(); i++) {
-                if (i > 0) out.append(", ");
-                out.append(parts.get(i));
-            }
-            return out;
-        }
     }
 
     // ---- The Hidden Garden ----------------------------------------------------------

@@ -1,0 +1,22 @@
+{
+  "id": "slfrontier:ducusram",
+  "station": "forge",
+  "category": "weapon",
+  "result": {
+    "item": "slfrontier:ducusram",
+    "count": 1
+  },
+  "ingredients": [
+    {
+      "item": "slfrontier:marsh_dagger",
+      "count": 1
+    },
+    {
+      "item": "slfrontier:gray_ore_chunk",
+      "count": 3
+    }
+  ],
+  "min_level": 8,
+  "time": 70,
+  "npc": "bilac"
+}

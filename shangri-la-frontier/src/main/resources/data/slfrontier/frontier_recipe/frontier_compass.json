@@ -1,0 +1,21 @@
+{
+  "id": "slfrontier:frontier_compass",
+  "station": "workbench",
+  "category": "gear",
+  "result": {
+    "item": "slfrontier:frontier_compass",
+    "count": 1
+  },
+  "ingredients": [
+    {
+      "item": "minecraft:compass",
+      "count": 1
+    },
+    {
+      "tag": "slfrontier:crystal_shards",
+      "count": 1
+    }
+  ],
+  "min_level": 1,
+  "time": 40
+}

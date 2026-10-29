@@ -1,0 +1,10 @@
+{
+  "type": "neoforge:add_table",
+  "conditions": [
+    {
+      "condition": "neoforge:loot_table_id",
+      "loot_table_id": "slfrontier:entities/vorpal_bunny"
+    }
+  ],
+  "table": "slfrontier:gameplay/frontier_herb_from_bunny"
+}

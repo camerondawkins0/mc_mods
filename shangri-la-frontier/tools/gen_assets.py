@@ -19,6 +19,7 @@ from PIL import Image
 
 sys.path.insert(0, os.path.dirname(__file__))
 from models import MODELS, VARIANTS  # noqa: E402
+import crafting_assets  # noqa: E402
 import creatures  # noqa: E402
 import icons  # noqa: E402
 import inventory  # noqa: E402
@@ -500,4 +501,5 @@ if __name__ == "__main__":
     generate_logo()
     icons.build_all()
     inventory.gen_icons()
+    crafting_assets.build_all()
     print("assets generated")

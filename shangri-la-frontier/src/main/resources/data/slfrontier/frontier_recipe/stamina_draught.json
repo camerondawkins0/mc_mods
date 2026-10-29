@@ -1,0 +1,25 @@
+{
+  "id": "slfrontier:stamina_draught",
+  "station": "alchemy",
+  "category": "consumable",
+  "result": {
+    "item": "slfrontier:stamina_draught",
+    "count": 1
+  },
+  "ingredients": [
+    {
+      "item": "minecraft:glass_bottle",
+      "count": 1
+    },
+    {
+      "item": "slfrontier:frontier_herb",
+      "count": 1
+    },
+    {
+      "item": "minecraft:sugar",
+      "count": 1
+    }
+  ],
+  "min_level": 3,
+  "time": 40
+}

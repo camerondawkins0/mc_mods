@@ -1,0 +1,25 @@
+{
+  "id": "slfrontier:holy_water",
+  "station": "alchemy",
+  "category": "consumable",
+  "result": {
+    "item": "slfrontier:holy_water",
+    "count": 2
+  },
+  "ingredients": [
+    {
+      "item": "minecraft:glass_bottle",
+      "count": 1
+    },
+    {
+      "item": "slfrontier:gray_ore_chunk",
+      "count": 1
+    },
+    {
+      "tag": "slfrontier:glowing_reagents",
+      "count": 1
+    }
+  ],
+  "min_level": 1,
+  "time": 50
+}

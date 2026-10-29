@@ -1,0 +1,25 @@
+{
+  "id": "slfrontier:nightsight_tonic",
+  "station": "alchemy",
+  "category": "consumable",
+  "result": {
+    "item": "slfrontier:nightsight_tonic",
+    "count": 1
+  },
+  "ingredients": [
+    {
+      "item": "minecraft:glass_bottle",
+      "count": 1
+    },
+    {
+      "item": "slfrontier:frontier_herb",
+      "count": 1
+    },
+    {
+      "item": "slfrontier:nightslayer_fur",
+      "count": 1
+    }
+  ],
+  "min_level": 8,
+  "time": 50
+}
