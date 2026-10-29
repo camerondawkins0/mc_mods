@@ -155,9 +155,13 @@ public final class StoryTest {
             data.setStage(QuestStage.RAVENOUS_SNAKE);
             player.moveTo(bridge.getX() + 0.5, bridge.getY(), bridge.getZ() + 0.5);
             Story.tickPlayer(player);
-            if (frontier.getEntitiesOfClass(RavenousSnakeEntity.class, player.getBoundingBox().inflate(64)).isEmpty()) {
-                throw new IllegalStateException("the snake did not appear");
+            // A fake player doesn't keep chunks loaded, so the new entity isn't listed until the next tick;
+            // check the serpent itself.
+            RavenousSnakeEntity snake = Story.lastSnake();
+            if (snake == null || snake.level() != frontier || snake.distanceTo(player) > 64) {
+                throw new IllegalStateException("the snake did not appear (bridge " + bridge + ", player " + player.blockPosition() + ")");
             }
+            snake.discard();
             player.moveTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
         });
         // Every boss runs its whole moveset once against the test player.

@@ -30,6 +30,7 @@ public final class FrontierVision {
     }
 
     private static final Grade DEFAULT = new Grade(1.12f, 1.06f, 0.03f, 1f, 1f, 1f, 0.35f, 0.32f);
+    private static boolean announced;
     private static final float[] current = {1.12f, 1.06f, 0.03f, 1f, 1f, 1f, 0.35f, 0.32f};
 
     private FrontierVision() {
@@ -45,6 +46,10 @@ public final class FrontierVision {
                 && SlfConfig.FRONTIER_VISION.get();
         if (wanted && effect == null) {
             renderer.loadEffect(EFFECT);
+            if (!announced && renderer.currentEffect() != null) {
+                announced = true;
+                SLFrontier.LOGGER.info("Frontier Vision on");
+            }
         } else if (!wanted && ours) {
             renderer.shutdownEffect();
         }

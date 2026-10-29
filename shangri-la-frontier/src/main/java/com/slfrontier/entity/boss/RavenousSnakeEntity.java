@@ -3,7 +3,10 @@ package com.slfrontier.entity.boss;
 import com.slfrontier.entity.FrontierBoss;
 import com.slfrontier.fx.Fx;
 import com.slfrontier.quest.Story;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -19,6 +22,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,8 +39,48 @@ public class RavenousSnakeEntity extends FrontierBoss {
     private final List<Vec3> marks = new ArrayList<>();
     private Vec3 aim = Vec3.ZERO;
 
+    /** Where it rose from the river: it never strays far from the bridge (null when summoned elsewhere). */
+    @Nullable
+    private BlockPos home;
+    private int lonely;
+
     public RavenousSnakeEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level, 12, 400, BossEvent.BossBarColor.GREEN);
+    }
+
+    public void setHome(BlockPos pos) {
+        home = pos.immutable();
+    }
+
+    @Override
+    protected void customServerAiStep() {
+        super.customServerAiStep();
+        if (home == null || tickCount % 20 != 0) return;
+        if (level().getNearestPlayer(this, 80) == null) {
+            // Nobody has come for half a minute: it sinks back into the river until someone returns.
+            if (++lonely >= 30) {
+                ((ServerLevel) level()).sendParticles(ParticleTypes.SPLASH, getX(), getY() + 1, getZ(), 60, 1.5, 0.5, 1.5, 0.2);
+                discard();
+            }
+            return;
+        }
+        lonely = 0;
+        if (distanceToSqr(Vec3.atBottomCenterOf(home)) > 48 * 48) {
+            setTarget(null);
+            teleportTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5);
+        }
+    }
+
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        if (home != null) tag.put("Home", NbtUtils.writeBlockPos(home));
+    }
+
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        home = NbtUtils.readBlockPos(tag, "Home").orElse(null);
     }
 
     public static AttributeSupplier.Builder createAttributes() {

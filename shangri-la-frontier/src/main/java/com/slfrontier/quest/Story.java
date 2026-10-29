@@ -589,6 +589,14 @@ public final class Story {
     }
 
     private static long snakeReadyAt;
+    private static java.lang.ref.WeakReference<RavenousSnakeEntity> lastSnake = new java.lang.ref.WeakReference<>(null);
+
+    /** The serpent that rose last, if it's still around (for the story test). */
+    @Nullable
+    public static RavenousSnakeEntity lastSnake() {
+        RavenousSnakeEntity snake = lastSnake.get();
+        return snake == null || snake.isRemoved() ? null : snake;
+    }
 
     /** The serpent rises out of the river under the bridge. */
     private static void spawnRavenousSnake(ServerLevel level, ServerPlayer player, BlockPos bridge) {
@@ -600,7 +608,8 @@ public final class Story {
         snake.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
         snake.finalizeSpawn(level, level.getCurrentDifficultyAt(at), MobSpawnType.EVENT, null);
         snake.setTarget(player);
-        level.addFreshEntity(snake);
+        snake.setHome(at);
+        if (level.addFreshEntity(snake)) lastSnake = new java.lang.ref.WeakReference<>(snake);
         level.sendParticles(ParticleTypes.SPLASH, snake.getX(), snake.getY() + 1, snake.getZ(), 120, 2, 1, 2, 0.2);
         level.playSound(null, at, SoundEvents.ELDER_GUARDIAN_CURSE, SoundSource.HOSTILE, 1.5f, 0.6f);
         ModNetwork.announce(player, "announce.slfrontier.area_boss_appears", "entity.slfrontier.ravenous_snake", 0x8AE070);
