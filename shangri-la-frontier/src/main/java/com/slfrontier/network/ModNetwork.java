@@ -170,10 +170,12 @@ public final class ModNetwork {
         }
     }
 
-    public record UseSkill(int slot) implements CustomPacketPayload {
+    /** A skill key was pressed; strafe/forward are the movement keys held (-1, 0 or 1), for dashes. */
+    public record UseSkill(int slot, byte strafe, byte forward) implements CustomPacketPayload {
         public static final Type<UseSkill> TYPE = new Type<>(SLFrontier.id("use_skill"));
-        public static final StreamCodec<ByteBuf, UseSkill> CODEC =
-                ByteBufCodecs.VAR_INT.map(UseSkill::new, UseSkill::slot);
+        public static final StreamCodec<ByteBuf, UseSkill> CODEC = StreamCodec.composite(
+                ByteBufCodecs.VAR_INT, UseSkill::slot, ByteBufCodecs.BYTE, UseSkill::strafe, ByteBufCodecs.BYTE, UseSkill::forward,
+                UseSkill::new);
 
         @Override
         public Type<? extends CustomPacketPayload> type() {
@@ -274,6 +276,7 @@ public final class ModNetwork {
     private static void handleUseSkill(UseSkill payload, IPayloadContext ctx) {
         ctx.enqueueWork(() -> {
             if (ctx.player() instanceof ServerPlayer player) {
+                ModAttachments.get(player).setMoveInput(payload.strafe(), payload.forward());
                 SkillExecutor.trySlot(player, payload.slot());
             }
         });

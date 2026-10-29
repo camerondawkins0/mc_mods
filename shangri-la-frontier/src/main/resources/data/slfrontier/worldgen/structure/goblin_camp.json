@@ -1,0 +1,8 @@
+{
+  "type": "slfrontier:designed",
+  "site": "goblin_camp",
+  "biomes": "#slfrontier:frontier_all",
+  "step": "surface_structures",
+  "spawn_overrides": {},
+  "terrain_adaptation": "none"
+}

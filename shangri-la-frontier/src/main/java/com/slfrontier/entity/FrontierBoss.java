@@ -349,6 +349,12 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
         return false;
     }
 
+    /** Story bosses stay on Peaceful (where they can't hurt anyone) so the story can't get stuck. */
+    @Override
+    protected boolean shouldDespawnInPeaceful() {
+        return false;
+    }
+
     @Override
     public boolean causeFallDamage(float distance, float multiplier, DamageSource source) {
         return false;
@@ -363,11 +369,6 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
     @Override
     public boolean canChangeDimensions(Level from, Level to) {
         return false;
-    }
-
-    @Override
-    protected boolean shouldDespawnInPeaceful() {
-        return true;
     }
 
     @Override

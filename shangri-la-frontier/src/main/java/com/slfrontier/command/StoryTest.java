@@ -135,9 +135,16 @@ public final class StoryTest {
             if (!data.flag("contusion")) throw new IllegalStateException("contusion not set");
         });
         check(failures, "landmarks", () -> {
+            var structures = frontier.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
             for (Landmarks.Site site : Landmarks.Site.values()) {
                 BlockPos at = Landmarks.ensure(frontier, site);
                 SLFrontier.LOGGER.info("Story test: {} is at {}", site.id, at);
+                var structure = structures.get(SLFrontier.id(site.id));
+                BlockPos center = Landmarks.center(site);
+                frontier.getChunk(center);
+                if (structure == null || !frontier.structureManager().getStructureWithPieceAt(center, structure).isValid()) {
+                    throw new IllegalStateException(site.id + " did not generate at " + center);
+                }
             }
             if (Landmarks.marker(frontier, Landmarks.Site.RABITUZA, "arena") == null) throw new IllegalStateException("no colosseum marker");
             if (Landmarks.marker(frontier, Landmarks.Site.SERPENT_BRIDGE, "arena") == null) throw new IllegalStateException("no bridge marker");

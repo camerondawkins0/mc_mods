@@ -1,0 +1,12 @@
+{
+  "structures": [
+    {
+      "structure": "slfrontier:secondil",
+      "weight": 1
+    }
+  ],
+  "placement": {
+    "type": "slfrontier:designed",
+    "site": "secondil"
+  }
+}

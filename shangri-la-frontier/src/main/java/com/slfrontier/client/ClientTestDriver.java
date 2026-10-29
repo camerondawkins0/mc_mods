@@ -223,12 +223,13 @@ public final class ClientTestDriver {
             mc.options.hideGui = true;
             mc.options.renderDistance().set(10);
         });
-        for (Landmarks.Site site : Landmarks.Site.values()) {
+        for (Landmarks.Site site : List.of(Landmarks.Site.FIRSTIA, Landmarks.Site.GOBLIN_CAMP, Landmarks.Site.SERPENT_BRIDGE,
+                Landmarks.Site.SECONDIL, Landmarks.Site.THIRDREMA, Landmarks.Site.RABITUZA, Landmarks.Site.NIGHTSLAYER_DEN,
+                Landmarks.Site.WEZAEMON_TOMB)) {
             server(10, sp -> {
                 ServerLevel level = sp.serverLevel();
-                BlockPos spawn = Landmarks.ensure(level, site);
-                BlockPos planned = com.slfrontier.world.TownData.get(level).planned(site.id);
-                BlockPos c = planned == null ? spawn : new BlockPos(planned.getX(), spawn.getY(), planned.getZ());
+                Landmarks.ensure(level, site);
+                BlockPos c = Landmarks.center(site);
                 Vec3i size = Landmarks.size(level, site);
                 // Thirdrema is long and narrow: look up its valley. The rest: from the north-west corner.
                 double d = Math.max(size.getX(), size.getZ()) * 0.8;

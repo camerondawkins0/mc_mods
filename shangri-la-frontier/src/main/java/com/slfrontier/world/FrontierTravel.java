@@ -35,6 +35,9 @@ public final class FrontierTravel {
         }
         PlayerData data = ModAttachments.get(player);
         data.setReturnPoint(player.level().dimension().location().toString(), player.getX(), player.getY(), player.getZ());
+        if (data.migrateToDesignedMap()) {
+            player.sendSystemMessage(Component.translatable("message.slfrontier.new_map").withStyle(ChatFormatting.AQUA));
+        }
         BlockPos spawn = ensureFastera(frontier);
         // Like any MMO, you log back in where you logged out.
         BlockPos target = data.hasFrontierPos() ? BlockPos.of(data.frontierPos()) : spawn;
@@ -101,15 +104,12 @@ public final class FrontierTravel {
         return server == null ? null : server.getLevel(Frontier.LEVEL);
     }
 
-    /** Firstia (internally "fastera"), built at the world origin the first time anyone logs in. */
+    /** Firstia (internally "fastera"), the starting town at the heart of the map. */
     public static BlockPos ensureFastera(ServerLevel frontier) {
-        BlockPos spawn = Landmarks.ensure(frontier, Landmarks.Site.FIRSTIA);
-        // Plan the rest of the world in the background so maps and compasses know where it is.
-        Landmarks.planAhead(frontier);
-        return spawn;
+        return Landmarks.ensure(frontier, Landmarks.Site.FIRSTIA);
     }
 
-    /** Rabituza, the hidden nation of the Vorpal Bunnies, far from everything else. */
+    /** Rabituza, the hidden nation of the Vorpal Bunnies, on its island out at sea. */
     public static BlockPos ensureRabituza(ServerLevel frontier) {
         return Landmarks.ensure(frontier, Landmarks.Site.RABITUZA);
     }

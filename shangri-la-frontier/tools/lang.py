@@ -69,7 +69,7 @@ BIOMES = {
 }
 
 SKILLS = {
-    "tap_step": ("Tap Step", "Dash a short distance, untouchable for a moment. Sneak to dash backward."),
+    "tap_step": ("Tap Step", "Dash a short distance the way you're moving (any direction; straight ahead if you stand still), untouchable for a moment."),
     "slide_step": ("Slide Step", "Evolved Tap Step: a longer dash with more invincibility."),
     "drill_piercer": ("Drill Piercer", "Lunge and pierce the first enemy ahead. Huge damage on weak points (from behind)."),
     "glowing_pierce": ("Glowing Pierce", "Evolved Drill Piercer: a longer lunge that pierces every enemy in a line."),
@@ -731,6 +731,32 @@ GUI.update({
     "waypoint.slfrontier.shadow_altar": "Lightless Barrens",
 })
 
+
+
+# The designed map: new regions, the biomes painted under each site, and the migration notice.
+BIOMES.update({
+    "frontier_shore": "Frontier Coast",
+    "frontier_peaks": "Northern Peaks",
+    "rabbit_isle": "Rabituza Isle",
+    "firstia": "Firstia",
+    "secondil": "Secondil",
+    "thirdrema": "Thirdrema",
+    "rabituza": "Rabituza",
+    "goblin_camp": "Goblin War Camp",
+    "serpent_bridge": "Serpent Bridge",
+    "nightslayer_den": "Nightslayer's Den",
+    "wezaemon_tomb": "Wezaemon's Tomb",
+    "empire_bee_hive": "Empire Bee Hive",
+    "mud_digger_lair": "Mud Digger's Lair",
+    "shadow_altar": "Shadow Altar",
+    "divinity_ruins": "Iron Ruins of the Divinity",
+})
+
+MISC.update({
+    "message.slfrontier.new_map": "The Frontier has been redrawn. Your avatar wakes in Firstia; old waypoints have faded.",
+    "waypoint.slfrontier.goblin_camp": "Goblin War Camp",
+    "message.slfrontier.peaceful": "Monsters don't appear on Peaceful. Set the difficulty to Easy or higher to fight your way through the story.",
+})
 
 
 def build():

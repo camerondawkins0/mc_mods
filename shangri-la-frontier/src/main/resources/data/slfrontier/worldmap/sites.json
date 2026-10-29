@@ -1,0 +1,134 @@
+[
+ {
+  "id": "fastera",
+  "template": "slfrontier:town/firstia",
+  "x": -56,
+  "y": 68,
+  "z": -56,
+  "size_x": 112,
+  "size_z": 112,
+  "top": 68,
+  "town": true
+ },
+ {
+  "id": "goblin_camp",
+  "template": "slfrontier:landmark/goblin_camp",
+  "x": 266,
+  "y": 68,
+  "z": -234,
+  "size_x": 48,
+  "size_z": 48,
+  "top": 68,
+  "town": false
+ },
+ {
+  "id": "serpent_bridge",
+  "template": "slfrontier:landmark/serpent_bridge",
+  "x": 518,
+  "y": 57,
+  "z": -58,
+  "size_x": 84,
+  "size_z": 56,
+  "top": 73,
+  "town": false
+ },
+ {
+  "id": "secondil",
+  "template": "slfrontier:town/secondil",
+  "x": 936,
+  "y": 72,
+  "z": -94,
+  "size_x": 128,
+  "size_z": 128,
+  "top": 72,
+  "town": true
+ },
+ {
+  "id": "thirdrema",
+  "template": "slfrontier:town/thirdrema",
+  "x": 1794,
+  "y": 72,
+  "z": -40,
+  "size_x": 112,
+  "size_z": 160,
+  "top": 72,
+  "town": true
+ },
+ {
+  "id": "rabituza",
+  "template": "slfrontier:town/rabituza",
+  "x": 1586,
+  "y": 67,
+  "z": 1436,
+  "size_x": 128,
+  "size_z": 128,
+  "top": 67,
+  "town": true
+ },
+ {
+  "id": "nightslayer_den",
+  "template": "slfrontier:nightslayer_den",
+  "x": 747,
+  "y": 78,
+  "z": -733,
+  "size_x": 27,
+  "size_z": 27,
+  "top": 77,
+  "town": false
+ },
+ {
+  "id": "wezaemon_tomb",
+  "template": "slfrontier:wezaemon_tomb",
+  "x": 1545,
+  "y": 97,
+  "z": -1075,
+  "size_x": 31,
+  "size_z": 31,
+  "top": 96,
+  "town": false
+ },
+ {
+  "id": "empire_bee_hive",
+  "template": "slfrontier:empire_bee_hive",
+  "x": -831,
+  "y": 73,
+  "z": -471,
+  "size_x": 23,
+  "size_z": 23,
+  "top": 72,
+  "town": false
+ },
+ {
+  "id": "mud_digger_lair",
+  "template": "slfrontier:mud_digger_lair",
+  "x": 1278,
+  "y": 64,
+  "z": 348,
+  "size_x": 25,
+  "size_z": 25,
+  "top": 63,
+  "town": false
+ },
+ {
+  "id": "shadow_altar",
+  "template": "slfrontier:shadow_altar",
+  "x": -780,
+  "y": 76,
+  "z": 620,
+  "size_x": 41,
+  "size_z": 41,
+  "top": 75,
+  "town": false
+ },
+ {
+  "id": "divinity_ruins",
+  "template": "slfrontier:divinity_ruins",
+  "x": 2110,
+  "y": 114,
+  "z": -530,
+  "size_x": 21,
+  "size_z": 21,
+  "top": 113,
+  "town": false
+ }
+]

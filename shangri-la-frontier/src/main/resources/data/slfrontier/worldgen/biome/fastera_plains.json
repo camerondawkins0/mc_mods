@@ -75,6 +75,7 @@
     [],
     [],
     [
+      "slfrontier:frontier_roads",
       "minecraft:amethyst_geode",
       "slfrontier:rock_arch_rare",
       "slfrontier:divinity_monolith"

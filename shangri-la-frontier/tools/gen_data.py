@@ -16,6 +16,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 import lang  # noqa: E402
 import structures  # noqa: E402
+import frontier_biomes  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 RES = os.path.join(ROOT, "src/main/resources")
@@ -312,12 +313,9 @@ def gen_tags():
 # The Frontier dimension
 # ---------------------------------------------------------------------------------------
 
-LAND_BIOMES = ["fastera_plains", "diremarsh_waste", "prismatic_forest_grotto", "hidden_garden", "nightslayer_woods",
-               "rampant_forest", "lightless_barrens", "thirdrema_highlands"]
-
 # Placed features available to every biome, in one global order (avoids feature-order cycles).
 STEP_ORDER = {
-    2: ["minecraft:amethyst_geode", ns("rock_arch"), ns("rock_arch_rare"), ns("divinity_monolith")],
+    2: [ns("frontier_roads"), "minecraft:amethyst_geode", ns("rock_arch"), ns("rock_arch_rare"), ns("divinity_monolith")],
     3: ["minecraft:monster_room"],
     6: ["minecraft:ore_dirt", "minecraft:ore_gravel", "minecraft:ore_granite_upper", "minecraft:ore_diorite_upper",
         "minecraft:ore_andesite_upper", "minecraft:ore_coal_upper", "minecraft:ore_coal_lower", "minecraft:ore_iron_upper",
@@ -336,7 +334,7 @@ STEP_ORDER = {
     10: ["minecraft:freeze_top_layer"],
 }
 
-COMMON = {"minecraft:amethyst_geode", "minecraft:monster_room", "minecraft:ore_dirt", "minecraft:ore_gravel",
+COMMON = {ns("frontier_roads"), "minecraft:amethyst_geode", "minecraft:monster_room", "minecraft:ore_dirt", "minecraft:ore_gravel",
           "minecraft:ore_granite_upper", "minecraft:ore_diorite_upper", "minecraft:ore_andesite_upper",
           "minecraft:ore_coal_upper", "minecraft:ore_coal_lower", "minecraft:ore_iron_upper", "minecraft:ore_iron_middle",
           "minecraft:ore_iron_small", "minecraft:ore_gold", "minecraft:ore_redstone", "minecraft:ore_diamond",
@@ -418,18 +416,52 @@ BIOME_DEFS = {
     },
 }
 
-# Climate points for the multi-noise biome source.
-BIOME_POINTS = {
-    "frontier_sea": dict(temperature=0.0, humidity=0.0, continentalness=-0.7, erosion=0.0, weirdness=0.0, offset=0.0),
-    "fastera_plains": dict(temperature=0.1, humidity=-0.1, continentalness=0.25, erosion=0.35, weirdness=0.0, offset=0.0),
-    "diremarsh_waste": dict(temperature=0.55, humidity=0.6, continentalness=0.1, erosion=0.6, weirdness=0.1, offset=0.0),
-    "prismatic_forest_grotto": dict(temperature=-0.4, humidity=0.45, continentalness=0.35, erosion=-0.2, weirdness=0.5, offset=0.0),
-    "hidden_garden": dict(temperature=0.35, humidity=-0.5, continentalness=0.45, erosion=0.0, weirdness=-0.55, offset=0.0),
-    "nightslayer_woods": dict(temperature=-0.45, humidity=-0.35, continentalness=0.3, erosion=0.1, weirdness=-0.2, offset=0.0),
-    "rampant_forest": dict(temperature=0.2, humidity=0.35, continentalness=0.3, erosion=0.2, weirdness=0.15, offset=0.0),
-    "lightless_barrens": dict(temperature=-0.6, humidity=-0.7, continentalness=0.5, erosion=0.3, weirdness=0.6, offset=0.0),
-    "thirdrema_highlands": dict(temperature=0.0, humidity=0.0, continentalness=0.6, erosion=-0.6, weirdness=-0.1, offset=0.0),
+BIOME_DEFS.update({
+    "frontier_shore": {
+        "temperature": 0.8, "downfall": 0.4, "sky": 0x78A7FF, "fog": 0xC0D8FF, "water": 0x3F76E4, "grass": 0x8AC060,
+        "features": {"minecraft:patch_sugar_cane", "minecraft:patch_grass_plain"},
+        "monsters": [],
+        "creatures": [("minecraft:turtle", 5, 2, 5), ("minecraft:chicken", 4, 2, 3)],
+    },
+    "frontier_peaks": {
+        "temperature": -0.2, "downfall": 0.5, "sky": 0x8AB4FF, "fog": 0xD8E4F4, "water": 0x3D57D6, "grass": 0x80B497,
+        "foliage": 0x60A17B,
+        "features": {"minecraft:trees_taiga", "minecraft:patch_grass_taiga", ns("rock_arch_rare")},
+        "monsters": [("shadow_wolf", 25, 1, 2)],
+        "creatures": [("minecraft:goat", 10, 1, 3)],
+    },
+    "rabbit_isle": {
+        "temperature": 0.6, "downfall": 0.6, "sky": 0xF2B8C8, "fog": 0xF8D8E0, "water": 0x5DB7EF, "grass": 0x8FCF6A,
+        "foliage": 0xE89AB8, "particle": ("minecraft:cherry_leaves", 0.002),
+        "features": {"minecraft:trees_cherry", "minecraft:flower_cherry", "minecraft:patch_grass_plain"},
+        "monsters": [],
+        "creatures": [("minecraft:rabbit", 14, 2, 4)],
+    },
+})
+
+# Biomes painted under a single site: the parent region's look, its own name, no trees, and
+# (for towns) no monsters.
+SITE_BIOMES = {
+    "firstia": ("fastera_plains", [], {"minecraft:patch_grass_plain", "minecraft:flower_plains"}),
+    "secondil": ("rampant_forest", [], {"minecraft:patch_grass_forest"}),
+    "thirdrema": ("thirdrema_highlands", [], {"minecraft:patch_grass_taiga"}),
+    "rabituza": ("rabbit_isle", [], {"minecraft:flower_cherry", "minecraft:patch_grass_plain"}),
+    "goblin_camp": ("rampant_forest", [("goblin", 100, 2, 4)], {"minecraft:patch_grass_forest"}),
+    "serpent_bridge": ("rampant_forest", [], {"minecraft:patch_grass_forest"}),
+    "nightslayer_den": ("nightslayer_woods", [("shadow_wolf", 60, 1, 2)], {"minecraft:patch_grass_forest"}),
+    "wezaemon_tomb": ("hidden_garden", [], {"minecraft:flower_cherry", "minecraft:patch_grass_plain", ns("spider_lily_patch")}),
+    "empire_bee_hive": ("prismatic_forest_grotto", [("empire_bee", 60, 2, 3)], {"minecraft:patch_grass_forest"}),
+    "mud_digger_lair": ("diremarsh_waste", [], {"minecraft:patch_grass_normal"}),
+    "shadow_altar": ("lightless_barrens", [("shadow_wolf", 50, 1, 2)], {"minecraft:patch_dead_bush"}),
+    "divinity_ruins": ("thirdrema_highlands", [("redcap_goblin", 30, 1, 2)], {"minecraft:patch_grass_taiga"}),
 }
+for _site, (_parent, _monsters, _features) in SITE_BIOMES.items():
+    BIOME_DEFS[_site] = dict(BIOME_DEFS[_parent], monsters=_monsters, features=_features,
+                             creatures=[] if not _monsters else BIOME_DEFS[_parent]["creatures"])
+
+# Surface rules for a site biome follow its parent region's.
+def family(region):
+    return [region] + [s for s, (p, _, _) in SITE_BIOMES.items() if p == region]
 
 
 def spawner(entry):
@@ -568,6 +600,9 @@ def gen_landmark_features():
                                   ("dead_tree", "dead_tree", 2), ("dead_tree_rare", "dead_tree", 8)):
         configured(feature, {"type": ns(feature), "config": {}})
         placed(name, ns(feature), surface(rarity))
+    # Roads paint themselves over the whole chunk they're asked to decorate.
+    configured("frontier_roads", {"type": ns("frontier_roads"), "config": {}})
+    placed("frontier_roads", ns("frontier_roads"), [])
 
 
 def gen_dimension():
@@ -578,89 +613,107 @@ def gen_dimension():
         "effects": "minecraft:overworld", "monster_spawn_block_light_limit": 0,
         "monster_spawn_light_level": {"type": "minecraft:uniform", "min_inclusive": 0, "max_inclusive": 7}})
 
-    # Noise settings: vanilla overworld terrain, with our own surface rules for the custom biomes.
+    # Noise settings: the terrain comes from the designed map (tools/worldmap.py); vanilla's
+    # surface rules, aquifers and ore veins stay, with our own surface rules for the Frontier biomes.
     with open(os.path.join(os.path.dirname(__file__), "vanilla_overworld_noise_settings.json")) as f:
-        noise = json.load(f)
-    noise = copy.deepcopy(noise)
+        noise = copy.deepcopy(json.load(f))
 
-    def top(biome, block_rule):
-        return {"type": "minecraft:condition", "if_true": {"type": "minecraft:biome", "biome_is": [ns(biome)]},
-                "then_run": block_rule}
+    def biomes_rule(names, rule):
+        return {"type": "minecraft:condition", "if_true": {"type": "minecraft:biome", "biome_is": [ns(b) for b in names]},
+                "then_run": rule}
+
+    def top(region, rule):
+        return biomes_rule(family(region), rule)
 
     floor = {"type": "minecraft:stone_depth", "add_surface_depth": False, "offset": 0, "secondary_depth_range": 0,
              "surface_type": "floor"}
+    under = {"type": "minecraft:stone_depth", "add_surface_depth": True, "offset": 0, "secondary_depth_range": 0,
+             "surface_type": "floor"}
     dry = {"type": "minecraft:water", "add_stone_depth": False, "offset": 0, "surface_depth_multiplier": 0}
+    steep = {"type": "minecraft:steep"}
+    above = lambda y: {"type": "minecraft:y_above", "anchor": {"absolute": y}, "surface_depth_multiplier": 0,
+                       "add_stone_depth": False}
     noisy = lambda lo, hi: {"type": "minecraft:noise_threshold", "noise": "minecraft:surface", "min_threshold": lo,
                             "max_threshold": hi}
     block = lambda name, props=None: {"type": "minecraft:block", "result_state": state(name, props)}
-    custom = {"type": "minecraft:condition", "if_true": {"type": "minecraft:above_preliminary_surface"},
-              "then_run": {"type": "minecraft:condition", "if_true": floor,
-                           "then_run": {"type": "minecraft:condition", "if_true": dry,
-                                        "then_run": {"type": "minecraft:sequence", "sequence": [
-                                            top("diremarsh_waste", block("minecraft:mud")),
-                                            top("nightslayer_woods", {"type": "minecraft:sequence", "sequence": [
-                                                {"type": "minecraft:condition", "if_true": noisy(0.25, 10.0),
-                                                 "then_run": block("minecraft:coarse_dirt")},
-                                                block("minecraft:podzol", {"snowy": "false"})]}),
-                                            top("lightless_barrens", {"type": "minecraft:sequence", "sequence": [
-                                                {"type": "minecraft:condition", "if_true": noisy(0.2, 10.0),
-                                                 "then_run": block("minecraft:tuff")},
-                                                {"type": "minecraft:condition", "if_true": noisy(-0.2, 0.2),
-                                                 "then_run": block("minecraft:coarse_dirt")},
-                                                block("minecraft:gravel")]}),
-                                            top("prismatic_forest_grotto", {"type": "minecraft:condition",
-                                                                            "if_true": noisy(0.3, 10.0),
-                                                                            "then_run": block("minecraft:moss_block")}),
-                                        ]}}}}
-    noise["surface_rule"] = {"type": "minecraft:sequence", "sequence": [custom, noise["surface_rule"]]}
-    # Grander terrain: blend the vanilla shape with amplified mountains (62% / 38%).
-    for fn in ("sloped_cheese", "depth", "factor"):
-        write(os.path.join(DATA, f"worldgen/density_function/frontier/{fn}.json"), {
-            "type": "minecraft:add",
-            "argument1": {"type": "minecraft:mul", "argument1": 0.62, "argument2": f"minecraft:overworld/{fn}"},
-            "argument2": {"type": "minecraft:mul", "argument1": 0.38, "argument2": f"minecraft:overworld_amplified/{fn}"}})
-    router = json.dumps(noise["noise_router"])
-    for fn in ("sloped_cheese", "depth", "factor"):
-        router = router.replace(f'"minecraft:overworld/{fn}"', f'"{NS}:frontier/{fn}"')
-    noise["noise_router"] = json.loads(router)
-    write(os.path.join(DATA, "worldgen/noise_settings/frontier.json"), noise)
+    cond = lambda c, r: {"type": "minecraft:condition", "if_true": c, "then_run": r}
+    seq = lambda *rules: {"type": "minecraft:sequence", "sequence": list(rules)}
+    rocky = seq(cond(noisy(0.3, 10.0), block("minecraft:andesite")), cond(noisy(-0.35, -0.1), block("minecraft:gravel")),
+                block("minecraft:stone"))
+    dry_tops = seq(
+        top("diremarsh_waste", block("minecraft:mud")),
+        top("nightslayer_woods", seq(cond(noisy(0.25, 10.0), block("minecraft:coarse_dirt")),
+                                     block("minecraft:podzol", {"snowy": "false"}))),
+        top("lightless_barrens", seq(cond(noisy(0.2, 10.0), block("minecraft:tuff")),
+                                     cond(noisy(-0.2, 0.2), block("minecraft:coarse_dirt")), block("minecraft:gravel"))),
+        top("prismatic_forest_grotto", seq(cond(steep, block("minecraft:calcite")),
+                                           cond(noisy(0.3, 10.0), block("minecraft:moss_block")))),
+        top("frontier_shore", block("minecraft:sand")),
+        top("frontier_peaks", seq(cond(above(158), block("minecraft:snow_block")), cond(above(118), rocky),
+                                  cond(steep, rocky))),
+        top("thirdrema_highlands", seq(cond(steep, rocky), cond(above(150), rocky))),
+    )
+    wet_floor = seq(top("frontier_sea", seq(cond(noisy(-0.2, 0.15), block("minecraft:gravel")), block("minecraft:sand"))),
+                    top("frontier_shore", block("minecraft:sand")),
+                    top("diremarsh_waste", block("minecraft:mud")),
+                    cond(noisy(0.1, 10.0), block("minecraft:gravel")), cond(noisy(-0.3, -0.1), block("minecraft:clay")),
+                    block("minecraft:sand"))
+    below_floor = seq(top("frontier_shore", block("minecraft:sandstone")), top("frontier_sea", block("minecraft:sand")),
+                      biomes_rule(family("frontier_peaks"), cond(above(118), block("minecraft:stone"))))
+    custom = cond({"type": "minecraft:above_preliminary_surface"}, seq(
+        cond(floor, seq(cond(dry, dry_tops), cond({"type": "minecraft:not", "invert": dry}, wet_floor))),
+        cond(under, below_floor)))
+    noise["surface_rule"] = seq(custom, noise["surface_rule"])
 
-    biomes = []
-    for name, p in BIOME_POINTS.items():
-        biomes.append({"biome": ns(name), "parameters": {
-            "temperature": p["temperature"], "humidity": p["humidity"], "continentalness": p["continentalness"],
-            "erosion": p["erosion"], "weirdness": p["weirdness"], "depth": 0.0, "offset": p["offset"]}})
-    write(os.path.join(DATA, "dimension/frontier.json"), {
+    design = lambda channel: {"type": ns("design"), "channel": channel}
+    gradient = {"type": "minecraft:y_clamped_gradient", "from_y": -64, "to_y": 320, "from_value": 6.4, "to_value": -32.0}
+    detail = {"type": "minecraft:noise", "noise": ns("frontier_detail"), "xz_scale": 1.0, "y_scale": 0.0}
+    crag = {"type": "minecraft:noise", "noise": ns("frontier_crag"), "xz_scale": 1.0, "y_scale": 0.8}
+    ground = {"type": "minecraft:add", "argument1": design("height"),
+              "argument2": {"type": "minecraft:mul", "argument1": design("roughness"), "argument2": detail}}
+    terrain = {"type": "minecraft:add", "argument1": gradient,
+               "argument2": {"type": "minecraft:mul", "argument1": 0.1, "argument2": {"type": "minecraft:cache_2d", "argument": ground}}}
+    noise["noise_router"]["final_density"] = {"type": "minecraft:interpolated", "argument": {
+        "type": "minecraft:add", "argument1": terrain,
+        "argument2": {"type": "minecraft:mul", "argument1": {"type": "minecraft:cache_2d", "argument": design("crag")},
+                      "argument2": crag}}}
+    noise["noise_router"]["initial_density_without_jaggedness"] = terrain
+    write(os.path.join(DATA, "worldgen/noise_settings/frontier.json"), noise)
+    write(os.path.join(DATA, "worldgen/noise/frontier_detail.json"), {"firstOctave": -6, "amplitudes": [1.0, 1.0, 0.5, 0.25]})
+    write(os.path.join(DATA, "worldgen/noise/frontier_crag.json"), {"firstOctave": -5, "amplitudes": [1.0, 0.6, 0.3]})
+    old = os.path.join(DATA, "worldgen/density_function")
+    if os.path.isdir(old):
+        shutil.rmtree(old)
+
+    old_dim = os.path.join(DATA, "dimension/frontier.json")
+    if os.path.exists(old_dim):
+        os.remove(old_dim)
+    write(os.path.join(DATA, "dimension/the_frontier.json"), {
         "type": ns("frontier"),
         "generator": {"type": "minecraft:noise", "settings": ns("frontier"),
-                      "biome_source": {"type": "minecraft:multi_noise", "biomes": biomes}}})
-
-
-STRUCTURES = {
-    # name: (biomes, step, spacing, separation, salt)
-    "wezaemon_tomb": (["hidden_garden"], "surface_structures", 24, 8, 7712301),
-    "nightslayer_den": (["nightslayer_woods"], "surface_structures", 20, 6, 7712302),
-    "empire_bee_hive": (["prismatic_forest_grotto"], "surface_structures", 18, 6, 7712303),
-    "mud_digger_lair": (["diremarsh_waste"], "surface_structures", 18, 6, 7712304),
-    "divinity_ruins": (LAND_BIOMES, "surface_structures", 28, 10, 7712305),
-    "shadow_altar": (["lightless_barrens"], "surface_structures", 22, 8, 7712306),
-}
+                      "biome_source": {"type": ns("designed"), "biomes": [ns(b) for b in frontier_biomes.BIOMES]}}})
+    tag(os.path.join(DATA, "tags/worldgen/biome/frontier_all.json"), [ns(b) for b in frontier_biomes.BIOMES])
 
 
 def gen_structures():
-    for name, (biomes, step, spacing, sep, salt) in STRUCTURES.items():
-        tag(os.path.join(DATA, f"tags/worldgen/biome/has_structure/{name}.json"), [ns(b) for b in biomes])
-        write(os.path.join(DATA, f"worldgen/template_pool/{name}.json"), {
-            "fallback": "minecraft:empty",
-            "elements": [{"weight": 1, "element": {"element_type": "minecraft:single_pool_element", "location": ns(name),
-                                                   "processors": "minecraft:empty", "projection": "rigid"}}]})
+    """Every town, landmark and dungeon stands at its fixed spot on the designed map (sites.json)."""
+    for sub in ("worldgen/structure", "worldgen/structure_set", "worldgen/template_pool", "tags/worldgen/biome/has_structure",
+                "tags/worldgen/structure"):
+        path = os.path.join(DATA, sub)
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+    with open(os.path.join(DATA, "worldmap/sites.json")) as f:
+        sites = json.load(f)
+    for site in sites:
+        name = site["id"]
+        # No monsters spawn inside a town's walls, whatever the biome around says.
+        overrides = {"monster": {"bounding_box": "full", "spawns": []}} if site["town"] else {}
         write(os.path.join(DATA, f"worldgen/structure/{name}.json"), {
-            "type": "minecraft:jigsaw", "biomes": f"#{NS}:has_structure/{name}", "step": step, "spawn_overrides": {},
-            "terrain_adaptation": "beard_thin", "start_pool": ns(name), "size": 1, "start_height": {"absolute": 0},
-            "project_start_to_heightmap": "WORLD_SURFACE_WG", "max_distance_from_center": 80, "use_expansion_hack": False})
+            "type": ns("designed"), "site": name, "biomes": f"#{NS}:frontier_all", "step": "surface_structures",
+            "spawn_overrides": overrides, "terrain_adaptation": "none"})
         write(os.path.join(DATA, f"worldgen/structure_set/{name}.json"), {
             "structures": [{"structure": ns(name), "weight": 1}],
-            "placement": {"type": "minecraft:random_spread", "spacing": spacing, "separation": sep, "salt": salt}})
+            "placement": {"type": ns("designed"), "site": name}})
     out = os.path.join(DATA, "structure")
     if os.path.isdir(out):
         shutil.rmtree(out)

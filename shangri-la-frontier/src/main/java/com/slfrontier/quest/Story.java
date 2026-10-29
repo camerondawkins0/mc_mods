@@ -626,12 +626,17 @@ public final class Story {
         if (data.stage() == QuestStage.RAVENOUS_SNAKE) {
             ServerLevel level = player.serverLevel();
             BlockPos bridge = Landmarks.built(level, Landmarks.Site.SERPENT_BRIDGE);
-            if (bridge != null && player.blockPosition().closerThan(bridge, 26)
-                    && level.getEntitiesOfClass(RavenousSnakeEntity.class, new net.minecraft.world.phys.AABB(bridge).inflate(64)).isEmpty()) {
+            long now = level.getGameTime();
+            // One serpent at a time, and never more often than every half minute, wherever it wandered off to.
+            if (bridge != null && player.blockPosition().closerThan(bridge, 26) && now >= snakeReadyAt
+                    && level.getEntitiesOfClass(RavenousSnakeEntity.class, new net.minecraft.world.phys.AABB(bridge).inflate(192)).isEmpty()) {
+                snakeReadyAt = now + 20 * 30;
                 spawnRavenousSnake(level, player, bridge);
             }
         }
     }
+
+    private static long snakeReadyAt;
 
     /** The serpent rises out of the river under the bridge. */
     private static void spawnRavenousSnake(ServerLevel level, ServerPlayer player, BlockPos bridge) {
@@ -639,6 +644,7 @@ public final class Story {
         if (snake == null) return;
         BlockPos arena = Landmarks.marker(level, Landmarks.Site.SERPENT_BRIDGE, "arena");
         BlockPos at = arena != null ? arena : bridge;
+        level.getChunkAt(at);
         snake.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
         snake.finalizeSpawn(level, level.getCurrentDifficultyAt(at), MobSpawnType.EVENT, null);
         snake.setTarget(player);
@@ -789,7 +795,7 @@ public final class Story {
             case GRAY_ORE -> Progression.countItem(player, ModItems.GRAY_ORE_CHUNK.get()) >= QuestStage.GRAY_ORE.goal
                     ? site(level, Landmarks.Site.SECONDIL, "target.slfrontier.secondil")
                     : biome(level, here, Frontier.DIREMARSH_WASTE, "target.slfrontier.diremarsh");
-            case NIGHTSLAYER_ENCOUNTER, NIGHTSLAYER_FINAL -> structure(level, here, Frontier.NIGHTSLAYER_DEN, "target.slfrontier.den");
+            case NIGHTSLAYER_ENCOUNTER, NIGHTSLAYER_FINAL -> site(level, Landmarks.Site.NIGHTSLAYER_DEN, "target.slfrontier.den");
             case INVITATION -> null;
             case MEET_VYSACHE -> towns.rabituza() == null ? null : new Target(towns.rabituza(), "target.slfrontier.rabituza");
             case VORPAL_COLOSSEUM -> {
@@ -797,13 +803,13 @@ public final class Story {
                 yield arena != null ? new Target(arena, "target.slfrontier.colosseum")
                         : towns.rabituza() == null ? null : new Target(towns.rabituza(), "target.slfrontier.rabituza");
             }
-            case MUD_DIGGER_ROAD -> structure(level, here, Frontier.MUD_DIGGER_LAIR, "target.slfrontier.mud_digger");
+            case MUD_DIGGER_ROAD -> site(level, Landmarks.Site.MUD_DIGGER_LAIR, "target.slfrontier.mud_digger");
             case THIRDREMA -> site(level, Landmarks.Site.THIRDREMA, "target.slfrontier.thirdrema");
-            case LYCAGON_SHADOW -> structure(level, here, Frontier.SHADOW_ALTAR, "target.slfrontier.shadow_altar");
+            case LYCAGON_SHADOW -> site(level, Landmarks.Site.SHADOW_ALTAR, "target.slfrontier.shadow_altar");
             case MOONBLADES -> Progression.hasItem(player, ModItems.QUAD_BEETLE_SHELL.get()) && towns.rabituza() != null
                     ? new Target(towns.rabituza(), "target.slfrontier.rabituza")
                     : biome(level, here, Frontier.PRISMATIC_FOREST_GROTTO, "target.slfrontier.grotto");
-            case FIND_SETSUNA, TOMBGUARD -> structure(level, here, Frontier.WEZAEMON_TOMB, "target.slfrontier.tomb");
+            case FIND_SETSUNA, TOMBGUARD -> site(level, Landmarks.Site.WEZAEMON_TOMB, "target.slfrontier.tomb");
             case COMPLETE -> null;
         };
     }
@@ -826,13 +832,6 @@ public final class Story {
         BlockPos found = search.get();
         LOCATE_CACHE.put(key, new Located(from, found, now));
         return found;
-    }
-
-    @Nullable
-    private static Target structure(ServerLevel level, BlockPos from, TagKey<Structure> tag, String name) {
-        BlockPos pos = cachedLocate(level, from, "s:" + tag.location() + "@" + (from.getX() >> 8) + "," + (from.getZ() >> 8),
-                () -> level.findNearestMapStructure(tag, from, 100, false));
-        return pos == null ? null : new Target(pos, name);
     }
 
     @Nullable

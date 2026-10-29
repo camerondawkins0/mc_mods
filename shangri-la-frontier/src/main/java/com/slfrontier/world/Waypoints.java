@@ -28,6 +28,8 @@ public class Waypoints extends SavedData {
     public record Waypoint(String id, String nameKey, BlockPos pos, Kind kind) {
     }
 
+    /** 1: the Frontier became a designed map in a new dimension. */
+    private static final int VERSION = 1;
     private final Map<String, Waypoint> all = new LinkedHashMap<>();
 
     public static Waypoints get(ServerLevel anyLevel) {
@@ -62,6 +64,11 @@ public class Waypoints extends SavedData {
 
     private static Waypoints load(CompoundTag tag, HolderLookup.Provider provider) {
         Waypoints data = new Waypoints();
+        if (tag.getInt("Version") < VERSION) {
+            // Waypoints of the old Frontier point at places that no longer exist.
+            data.setDirty();
+            return data;
+        }
         for (Tag t : tag.getList("Waypoints", Tag.TAG_COMPOUND)) {
             CompoundTag c = (CompoundTag) t;
             BlockPos pos = NbtUtils.readBlockPos(c, "Pos").orElse(null);
@@ -89,6 +96,7 @@ public class Waypoints extends SavedData {
             c.putString("Kind", wp.kind().name());
             list.add(c);
         }
+        tag.putInt("Version", VERSION);
         tag.put("Waypoints", list);
         return tag;
     }

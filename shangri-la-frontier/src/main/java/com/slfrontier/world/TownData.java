@@ -12,11 +12,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Remembers where the hand-placed landmarks (towns, the Serpent Bridge...) were planned
- * and built, plus named markers inside them (e.g. the Vorpal Colosseum's arena).
+ * Remembers which landmarks (towns, the Serpent Bridge...) players have discovered. Saves from
+ * before the designed map also hold planned/built positions in the old Frontier; those are
+ * dropped when such a save is loaded ({@link #VERSION}).
  */
 public class TownData extends SavedData {
     private static final String NAME = "slfrontier_towns";
+    /** 1: the Frontier became a designed map in a new dimension. */
+    private static final int VERSION = 1;
 
     /** Where each site will go (chosen from terrain noise before anything is built). */
     private final Map<String, BlockPos> planned = new HashMap<>();
@@ -32,6 +35,10 @@ public class TownData extends SavedData {
 
     private static TownData load(CompoundTag tag, HolderLookup.Provider provider) {
         TownData data = new TownData();
+        if (tag.getInt("Version") < VERSION) {
+            data.setDirty();
+            return data;
+        }
         // Worlds from before landmarks existed only stored the two towns.
         NbtUtils.readBlockPos(tag, "Fastera").ifPresent(p -> data.built.put("fastera", p));
         NbtUtils.readBlockPos(tag, "Rabituza").ifPresent(p -> data.built.put("rabituza", p));
@@ -55,6 +62,7 @@ public class TownData extends SavedData {
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
+        tag.putInt("Version", VERSION);
         tag.put("Planned", writeMap(planned));
         tag.put("Built", writeMap(built));
         tag.put("Markers", writeMap(markers));

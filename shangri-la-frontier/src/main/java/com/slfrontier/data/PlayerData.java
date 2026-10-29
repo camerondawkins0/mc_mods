@@ -65,6 +65,8 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
     // Transient combat state (server side only, never saved)
     public int parryTicks;
     public int iframeTicks;
+    /** Movement keys held when the last skill key was pressed (not saved). */
+    private byte moveStrafe, moveForward;
     public int offhandTargetId = -1;
     public int offhandDelay;
     public int pierceTicks;
@@ -342,8 +344,36 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
         this.frontierPos = pos;
     }
 
+    public void setMoveInput(byte strafe, byte forward) {
+        this.moveStrafe = strafe;
+        this.moveForward = forward;
+    }
+
+    public byte moveStrafe() {
+        return moveStrafe;
+    }
+
+    public byte moveForward() {
+        return moveForward;
+    }
+
     public boolean hasFrontierPos() {
         return hasFrontierPos;
+    }
+
+    /**
+     * Saves from before the designed map remember places in the old Frontier (where you logged
+     * out, your waypoints). Forget them once, so the avatar starts over in Firstia.
+     * @return true if anything was reset
+     */
+    public boolean migrateToDesignedMap() {
+        if (flag("designed_map")) return false;
+        setFlag("designed_map", true);
+        boolean had = hasFrontierPos || !waypoints.isEmpty();
+        hasFrontierPos = false;
+        respawnWaypoint = "";
+        waypoints.clear();
+        return had;
     }
 
     public long frontierPos() {
