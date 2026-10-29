@@ -1,0 +1,26 @@
+{
+  "replace": false,
+  "values": [
+    "slfrontier:holy_water",
+    "slfrontier:reallocation_tonic",
+    "slfrontier:rebirth_tearjewel",
+    "minecraft:potion",
+    "minecraft:splash_potion",
+    "minecraft:lingering_potion",
+    "minecraft:milk_bucket",
+    "minecraft:honey_bottle",
+    "minecraft:ominous_bottle",
+    {
+      "id": "#c:foods",
+      "required": false
+    },
+    {
+      "id": "#c:potions",
+      "required": false
+    },
+    {
+      "id": "#c:drinks",
+      "required": false
+    }
+  ]
+}

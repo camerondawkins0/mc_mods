@@ -14,6 +14,7 @@ import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
+import inventory  # noqa: E402
 import lang  # noqa: E402
 import structures  # noqa: E402
 
@@ -673,6 +674,7 @@ if __name__ == "__main__":
     gen_loot()
     gen_recipes()
     gen_tags()
+    inventory.gen_tags()
     gen_features()
     gen_landmark_features()
     gen_biomes()

@@ -64,17 +64,11 @@ public class MapScreen extends Screen {
         clearWidgets();
         int tx = left + 10;
         for (FrontierScreen.Tab t : FrontierScreen.Tab.values()) {
-            String icon = switch (t) {
-                case STATUS -> "player";
-                case SKILLS -> "target";
-                case QUESTS -> "main_quest";
-                case MAP -> "waypoint";
-            };
             Component label = Component.translatable("gui.slfrontier.tab." + t.name().toLowerCase());
             int bw = font.width(label) + 26;
             addRenderableWidget(new SlfButton(tx, top - 17, bw, 17, label, SlfButton.Style.TAB, b -> {
-                if (t != FrontierScreen.Tab.MAP) Minecraft.getInstance().setScreen(new FrontierScreen(t));
-            }).icon(Theme.icon(icon), 16).selected(t == FrontierScreen.Tab.MAP));
+                if (t != FrontierScreen.Tab.MAP) FrontierScreen.open(t);
+            }).icon(Theme.icon(t.icon), 16).selected(t == FrontierScreen.Tab.MAP));
             tx += bw + 3;
         }
         int sx = left + w - SIDEBAR - 2;
