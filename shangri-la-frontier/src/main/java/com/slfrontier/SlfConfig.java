@@ -20,6 +20,7 @@ public final class SlfConfig {
     public static final ModConfigSpec.BooleanValue QUEST_POINTER;
     public static final ModConfigSpec.BooleanValue ENEMY_HEALTH_BARS;
     public static final ModConfigSpec.BooleanValue TRAVEL_SCREEN;
+    public static final ModConfigSpec.BooleanValue FRONTIER_VISION;
     public static final ModConfigSpec.BooleanValue CAMERA_SHAKE;
     public static final ModConfigSpec.BooleanValue FIRST_PERSON_SKILL_ANIMS;
 
@@ -44,6 +45,11 @@ public final class SlfConfig {
                 .define("enemyHealthBars", true);
         TRAVEL_SCREEN = c.comment("Show a short loading screen with tips when fast traveling or warping into the Frontier.")
                 .define("travelScreen", true);
+        c.pop();
+        c.push("visuals");
+        FRONTIER_VISION = c.comment("Colour-grade the Frontier (soft glow, richer colour, a tint per region, vignette).",
+                        "Switches itself off while a shader mod (Iris/Oculus) is installed.")
+                .define("frontierVision", true);
         c.pop();
         c.push("minimap");
         SHOW_MINIMAP = c.comment("Show the minimap in the corner of the screen inside the Frontier (toggle in game with N).")

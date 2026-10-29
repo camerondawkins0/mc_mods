@@ -425,6 +425,25 @@ BIOME_DEFS.update({
     },
 })
 
+# Ambience: floating motes, ambient sound and a region's music.
+for _name, _extra in {
+    "fastera_plains": {"music": "minecraft:music.overworld.meadow"},
+    "rampant_forest": {"particle": ("minecraft:spore_blossom_air", 0.0012), "music": "minecraft:music.overworld.forest"},
+    "diremarsh_waste": {"particle": ("minecraft:mycelium", 0.012), "music": "minecraft:music.overworld.swamp",
+                        "additions": ("minecraft:block.bubble_column.upwards_ambient", 0.002)},
+    "prismatic_forest_grotto": {"music": "minecraft:music.overworld.lush_caves",
+                                "additions": ("minecraft:block.amethyst_block.chime", 0.004)},
+    "hidden_garden": {"music": "minecraft:music.overworld.cherry_grove"},
+    "rabbit_isle": {"music": "minecraft:music.overworld.cherry_grove"},
+    "nightslayer_woods": {"music": "minecraft:music.overworld.deep_dark",
+                          "additions": ("minecraft:ambient.soul_sand_valley.additions", 0.006)},
+    "lightless_barrens": {"music": "minecraft:music.overworld.deep_dark",
+                          "additions": ("minecraft:ambient.basalt_deltas.additions", 0.008)},
+    "thirdrema_highlands": {"music": "minecraft:music.overworld.old_growth_taiga"},
+    "frontier_peaks": {"particle": ("minecraft:white_ash", 0.01), "music": "minecraft:music.overworld.jagged_peaks"},
+}.items():
+    BIOME_DEFS[_name].update(_extra)
+
 # Biomes painted under a single site: the parent region's look, its own name, no trees, and
 # (for towns) no monsters.
 SITE_BIOMES = {
@@ -471,6 +490,10 @@ def gen_biomes():
             effects["foliage_color"] = b["foliage"]
         if "particle" in b:
             effects["particle"] = {"options": {"type": b["particle"][0]}, "probability": b["particle"][1]}
+        if "music" in b:
+            effects["music"] = {"sound": b["music"], "min_delay": 12000, "max_delay": 24000, "replace_current_music": False}
+        if "additions" in b:
+            effects["additions_sound"] = {"sound": b["additions"][0], "tick_chance": b["additions"][1]}
         biome = {
             "has_precipitation": True,
             "temperature": b["temperature"],

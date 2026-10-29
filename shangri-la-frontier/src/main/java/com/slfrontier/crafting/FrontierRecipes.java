@@ -19,8 +19,8 @@ import java.util.Map;
 
 /** Server-side registry of Frontier recipes, reloaded with data packs ({@code /reload}). */
 public final class FrontierRecipes extends SimpleJsonResourceReloadListener {
-    public static final FrontierRecipes INSTANCE = new FrontierRecipes();
     private static final Gson GSON = new GsonBuilder().create();
+    public static final FrontierRecipes INSTANCE = new FrontierRecipes();
     /** Display order everywhere: station, category, level, then id. */
     public static final Comparator<FrontierRecipe> ORDER = Comparator.comparingInt((FrontierRecipe r) -> r.station().ordinal())
             .thenComparingInt(FrontierRecipe::categoryIndex)

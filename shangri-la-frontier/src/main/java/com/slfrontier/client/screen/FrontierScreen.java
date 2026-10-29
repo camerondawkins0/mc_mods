@@ -10,6 +10,7 @@ import com.slfrontier.data.Stat;
 import com.slfrontier.network.ModNetwork;
 import com.slfrontier.progression.Progression;
 import com.slfrontier.quest.QuestStage;
+import com.slfrontier.quest.QuestSteps;
 import com.slfrontier.quest.SideQuest;
 import com.slfrontier.registry.ModAttachments;
 import com.slfrontier.registry.ModEffects;
@@ -626,6 +627,11 @@ public class FrontierScreen extends Screen {
         int ty = Gfx.wrapped(g, font, Component.translatable(s.journalKey()), x, y + 40, w, Theme.TEXT, 10) + 6;
         boolean current = s == d.stage() && s != QuestStage.COMPLETE;
         boolean done = s.ordinal() < d.stage().ordinal() || d.stage() == QuestStage.COMPLETE;
+        List<QuestSteps.Step> steps = QuestSteps.of(s);
+        if (!steps.isEmpty()) {
+            renderSteps(g, d, s, steps, current, done, x, ty, w);
+            return;
+        }
         int objLines = font.split(Component.translatable(s.objectiveKey()), w - 10).size();
         int boxH = 18 + objLines * 9 + (s.goal > 0 && current ? 8 : 0);
         int boxY = Math.min(ty, cy1() - 20 - boxH);
@@ -637,6 +643,33 @@ public class FrontierScreen extends Screen {
             String p = Math.min(d.questProgress(), s.goal) + "/" + s.goal;
             g.drawString(font, p, x + w - 5 - font.width(p), boxY + 4, Gfx.fade(Theme.TEXT), false);
             Gfx.bar(g, x + 5, boxY + boxH - 8, w - 10, 3, d.questProgress() / (float) s.goal, Theme.GOLD, 0xFFC98A10, Theme.BAR_BACK, s.goal);
+        }
+    }
+
+    /** The chapter's steps: ticked off, the current one highlighted (with its counter), the rest dimmed. */
+    private void renderSteps(GuiGraphics g, PlayerData d, QuestStage s, List<QuestSteps.Step> steps, boolean current, boolean done,
+                             int x, int ty, int w) {
+        int at = done ? steps.size() : current ? Math.min(d.questStep(), steps.size() - 1) : -1;
+        int boxH = 16;
+        for (QuestSteps.Step step : steps) {
+            boxH += font.split(Component.translatable(QuestSteps.textKey(s, step)), w - 22).size() * 9 + 3;
+        }
+        int boxY = Math.min(ty, cy1() - 4 - boxH);
+        Gfx.inset(g, x, boxY, w, boxH);
+        g.drawString(font, Component.translatable(done ? "gui.slfrontier.objective_done" : "gui.slfrontier.objective"),
+                x + 5, boxY + 4, Gfx.fade(done ? Theme.GREEN : Theme.ACCENT), false);
+        int ly = boxY + 15;
+        for (int i = 0; i < steps.size(); i++) {
+            QuestSteps.Step step = steps.get(i);
+            boolean past = i < at, now = i == at;
+            int color = past ? Theme.TEXT_DIM : now ? Theme.TEXT : Theme.TEXT_FAINT;
+            String mark = past ? "\u2714" : now ? "\u25B6" : "\u25CB";
+            g.drawString(font, mark, x + 6, ly, Gfx.fade(past ? Theme.GREEN : now ? Theme.GOLD : Theme.TEXT_FAINT), false);
+            Component text = Component.translatable(QuestSteps.textKey(s, step));
+            if (now && step.counts() && s.goal > 0) {
+                text = text.copy().append(" " + Math.min(d.questProgress(), s.goal) + "/" + s.goal);
+            }
+            ly = Gfx.wrapped(g, font, text, x + 17, ly, w - 22, color, 9) + 3;
         }
     }
 

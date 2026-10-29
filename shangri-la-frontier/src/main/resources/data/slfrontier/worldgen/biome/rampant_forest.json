@@ -14,7 +14,19 @@
       "block_search_extent": 8,
       "offset": 2.0
     },
-    "foliage_color": 5877296
+    "foliage_color": 5877296,
+    "particle": {
+      "options": {
+        "type": "minecraft:spore_blossom_air"
+      },
+      "probability": 0.0012
+    },
+    "music": {
+      "sound": "minecraft:music.overworld.forest",
+      "min_delay": 12000,
+      "max_delay": 24000,
+      "replace_current_music": false
+    }
   },
   "spawners": {
     "monster": [

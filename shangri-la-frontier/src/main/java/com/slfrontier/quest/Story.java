@@ -1,6 +1,5 @@
 package com.slfrontier.quest;
 
-import com.mojang.datafixers.util.Pair;
 import com.slfrontier.crafting.FrontierCrafting;
 import com.slfrontier.crafting.Station;
 import com.slfrontier.data.PlayerData;
@@ -23,23 +22,18 @@ import com.slfrontier.world.Landmarks;
 import com.slfrontier.world.TownData;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.levelgen.structure.Structure;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
@@ -578,6 +572,9 @@ public final class Story {
     /** Runs once a second for players in the Frontier. */
     public static void tickPlayer(ServerPlayer player) {
         PlayerData data = ModAttachments.get(player);
+        markVisits(player, data);
+        updateStep(player, data);
+        goblinCamp(player.serverLevel(), player);
         if (data.stage() == QuestStage.RAVENOUS_SNAKE) {
             ServerLevel level = player.serverLevel();
             BlockPos bridge = Landmarks.built(level, Landmarks.Site.SERPENT_BRIDGE);
@@ -736,66 +733,149 @@ public final class Story {
 
     // ---- Compass ---------------------------------------------------------------------
 
+    /** Where the current step of the story points (compass, map, tracker and quest pointer). */
     @Nullable
     public static Target compassTarget(ServerPlayer player) {
         if (!Frontier.isIn(player)) return null;
-        ServerLevel level = player.serverLevel();
         PlayerData data = ModAttachments.get(player);
-        TownData towns = TownData.get(level);
-        BlockPos here = player.blockPosition();
-        return switch (data.stage()) {
-            case NOT_STARTED, MEET_GUIDE, GOBLIN_HUNT -> towns.fastera() == null ? null : new Target(towns.fastera(), "target.slfrontier.fastera");
-            case RAVENOUS_SNAKE -> site(level, Landmarks.Site.SERPENT_BRIDGE, "target.slfrontier.serpent_bridge");
-            case REACH_SECONDIL -> site(level, Landmarks.Site.SECONDIL, "target.slfrontier.secondil");
-            case GRAY_ORE -> Progression.countItem(player, ModItems.GRAY_ORE_CHUNK.get()) >= QuestStage.GRAY_ORE.goal
-                    ? site(level, Landmarks.Site.SECONDIL, "target.slfrontier.secondil")
-                    : biome(level, here, Frontier.DIREMARSH_WASTE, "target.slfrontier.diremarsh");
-            case NIGHTSLAYER_ENCOUNTER, NIGHTSLAYER_FINAL -> site(level, Landmarks.Site.NIGHTSLAYER_DEN, "target.slfrontier.den");
-            case INVITATION -> null;
-            case MEET_VYSACHE -> towns.rabituza() == null ? null : new Target(towns.rabituza(), "target.slfrontier.rabituza");
-            case VORPAL_COLOSSEUM -> {
-                BlockPos arena = Landmarks.marker(level, Landmarks.Site.RABITUZA, "arena");
-                yield arena != null ? new Target(arena, "target.slfrontier.colosseum")
-                        : towns.rabituza() == null ? null : new Target(towns.rabituza(), "target.slfrontier.rabituza");
-            }
-            case MUD_DIGGER_ROAD -> site(level, Landmarks.Site.MUD_DIGGER_LAIR, "target.slfrontier.mud_digger");
-            case THIRDREMA -> site(level, Landmarks.Site.THIRDREMA, "target.slfrontier.thirdrema");
-            case LYCAGON_SHADOW -> site(level, Landmarks.Site.SHADOW_ALTAR, "target.slfrontier.shadow_altar");
-            case MOONBLADES -> Progression.hasItem(player, ModItems.QUAD_BEETLE_SHELL.get()) && towns.rabituza() != null
-                    ? new Target(towns.rabituza(), "target.slfrontier.rabituza")
-                    : biome(level, here, Frontier.PRISMATIC_FOREST_GROTTO, "target.slfrontier.grotto");
-            case FIND_SETSUNA, TOMBGUARD -> site(level, Landmarks.Site.WEZAEMON_TOMB, "target.slfrontier.tomb");
-            case COMPLETE -> null;
+        List<QuestSteps.Step> steps = QuestSteps.of(data.stage());
+        if (steps.isEmpty()) return null;
+        return stepTarget(player.serverLevel(), steps.get(Math.min(data.questStep(), steps.size() - 1)).id());
+    }
+
+    /** The Diremarsh's gray-ore fields and the way into the Northern Peaks, on the designed map. */
+    private static final int[] ORE_FIELDS = {1080, 280};
+    private static final int[] MOUNTAIN_PASS = {1180, -760};
+    private static final int[] PASS_MIDDLE = {1300, -860};
+
+    @Nullable
+    private static Target stepTarget(ServerLevel level, String step) {
+        return switch (step) {
+            case "talk_guide", "report_guide", "return_guide", "go_rabituza" ->
+                    npc(level, Landmarks.Site.FIRSTIA, ModEntities.GUIDE.get(), "target.slfrontier.guide");
+            case "find_camp", "defeat_goblins" -> site(level, Landmarks.Site.GOBLIN_CAMP, "target.slfrontier.goblin_camp");
+            case "road_to_bridge" -> site(level, Landmarks.Site.SERPENT_BRIDGE, "target.slfrontier.serpent_bridge");
+            case "slay_snake" -> marker(level, Landmarks.Site.SERPENT_BRIDGE, "arena", "target.slfrontier.serpent_bridge");
+            case "reach_secondil" -> site(level, Landmarks.Site.SECONDIL, "target.slfrontier.secondil");
+            case "meet_smith", "deliver_ore" -> npc(level, Landmarks.Site.SECONDIL, ModEntities.BLACKSMITH.get(), "target.slfrontier.smith");
+            case "mine_ore" -> point(ORE_FIELDS, "target.slfrontier.diremarsh");
+            case "find_den", "touch_altar", "slay_lycagon" -> site(level, Landmarks.Site.NIGHTSLAYER_DEN, "target.slfrontier.den");
+            case "meet_vysache", "bring_shell", "learn_crescent" ->
+                    npc(level, Landmarks.Site.RABITUZA, ModEntities.VYSACHE.get(), "target.slfrontier.vysache");
+            case "enter_colosseum" -> marker(level, Landmarks.Site.RABITUZA, "arena", "target.slfrontier.colosseum");
+            case "find_beetle" -> site(level, Landmarks.Site.EMPIRE_BEE_HIVE, "target.slfrontier.grotto");
+            case "marsh_road", "slay_digger" -> site(level, Landmarks.Site.MUD_DIGGER_LAIR, "target.slfrontier.mud_digger");
+            case "reach_thirdrema" -> site(level, Landmarks.Site.THIRDREMA, "target.slfrontier.thirdrema");
+            case "meet_allies" -> npc(level, Landmarks.Site.THIRDREMA, ModEntities.PENCILGON.get(), "target.slfrontier.serpents_apple");
+            case "mountain_pass" -> point(MOUNTAIN_PASS, "target.slfrontier.pass");
+            case "find_setsuna", "slay_tombguard" -> site(level, Landmarks.Site.WEZAEMON_TOMB, "target.slfrontier.tomb");
+            case "to_barrens", "wake_altar" -> site(level, Landmarks.Site.SHADOW_ALTAR, "target.slfrontier.shadow_altar");
+            default -> null;
         };
+    }
+
+    /**
+     * Whether a step is behind the player. The last step of each chapter is never "done" here:
+     * the chapter itself advancing (a talk, a kill) finishes it.
+     */
+    static boolean stepDone(ServerPlayer player, PlayerData data, String step) {
+        return switch (step) {
+            case "find_camp" -> visited(data, Landmarks.Site.GOBLIN_CAMP) || data.questProgress() > 0;
+            case "defeat_goblins" -> data.questProgress() >= QuestStage.GOBLIN_HUNT.goal;
+            case "road_to_bridge" -> visited(data, Landmarks.Site.SERPENT_BRIDGE);
+            case "reach_secondil" -> visited(data, Landmarks.Site.SECONDIL);
+            case "mine_ore" -> Progression.countItem(player, ModItems.GRAY_ORE_CHUNK.get()) >= QuestStage.GRAY_ORE.goal;
+            case "find_den" -> visited(data, Landmarks.Site.NIGHTSLAYER_DEN);
+            case "go_rabituza" -> visited(data, Landmarks.Site.RABITUZA);
+            case "find_beetle" -> Progression.hasItem(player, ModItems.QUAD_BEETLE_SHELL.get());
+            case "marsh_road" -> visited(data, Landmarks.Site.MUD_DIGGER_LAIR);
+            case "reach_thirdrema" -> visited(data, Landmarks.Site.THIRDREMA);
+            case "mountain_pass" -> data.flag("visited_pass") || visited(data, Landmarks.Site.WEZAEMON_TOMB);
+            case "to_barrens" -> visited(data, Landmarks.Site.SHADOW_ALTAR);
+            case "learn_crescent" -> data.hasSkill(Skill.CRESCENT_VORPAL);
+            default -> false;
+        };
+    }
+
+    private static boolean visited(PlayerData data, Landmarks.Site site) {
+        return data.flag("visited_" + site.id);
+    }
+
+    private static void updateStep(ServerPlayer player, PlayerData data) {
+        List<QuestSteps.Step> steps = QuestSteps.of(data.stage());
+        int i = 0;
+        while (i < steps.size() - 1 && stepDone(player, data, steps.get(i).id())) i++;
+        if (i != data.questStep()) {
+            data.setQuestStep(i);
+            if (i > 0) player.level().playSound(null, player.blockPosition(), SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.5f, 1.4f);
+            ModNetwork.sync(player);
+        }
+    }
+
+    /** Remembers the landmarks a player has been to (quest steps check these). */
+    private static void markVisits(ServerPlayer player, PlayerData data) {
+        for (Landmarks.Site site : Landmarks.Site.values()) {
+            String flag = "visited_" + site.id;
+            if (data.flag(flag)) continue;
+            var design = site.design();
+            int reach = Math.max(design.sizeX(), design.sizeZ()) / 2 + 24;
+            if (horizontalDistSqr(player.blockPosition(), Landmarks.center(site)) < (double) reach * reach) data.setFlag(flag, true);
+        }
+        if (!data.flag("visited_pass") && horizontalDistSqr(player.blockPosition(), new BlockPos(PASS_MIDDLE[0], 0, PASS_MIDDLE[1])) < 48 * 48) {
+            data.setFlag("visited_pass", true);
+        }
+    }
+
+    private static double horizontalDistSqr(BlockPos a, BlockPos b) {
+        double dx = a.getX() - b.getX(), dz = a.getZ() - b.getZ();
+        return dx * dx + dz * dz;
+    }
+
+    private static long campReadyAt;
+
+    /** The goblin war camp keeps a few goblins around, day or night, so First Blood never stalls. */
+    private static void goblinCamp(ServerLevel level, ServerPlayer player) {
+        BlockPos camp = Landmarks.where(level, Landmarks.Site.GOBLIN_CAMP);
+        long now = level.getGameTime();
+        if (now < campReadyAt || level.getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL
+                || horizontalDistSqr(player.blockPosition(), camp) > 80 * 80) return;
+        campReadyAt = now + 20 * 12;
+        var box = new net.minecraft.world.phys.AABB(camp).inflate(40, 16, 40);
+        if (level.getEntitiesOfClass(com.slfrontier.entity.mob.GoblinEntity.class, box).size() >= 4) return;
+        int count = 1 + level.random.nextInt(2);
+        for (int i = 0; i < count; i++) {
+            int x = camp.getX() + level.random.nextInt(25) - 12, z = camp.getZ() + level.random.nextInt(25) - 12;
+            BlockPos at = new BlockPos(x, level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
+            if (at.distSqr(player.blockPosition()) < 10 * 10) continue;
+            var goblin = ModEntities.GOBLIN.get().create(level);
+            if (goblin == null) continue;
+            goblin.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, level.random.nextFloat() * 360f, 0);
+            goblin.finalizeSpawn(level, level.getCurrentDifficultyAt(at), MobSpawnType.EVENT, null);
+            level.addFreshEntity(goblin);
+        }
+    }
+
+    @Nullable
+    private static Target marker(ServerLevel level, Landmarks.Site site, String marker, String name) {
+        BlockPos pos = Landmarks.marker(level, site, marker);
+        return new Target(pos != null ? pos : Landmarks.where(level, site), name);
+    }
+
+    /** The NPC itself when its town is loaded, otherwise the town. */
+    private static Target npc(ServerLevel level, Landmarks.Site site, net.minecraft.world.entity.EntityType<?> type, String name) {
+        var design = site.design();
+        var box = new net.minecraft.world.phys.AABB(design.origin()).expandTowards(design.sizeX(), 64, design.sizeZ()).inflate(16);
+        List<Entity> found = level.getEntitiesOfClass(Entity.class, box, e -> e.getType() == type);
+        return new Target(found.isEmpty() ? Landmarks.where(level, site) : found.get(0).blockPosition(), name);
+    }
+
+    private static Target point(int[] xz, String name) {
+        int y = (int) Math.floor(com.slfrontier.world.design.FrontierDesign.get().height(xz[0], xz[1]));
+        return new Target(new BlockPos(xz[0], y, xz[1]), name);
     }
 
     private static Target site(ServerLevel level, Landmarks.Site site, String name) {
         return new Target(Landmarks.where(level, site), name);
-    }
-
-    /** Structure and biome searches are expensive; reuse results while the player stays nearby. */
-    private record Located(BlockPos origin, @Nullable BlockPos found, long time) {
-    }
-
-    private static final Map<String, Located> LOCATE_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
-
-    @Nullable
-    private static BlockPos cachedLocate(ServerLevel level, BlockPos from, String key, java.util.function.Supplier<BlockPos> search) {
-        Located hit = LOCATE_CACHE.get(key);
-        long now = level.getGameTime();
-        if (hit != null && hit.origin().distSqr(from) < 256 * 256 && now - hit.time() < 20 * 120) return hit.found();
-        BlockPos found = search.get();
-        LOCATE_CACHE.put(key, new Located(from, found, now));
-        return found;
-    }
-
-    @Nullable
-    private static Target biome(ServerLevel level, BlockPos from, ResourceKey<Biome> biome, String name) {
-        BlockPos pos = cachedLocate(level, from, "b:" + biome.location() + "@" + (from.getX() >> 8) + "," + (from.getZ() >> 8), () -> {
-            Pair<BlockPos, Holder<Biome>> found = level.findClosestBiome3d(h -> h.is(biome), from, 4000, 32, 64);
-            return found == null ? null : found.getFirst();
-        });
-        return pos == null ? null : new Target(pos, name);
     }
 
     public static void forget(ServerPlayer player) {

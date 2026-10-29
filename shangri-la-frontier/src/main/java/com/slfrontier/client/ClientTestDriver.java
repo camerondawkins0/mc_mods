@@ -141,6 +141,7 @@ public final class ClientTestDriver {
         if (wants("creatures")) creatures();
         if (wants("bosses")) bosses();
         if (wants("weapons")) weapons();
+        if (wants("grip")) grip();
         if (wants("poses")) poses();
         if (wants("skills")) skills();
         if (wants("menus")) menus();
@@ -341,6 +342,28 @@ public final class ClientTestDriver {
         shot(30, "15_inventory_icons");
         at(5, mc -> mc.setScreen(null));
         server(5, sp -> clear());
+    }
+
+    /** A vanilla iron sword next to the Mercenary Twinblades, to compare how each hand holds them. */
+    private static void grip() {
+        String[] views = {"first", "front", "back"};
+        CameraType[] cams = {CameraType.FIRST_PERSON, CameraType.THIRD_PERSON_FRONT, CameraType.THIRD_PERSON_BACK};
+        for (int swap = 0; swap < 2; swap++) {
+            final boolean oursInMain = swap == 1;
+            server(5, sp -> {
+                ItemStack vanilla = new ItemStack(net.minecraft.world.item.Items.IRON_SWORD);
+                ItemStack ours = new ItemStack(ModItems.MERCENARY_TWIN_BLADES.get());
+                sp.setItemInHand(InteractionHand.MAIN_HAND, oursInMain ? ours : vanilla);
+                sp.setItemInHand(InteractionHand.OFF_HAND, oursInMain ? vanilla : ours);
+                sp.teleportTo(sp.serverLevel(), sp.getX(), sp.getY(), sp.getZ(), sp.getYRot(), 0f);
+            });
+            for (int v = 0; v < views.length; v++) {
+                final CameraType cam = cams[v];
+                at(5, mc -> mc.options.setCameraType(cam));
+                shot(25, "50_grip_" + (oursInMain ? "ours_main_" : "vanilla_main_") + views[v]);
+            }
+        }
+        at(5, mc -> mc.options.setCameraType(CameraType.FIRST_PERSON));
     }
 
     private static void poses() {

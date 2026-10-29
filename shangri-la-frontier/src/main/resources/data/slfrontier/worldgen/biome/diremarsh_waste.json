@@ -14,7 +14,23 @@
       "block_search_extent": 8,
       "offset": 2.0
     },
-    "foliage_color": 6975554
+    "foliage_color": 6975554,
+    "particle": {
+      "options": {
+        "type": "minecraft:mycelium"
+      },
+      "probability": 0.012
+    },
+    "music": {
+      "sound": "minecraft:music.overworld.swamp",
+      "min_delay": 12000,
+      "max_delay": 24000,
+      "replace_current_music": false
+    },
+    "additions_sound": {
+      "sound": "minecraft:block.bubble_column.upwards_ambient",
+      "tick_chance": 0.002
+    }
   },
   "spawners": {
     "monster": [
