@@ -40,7 +40,9 @@ public class SLFrontier {
         ModCreativeTabs.TABS.register(modBus);
         com.slfrontier.world.feature.FrontierFeatures.FEATURES.register(modBus);
         com.slfrontier.world.design.DesignRegistries.register(modBus);
+        com.slfrontier.registry.ModMenus.MENUS.register(modBus);
         modBus.addListener(ModNetwork::register);
+        modBus.addListener(com.slfrontier.network.InventoryNetwork::register);
         LOGGER.info("Connecting to Shangri-La Frontier...");
     }
 

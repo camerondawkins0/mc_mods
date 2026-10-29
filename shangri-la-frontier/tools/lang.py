@@ -1,4 +1,5 @@
 """English text for the mod (assets/slfrontier/lang/en_us.json)."""
+import lang_inventory
 
 ITEMS = {
     "fulldive_headset": ("Full-Dive VR Headset", "Hold use to log in to Shangri-La Frontier. Use again inside to log out."),
@@ -800,4 +801,5 @@ def build():
         lang[f"dialogue.slfrontier.{k}"] = text
     for k, text in OPTIONS.items():
         lang[f"dialogue.slfrontier.option.{k}"] = text
+    lang.update(lang_inventory.STRINGS)
     return lang

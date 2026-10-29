@@ -1,5 +1,6 @@
 package com.slfrontier.client.screen;
 
+import com.slfrontier.client.InventoryClient;
 import com.slfrontier.client.KeyBindings;
 import com.slfrontier.client.ui.Gfx;
 import com.slfrontier.client.ui.SlfButton;
@@ -31,10 +32,19 @@ import java.util.List;
 
 /**
  * The avatar menu (default key K): Status, Skills and Quests, drawn as a Shangri-La
- * Frontier system window. The Map tab opens {@link MapScreen}.
+ * Frontier system window. The Items tab opens {@link FrontierInventoryScreen}, the Map tab
+ * opens {@link MapScreen}.
  */
 public class FrontierScreen extends Screen {
-    public enum Tab { STATUS, SKILLS, QUESTS, MAP }
+    public enum Tab {
+        STATUS("player"), SKILLS("target"), ITEMS("bag"), QUESTS("main_quest"), MAP("waypoint");
+
+        public final String icon;
+
+        Tab(String icon) {
+            this.icon = icon;
+        }
+    }
 
     private static Tab lastTab = Tab.STATUS;
     private static Skill selectedSkill = Skill.TAP_STEP;
@@ -94,16 +104,10 @@ public class FrontierScreen extends Screen {
         lastHash = data().syncHash();
         int tx = left + 10;
         for (Tab t : Tab.values()) {
-            String icon = switch (t) {
-                case STATUS -> "player";
-                case SKILLS -> "target";
-                case QUESTS -> "main_quest";
-                case MAP -> "waypoint";
-            };
             Component label = Component.translatable("gui.slfrontier.tab." + t.name().toLowerCase());
             int bw = font.width(label) + 26;
             addRenderableWidget(new SlfButton(tx, top - 17, bw, 17, label, SlfButton.Style.TAB, b -> switchTab(t))
-                    .icon(Theme.icon(icon), 16).selected(t == tab));
+                    .icon(Theme.icon(t.icon), 16).selected(t == tab));
             tx += bw + 3;
         }
         PlayerData d = data();
@@ -117,13 +121,22 @@ public class FrontierScreen extends Screen {
     }
 
     private void switchTab(Tab t) {
-        if (t == Tab.MAP) {
-            Minecraft.getInstance().setScreen(new MapScreen());
+        if (t == Tab.MAP || t == Tab.ITEMS) {
+            open(t);
             return;
         }
         tab = t;
         lastTab = t;
         rebuild();
+    }
+
+    /** Opens a tab of the avatar menu from any of its screens. */
+    public static void open(Tab t) {
+        switch (t) {
+            case MAP -> Minecraft.getInstance().setScreen(new MapScreen());
+            case ITEMS -> InventoryClient.openInventory();
+            default -> Minecraft.getInstance().setScreen(new FrontierScreen(t));
+        }
     }
 
     @Override
