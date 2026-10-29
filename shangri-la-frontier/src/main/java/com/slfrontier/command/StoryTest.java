@@ -23,9 +23,12 @@ import com.slfrontier.world.Landmarks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.util.FakePlayer;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
 
 import java.util.ArrayList;
@@ -39,6 +42,16 @@ import java.util.function.Supplier;
  */
 public final class StoryTest {
     private static final GameProfile PROFILE = new GameProfile(UUID.fromString("5e1f0000-0000-4000-8000-00000000510f"), "[SLF-Test]");
+
+    /** Bosses and allies that dialogue choices summon (Setsuna calls the Tombguard), so the test can send them away. */
+    private static final List<Entity> summoned = new ArrayList<>();
+    private static boolean listening;
+
+    private static void collectSummons(EntityJoinLevelEvent event) {
+        if (event.getEntity() instanceof FrontierBoss || event.getEntity() instanceof com.slfrontier.entity.npc.AllyNpc) {
+            summoned.add(event.getEntity());
+        }
+    }
 
     private StoryTest() {
     }
@@ -88,8 +101,16 @@ public final class StoryTest {
                     npc.moveTo(player.getX() + 1, player.getY(), player.getZ(), 0f, 0f);
                     player.serverLevel().addFreshEntity(npc);
                     Story.onTalk(player, npc);
+                    if (!listening) {
+                        listening = true;
+                        NeoForge.EVENT_BUS.addListener(StoryTest::collectSummons);
+                    }
+                    summoned.clear();
                     Story.onDialogueChoice(player, npc.getId(), 0);
                     npc.discard();
+                    // The fake player keeps no chunks loaded, so these can't be found by searching; discard them directly.
+                    summoned.forEach(Entity::discard);
+                    summoned.clear();
                 });
             }
             check(failures, "compass " + stage, () -> {

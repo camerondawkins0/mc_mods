@@ -459,8 +459,9 @@ public final class ClientTestDriver {
             com.slfrontier.block.WaypointBlock.attune(level, crystal, sp);
             sp.getAbilities().flying = false;
             sp.onUpdateAbilities();
-            sp.teleportTo(level, sp.getX(), sp.getY() - 1, sp.getZ(), 0f, 5f);
-            lineUp(sp, List.of(ModEntities.GOBLIN), 0, 3.5);
+            // Look east across Firstia's plaza, toward the Alchemy Table and the houses beyond.
+            sp.teleportTo(level, sp.getX(), sp.getY() - 1, sp.getZ(), 270f, 5f);
+            lineUp(sp, List.of(ModEntities.GOBLIN), 0, 3.5, 270f);
             com.slfrontier.world.MapSync.invalidate(sp);
         });
         shot(120, "16_hud");
@@ -560,16 +561,25 @@ public final class ClientTestDriver {
 
     private static void lineUp(ServerPlayer sp, List<? extends Supplier<? extends EntityType<? extends Mob>>> types,
                                double spacing, double distance) {
+        lineUp(sp, types, spacing, distance, 0f);
+    }
+
+    /** Lines mobs up {@code distance} in front of a player looking toward {@code yaw}, facing back at them. */
+    private static void lineUp(ServerPlayer sp, List<? extends Supplier<? extends EntityType<? extends Mob>>> types,
+                               double spacing, double distance, float yaw) {
         ServerLevel level = sp.serverLevel();
         double width = spacing * (types.size() - 1);
+        double rad = Math.toRadians(yaw);
+        double fx = -Math.sin(rad), fz = Math.cos(rad), sx = Math.cos(rad), sz = Math.sin(rad);
         for (int i = 0; i < types.size(); i++) {
             Mob mob = types.get(i).get().create(level);
             if (mob == null) continue;
-            double x = sp.getX() - width / 2 + i * spacing;
-            double z = sp.getZ() + distance;
-            mob.moveTo(x, sp.getY() - 1, z, 180f, 0f);
-            mob.setYHeadRot(180f);
-            mob.setYBodyRot(180f);
+            double offset = -width / 2 + i * spacing;
+            double x = sp.getX() + sx * offset + fx * distance;
+            double z = sp.getZ() + sz * offset + fz * distance;
+            mob.moveTo(x, sp.getY() - 1, z, yaw + 180f, 0f);
+            mob.setYHeadRot(yaw + 180f);
+            mob.setYBodyRot(yaw + 180f);
             mob.setNoAi(true);
             mob.setPersistenceRequired();
             level.addFreshEntity(mob);

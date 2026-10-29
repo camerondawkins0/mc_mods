@@ -21,6 +21,9 @@ stamina, evolving skills, twin-blade combat, NPCs and the Unique Monsters.
 |---|---|
 | ![Secondil and its castle hill](docs/screenshots/secondil.jpg) | ![Thirdrema in its cliff valley](docs/screenshots/thirdrema.jpg) |
 | ![Rabituza: the giant tree, the red palace and the Vorpal Colosseum](docs/screenshots/rabituza.jpg) | ![The Serpent Bridge](docs/screenshots/serpent_bridge.jpg) |
+| ![The Goblin War Camp in the Rampant Forest](docs/screenshots/goblin_camp.jpg) | ![Wezaemon's tomb in the Hidden Garden](docs/screenshots/wezaemon_tomb.jpg) |
+| ![The HUD: quest step, pointer and minimap](docs/screenshots/hud.jpg) | ![The Frontier inventory](docs/screenshots/inventory.jpg) |
+| ![Crafting at the Frontier Forge](docs/screenshots/crafting.jpg) | ![The travel loading screen](docs/screenshots/travel.jpg) |
 | ![Creatures and NPCs](docs/screenshots/creatures.jpg) | ![Bosses](docs/screenshots/bosses.jpg) |
 | ![Lycagon the Nightslayer and its shadow](docs/screenshots/lycagon.jpg) | ![Wezaemon's Tensei telegraph](docs/screenshots/telegraph.jpg) |
 | ![The Frontier map](docs/screenshots/map.jpg) | ![The skills tab](docs/screenshots/skills.jpg) |
@@ -235,19 +238,26 @@ Shangri-La Frontier → Config* if you prefer vanilla colours.
 
 **Towns and landmarks** are hand-built and stand at fixed places on the map:
 
-* **Firstia** — walled, with slate-roofed towers, two gatehouses, a fountain plaza, an inn,
-  a chapel, a guild hall and a market.
-* **The Serpent Bridge** — a great arched bridge over a river gorge.
-* **Secondil** — tan walls, a twin-towered west gate hung with red-and-gold banners, the white
-  inn straight ahead, the smithy, market stalls and a castle on a terraced hill.
-* **Thirdrema** — a stone city climbing a valley between two forested cliffs in three tiers,
-  white houses with orange roofs, a white castle with orange spires and the *Serpent's Apple*.
-* **Rabituza** — the hidden nation: a giant cherry-crowned tree, the red palace with its
-  tiered roofs, the Vorpal Colosseum, rabbit burrows and carrot fields.
+* **Firstia** — machicolated walls and towers with two gatehouses; half-timbered houses on
+  stone ground floors with jettied upper storeys and dormers; the fountain plaza with the Guide,
+  a Frontier Workbench and an Alchemy Table; the inn with its bar, a chapel with bell tower and
+  churchyard, the Adventurers' Guild, a market, a well and kitchen gardens.
+* **The Serpent Bridge** — piers with cutwaters and arches over the river gorge, a serpent
+  carved along both faces, serpent statues, lamp-lit balustrades and gate towers at each end.
+* **The Goblin War Camp** — a log palisade in the Rampant Forest with hide tents, skull
+  totems, fire pits, a lookout and a cage; goblins keep coming back while you hunt them.
+* **Secondil** — sandstone walls, a twin round-towered west gate with red-and-gold banners,
+  red-tiled houses, a market square with a fountain, the smithy with its Frontier Forge, and a
+  terraced castle with a grand stair, inner wall and keep.
+* **Thirdrema** — a white city climbing its valley in three terraces: townhouses with orange
+  and copper roofs, a fountain plaza with all three crafting stations, the *Serpent's Apple*,
+  and a spired castle with a hedge garden and gazebo.
+* **Rabituza** — the hidden nation on its island: a three-tier pagoda palace with Vysache's
+  throne, the giant cherry tree, torii over every road, a shrine and koi pond, rabbit burrows,
+  carrot beds, Bilac's forge and the Vorpal Colosseum.
 
-Dungeons and camps: the Goblin War Camp, Wezaemon's Tomb, the Nightslayer's Den, the
-Empire Bee Hive, the Mud Digger's Lair, the Iron Ruins of the Divinity and the Lightless
-Barrens' shadow altar.
+Dungeons: Wezaemon's Tomb, the Nightslayer's Den, the Empire Bee Hive, the Mud Digger's Lair,
+the Iron Ruins of the Divinity and the Lightless Barrens' shadow altar.
 
 > **Upgrading from 0.1:** the Frontier was redrawn, so it's a new dimension
 > (`slfrontier:the_frontier`). Your level, stats, skills, items and story progress carry over;
