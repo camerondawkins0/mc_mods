@@ -37,14 +37,14 @@ jobs:
           name: slfrontier-jar
           path: shangri-la-frontier/build/libs/*.jar
 
-      - name: Build modpack (.mrpack)
+      - name: Build modpacks (Modrinth .mrpack and CurseForge .zip)
         run: python3 tools/modpack.py build
 
-      - name: Upload modpack
+      - name: Upload modpacks
         uses: actions/upload-artifact@v4
         with:
           name: slfrontier-modpack
-          path: shangri-la-frontier/build/modpack/*.mrpack
+          path: shangri-la-frontier/build/modpack/*
 
       - name: Install NeoForge dedicated server
         run: |

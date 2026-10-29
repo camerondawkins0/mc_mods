@@ -16,7 +16,11 @@
       "fileSize": 1292934,
       "_project": "sodium",
       "_version": "mc1.21.1-0.8.13-neoforge",
-      "_why": "Faster rendering; needed by Iris."
+      "_why": "Faster rendering; needed by Iris.",
+      "_curseforge": {
+        "projectID": 394468,
+        "fileID": 8756580
+      }
     },
     {
       "path": "mods/iris-neoforge-1.8.14-beta.1+mc1.21.1.jar",
@@ -34,7 +38,11 @@
       "fileSize": 2540723,
       "_project": "iris",
       "_version": "1.8.14-beta.1+1.21.1-neoforge",
-      "_why": "Shader pack loader."
+      "_why": "Shader pack loader.",
+      "_curseforge": {
+        "projectID": 455508,
+        "fileID": 8242804
+      }
     },
     {
       "path": "shaderpacks/ComplementaryReimagined_r5.9.3.zip",
@@ -52,7 +60,11 @@
       "fileSize": 553397,
       "_project": "complementary-reimagined",
       "_version": "r5.9.3",
-      "_why": "The shader pack the pack switches on."
+      "_why": "The shader pack the pack switches on.",
+      "_curseforge": {
+        "projectID": 627557,
+        "fileID": 8884654
+      }
     },
     {
       "path": "mods/DistantHorizons-3.3.3-1.21.1-fabric-neoforge.jar",
@@ -70,7 +82,11 @@
       "fileSize": 28289212,
       "_project": "distanthorizons",
       "_version": "3.3.3-1.21.1",
-      "_why": "Optional: see the designed continent to the horizon."
+      "_why": "Optional: see the designed continent to the horizon.",
+      "_curseforge": {
+        "projectID": 508933,
+        "fileID": 9004764
+      }
     }
   ]
 }

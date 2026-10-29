@@ -38,17 +38,21 @@ stamina, evolving skills, twin-blade combat, NPCs and the Unique Monsters.
 ### Option A — the ready-made modpack (mod + shaders)
 
 The **slfrontier-modpack** artifact (Actions tab → latest *Shangri-La Frontier mod* run) holds
-`Shangri-La-Frontier-<version>.mrpack`: the mod plus **Sodium** (faster rendering), **Iris**
-(shaders) with **Complementary Reimagined** switched on, and **Distant Horizons** as an
-optional extra for seeing the whole continent. Import it in the **Modrinth App** (*+ → Import
-from file*), **Prism Launcher** (*Add Instance → Import*) or **ATLauncher** — the launcher
-downloads the companions from Modrinth and sets everything up. Build it yourself with
-`python3 tools/modpack.py build` after `./gradlew build`.
+the mod plus **Sodium** (faster rendering), **Iris** (shaders) with **Complementary
+Reimagined** switched on, and **Distant Horizons** as an optional extra for seeing the whole
+continent — in two formats with exactly the same files:
 
-The CurseForge app can't import `.mrpack` files; follow option B and then, in the profile,
-**Add Content** → search and add **Sodium**, **Iris Shaders** and the shader pack
-**Complementary Shaders - Reimagined** (all for 1.21.1 / NeoForge). Turn the shader on in
-*Options → Video Settings → Shader Packs*.
+* **CurseForge app:** `Shangri-La-Frontier-<version>-curseforge.zip`. Go to **Minecraft →
+  Create Custom Profile → Import** (the small link under the Create button), pick the zip and
+  hit Play. CurseForge downloads Sodium, Iris, the shader pack and NeoForge itself. Distant
+  Horizons is marked optional, so CurseForge may leave it out — add it from the profile's
+  *Add Content* if you want it.
+* **Modrinth App / Prism Launcher / ATLauncher:** `Shangri-La-Frontier-<version>.mrpack`.
+  Modrinth App: *+ → Import from file*; Prism: *Add Instance → Import*.
+
+Build them yourself with `python3 tools/modpack.py build` after `./gradlew build`
+(`python3 tools/modpack.py resolve` re-pins the newest companion versions that exist on both
+Modrinth and CurseForge).
 
 With a shader pack running, the mod's own colour grade (*Frontier Vision*) switches itself
 off so the two don't stack.
@@ -340,7 +344,7 @@ tools/
   worldmap.py    the continent: height, regions, rivers, sites and roads -> worldmap/frontier.bin,
                  sites.json, roads.json and docs/worldmap.png
   crafting_data.py  Frontier recipes          inventory.py  item categories
-  modpack.py     pins the companion mods and builds the .mrpack
+  modpack.py     pins the companion mods; builds the .mrpack and the CurseForge .zip
   gen_assets.py  -> every texture and model     gen_data.py -> lang, loot, tags, worldgen
   preview.py     quick software renders: `items`, `mobs`, `structure <name>`
   ci_boot_test.py boots a real NeoForge server in CI and exercises everything
@@ -350,7 +354,7 @@ tools/
 
 Every push runs `.github/workflows/shangri-la-frontier.yml`, which:
 
-1. builds the jar and the modpack;
+1. builds the jar and the modpacks;
 2. installs a real NeoForge server, boots it with the mod, generates Frontier terrain,
    locates every biome, checks every fixed site generated where the map says, places every
    template and summons every creature;
