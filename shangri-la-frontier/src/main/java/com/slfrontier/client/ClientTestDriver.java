@@ -122,6 +122,8 @@ public final class ClientTestDriver {
         server(60, FrontierTravel::login);
         server(140, sp -> {
             ServerLevel level = sp.serverLevel();
+            // Bosses the server story test left behind would put their bars on every shot.
+            level.getEntitiesOfClass(FrontierBoss.class, sp.getBoundingBox().inflate(256)).forEach(Entity::discard);
             level.setDayTime(6000);
             level.setWeatherParameters(6000, 0, false, false);
             Progression.grantExp(sp, 3000);
@@ -472,6 +474,24 @@ public final class ClientTestDriver {
         at(5, mc -> mc.setScreen(new com.slfrontier.client.screen.MapScreen()));
         shot(40, "19_map");
         at(5, mc -> mc.setScreen(null));
+        server(5, sp -> {
+            sp.getInventory().add(new ItemStack(com.slfrontier.registry.CraftingRegistry.HEALING_POTION.get(), 3));
+            sp.getInventory().add(new ItemStack(net.minecraft.world.item.Items.IRON_INGOT, 6));
+            sp.openMenu(new net.minecraft.world.SimpleMenuProvider(
+                    (id, inv, p) -> new com.slfrontier.inventory.FrontierInventoryMenu(id, inv),
+                    net.minecraft.network.chat.Component.translatable("gui.slfrontier.inventory")));
+        });
+        shot(40, "20_frontier_inventory");
+        server(5, sp -> {
+            sp.closeContainer();
+            com.slfrontier.crafting.FrontierCrafting.open(sp, com.slfrontier.crafting.Station.FORGE, null);
+        });
+        shot(40, "21_crafting_forge");
+        at(5, mc -> mc.setScreen(null));
+        at(5, mc -> com.slfrontier.client.overlay.TravelOverlay.begin(
+                new com.slfrontier.network.OverlayNetwork.TravelStart(0, "waypoint.slfrontier.fastera", java.util.Optional.empty())));
+        shot(12, "22_travel_screen");
+        at(80, mc -> mc.setScreen(null));
         server(5, sp -> lineUp(sp, List.of(ModEntities.EMUL), 0, 2.5));
         at(30, mc -> {
             int id = spawned.isEmpty() ? mc.player.getId() : spawned.get(0).getId();

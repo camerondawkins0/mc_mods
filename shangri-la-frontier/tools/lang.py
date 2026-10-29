@@ -795,6 +795,32 @@ MISC.update({
 })
 
 MISC.update({
+    # In-game config screen (Mods -> Shangri-La Frontier -> Config)
+    "slfrontier.configuration.title": "Shangri-La Frontier",
+    "slfrontier.configuration.hud": "HUD",
+    "slfrontier.configuration.frontierHud": "Frontier HUD",
+    "slfrontier.configuration.hideVanillaBars": "Hide vanilla bars",
+    "slfrontier.configuration.damageNumbers": "Damage numbers",
+    "slfrontier.configuration.questPointer": "Quest pointer",
+    "slfrontier.configuration.enemyHealthBars": "Enemy health bars",
+    "slfrontier.configuration.travelScreen": "Travel loading screen",
+    "slfrontier.configuration.visuals": "Visuals",
+    "slfrontier.configuration.frontierVision": "Frontier Vision (colour grade)",
+    "slfrontier.configuration.minimap": "Minimap",
+    "slfrontier.configuration.showMinimap": "Show minimap",
+    "slfrontier.configuration.size": "Size",
+    "slfrontier.configuration.rotates": "Rotate with camera",
+    "slfrontier.configuration.effects": "Effects",
+    "slfrontier.configuration.cameraShake": "Camera shake",
+    "slfrontier.configuration.firstPersonSkillAnimations": "First-person skill animations",
+    "slfrontier.configuration.fastTravel": "Fast travel",
+    "slfrontier.configuration.enabled": "Enabled",
+    "slfrontier.configuration.cooldownSeconds": "Cooldown (seconds)",
+    "slfrontier.configuration.allowInCombat": "Allow in combat",
+    "slfrontier.configuration.requireAttunement": "Require attunement",
+    "slfrontier.configuration.respawnAtLastWaypoint": "Respawn at last waypoint",
+})
+MISC.update({
     "message.slfrontier.new_map": "The Frontier has been redrawn. Your avatar wakes in Firstia; old waypoints have faded.",
     "waypoint.slfrontier.goblin_camp": "Goblin War Camp",
     "message.slfrontier.peaceful": "Monsters don't appear on Peaceful. Set the difficulty to Easy or higher to fight your way through the story.",

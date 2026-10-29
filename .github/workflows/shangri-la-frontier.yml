@@ -37,6 +37,15 @@ jobs:
           name: slfrontier-jar
           path: shangri-la-frontier/build/libs/*.jar
 
+      - name: Build modpack (.mrpack)
+        run: python3 tools/modpack.py build
+
+      - name: Upload modpack
+        uses: actions/upload-artifact@v4
+        with:
+          name: slfrontier-modpack
+          path: shangri-la-frontier/build/modpack/*.mrpack
+
       - name: Install NeoForge dedicated server
         run: |
           NEO=$(grep '^neo_version=' gradle.properties | cut -d= -f2)

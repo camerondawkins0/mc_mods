@@ -493,8 +493,23 @@ def render(path, h, biome, sites, road_lines, scale=1):
         x0, y0 = to_px(s["x"], s["z"])
         x1, y1 = to_px(s["x"] + s["size_x"], s["z"] + s["size_z"])
         draw.rectangle([x0, y0, x1, y1], outline=(255, 255, 255) if s["town"] else (255, 120, 120))
-        draw.text((x1 + 3, y0), s["id"].replace("_", " ").title(), fill=(255, 255, 255), font=font)
+        draw.text((x1 + 3, y0), LABELS.get(s["id"], s["id"].replace("_", " ").title()), fill=(255, 255, 255), font=font)
+    for name, label in REGION_LABELS.items():
+        if name in B and (biome == B[name]).any():
+            zs, xs = np.nonzero(biome == B[name])
+            x, y = float(np.median(xs)) * scale, float(np.median(zs)) * scale
+            w = draw.textlength(label, font=font)
+            draw.text((x - w / 2, y + 14), label, fill=(255, 244, 200), font=font, stroke_width=1, stroke_fill=(40, 34, 24))
     im.save(path)
+
+
+LABELS = {"fastera": "Firstia", "wezaemon_tomb": "Wezaemon's Tomb", "nightslayer_den": "Nightslayer's Den",
+          "mud_digger_lair": "Mud Digger's Lair", "goblin_camp": "Goblin War Camp"}
+REGION_LABELS = {"fastera_plains": "Fastera Plains", "rampant_forest": "Rampant Forest",
+                 "nightslayer_woods": "Nightslayer Woods", "diremarsh_waste": "Diremarsh Waste",
+                 "prismatic_forest_grotto": "Prismatic Forest Grotto", "lightless_barrens": "Lightless Barrens",
+                 "thirdrema_highlands": "Thirdrema Highlands", "frontier_peaks": "Northern Peaks",
+                 "hidden_garden": "Hidden Garden"}
 
 
 def main():
