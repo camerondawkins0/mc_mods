@@ -459,8 +459,9 @@ public final class ClientTestDriver {
             com.slfrontier.block.WaypointBlock.attune(level, crystal, sp);
             sp.getAbilities().flying = false;
             sp.onUpdateAbilities();
-            // Look east across Firstia's plaza, toward the Alchemy Table and the houses beyond.
-            sp.teleportTo(level, sp.getX(), sp.getY() - 1, sp.getZ(), 270f, 5f);
+            // From Firstia's spawn, look east across the plaza toward the Alchemy Table and the houses beyond.
+            BlockPos home = Landmarks.where(level, Landmarks.Site.FIRSTIA);
+            sp.teleportTo(level, home.getX() + 0.5, home.getY() + 1, home.getZ() + 0.5, 270f, 5f);
             lineUp(sp, List.of(ModEntities.GOBLIN), 0, 3.5, 270f);
             com.slfrontier.world.MapSync.invalidate(sp);
         });

@@ -205,7 +205,7 @@ damage numbers.
 
 ### Inventory and crafting
 
-Inside the Frontier, **E** opens the **Frontier inventory** instead of vanilla's: your avatar
+Inside the Frontier (outside creative mode), **E** opens the **Frontier inventory** instead of vanilla's: your avatar
 with its gear, the bag sorted into tabs (Weapons, Armor, Consumables, Materials, Key Items)
 with a Sort button, and a details panel comparing the hovered item with what you're wearing.
 
