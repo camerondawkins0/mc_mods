@@ -1,5 +1,7 @@
 """English text for the mod (assets/slfrontier/lang/en_us.json)."""
 
+import lang_overlays
+
 ITEMS = {
     "fulldive_headset": ("Full-Dive VR Headset", "Hold use to log in to Shangri-La Frontier. Use again inside to log out."),
     "frontier_compass": ("Frontier Compass", "Use to point it at your current story objective."),
@@ -774,4 +776,5 @@ def build():
         lang[f"dialogue.slfrontier.{k}"] = text
     for k, text in OPTIONS.items():
         lang[f"dialogue.slfrontier.option.{k}"] = text
+    lang.update(lang_overlays.STRINGS)
     return lang

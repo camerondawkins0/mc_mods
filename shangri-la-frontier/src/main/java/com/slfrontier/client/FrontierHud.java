@@ -68,7 +68,7 @@ public final class FrontierHud {
 
     public static void tick() {
         clientTicks++;
-        if (announceTicks > 0) announceTicks--;
+        if (announceTicks > 0 && !com.slfrontier.client.overlay.TravelOverlay.isActive()) announceTicks--;
         if (regionTicks > 0) regionTicks--;
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
@@ -317,7 +317,7 @@ public final class FrontierHud {
             int dist = (int) Math.sqrt(dx * dx + dz * dz);
             float bearing = (float) Math.atan2(dz, dx);
             float facing = (player.getYRot() + 90f) * Mth.DEG_TO_RAD;
-            MapView.icon(g, Theme.icon("player"), x + 10, ly + 5, 8, bearing - facing);
+            MapView.icon(g, Theme.icon("quest_arrow"), x + 10, ly + 5, 8, bearing - facing);
             g.drawString(font, Component.translatable("hud.slfrontier.distance", dist, Component.translatable(target.nameKey())),
                     x + 17, ly + 1, Theme.TEXT_DIM, false);
         }
