@@ -1,0 +1,18 @@
+{
+  "id": "slfrontier:battlehorn_helm",
+  "station": "forge",
+  "category": "armor",
+  "result": {
+    "item": "slfrontier:battlehorn_helm",
+    "count": 1
+  },
+  "ingredients": [
+    {
+      "item": "slfrontier:quad_beetle_shell",
+      "count": 2
+    }
+  ],
+  "min_level": 12,
+  "time": 70,
+  "npc": "bilac"
+}

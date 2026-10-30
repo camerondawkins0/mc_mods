@@ -22,9 +22,12 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.component.LodestoneTracker;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.gui.ConfigurationScreen;
+import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 
@@ -64,6 +67,9 @@ public final class ClientSetup {
 
     @SubscribeEvent
     public static void clientSetup(FMLClientSetupEvent event) {
+        // Mods → Shangri-La Frontier → Config: NeoForge's generated screen for the client and server configs.
+        ModList.get().getModContainerById(SLFrontier.MODID)
+                .ifPresent(mod -> mod.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new));
         event.enqueueWork(() -> ItemProperties.register(ModItems.FRONTIER_COMPASS.get(), ResourceLocation.withDefaultNamespace("angle"),
                 new CompassItemPropertyFunction((level, stack, entity) -> {
                     LodestoneTracker tracker = stack.get(DataComponents.LODESTONE_TRACKER);

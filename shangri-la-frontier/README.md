@@ -13,6 +13,7 @@ stamina, evolving skills, twin-blade combat, NPCs and the Unique Monsters.
 | Loader | **NeoForge 21.1.x** (built against 21.1.264) |
 | Java | 21 |
 | Dependencies | none besides NeoForge |
+| Optional | the **modpack** adds Sodium, Iris and a shader pack (see below) |
 
 ![Firstia, the walled starting town](docs/screenshots/firstia.jpg)
 
@@ -20,6 +21,9 @@ stamina, evolving skills, twin-blade combat, NPCs and the Unique Monsters.
 |---|---|
 | ![Secondil and its castle hill](docs/screenshots/secondil.jpg) | ![Thirdrema in its cliff valley](docs/screenshots/thirdrema.jpg) |
 | ![Rabituza: the giant tree, the red palace and the Vorpal Colosseum](docs/screenshots/rabituza.jpg) | ![The Serpent Bridge](docs/screenshots/serpent_bridge.jpg) |
+| ![The Goblin War Camp in the Rampant Forest](docs/screenshots/goblin_camp.jpg) | ![Wezaemon's tomb in the Hidden Garden](docs/screenshots/wezaemon_tomb.jpg) |
+| ![The HUD: quest step, pointer and minimap](docs/screenshots/hud.jpg) | ![The Frontier inventory](docs/screenshots/inventory.jpg) |
+| ![Crafting at the Frontier Forge](docs/screenshots/crafting.jpg) | ![The travel loading screen](docs/screenshots/travel.jpg) |
 | ![Creatures and NPCs](docs/screenshots/creatures.jpg) | ![Bosses](docs/screenshots/bosses.jpg) |
 | ![Lycagon the Nightslayer and its shadow](docs/screenshots/lycagon.jpg) | ![Wezaemon's Tensei telegraph](docs/screenshots/telegraph.jpg) |
 | ![The Frontier map](docs/screenshots/map.jpg) | ![The skills tab](docs/screenshots/skills.jpg) |
@@ -29,7 +33,31 @@ stamina, evolving skills, twin-blade combat, NPCs and the Unique Monsters.
 
 ---
 
-## Installing it with the CurseForge app
+## Installing it
+
+### Option A — the ready-made modpack (mod + shaders)
+
+The **slfrontier-modpack** artifact (Actions tab → latest *Shangri-La Frontier mod* run) holds
+the mod plus **Sodium** (faster rendering), **Iris** (shaders) with **Complementary
+Reimagined** switched on, and **Distant Horizons** as an optional extra for seeing the whole
+continent — in two formats with exactly the same files:
+
+* **CurseForge app:** `Shangri-La-Frontier-<version>-curseforge.zip`. Go to **Minecraft →
+  Create Custom Profile → Import** (the small link under the Create button), pick the zip and
+  hit Play. CurseForge downloads Sodium, Iris, the shader pack and NeoForge itself. Distant
+  Horizons is marked optional, so CurseForge may leave it out — add it from the profile's
+  *Add Content* if you want it.
+* **Modrinth App / Prism Launcher / ATLauncher:** `Shangri-La-Frontier-<version>.mrpack`.
+  Modrinth App: *+ → Import from file*; Prism: *Add Instance → Import*.
+
+Build them yourself with `python3 tools/modpack.py build` after `./gradlew build`
+(`python3 tools/modpack.py resolve` re-pins the newest companion versions that exist on both
+Modrinth and CurseForge).
+
+With a shader pack running, the mod's own colour grade (*Frontier Vision*) switches itself
+off so the two don't stack.
+
+### Option B — just the mod, with the CurseForge app
 
 1. **Get the jar.** Either:
    * download it from this repo's **Actions** tab → latest *Shangri-La Frontier mod* run →
@@ -70,9 +98,16 @@ server.
    log back in where you left.
 2. You arrive in **Firstia**, the walled starting town. Talk to the **Guide** by the
    fountain (right-click NPCs to talk).
-3. **K** opens the avatar menu (Status / Skills / Quests / Map), **M** the map, **N**
-   toggles the minimap. Skill slots are on **Z X C V**. The **Frontier Compass** and the
-   quest tracker on the HUD point to your current objective.
+3. **K** opens the avatar menu (Status / Skills / Quests / Items / Map), **M** the map, **N**
+   toggles the minimap (top right), **E** the Frontier inventory. Skill slots are on
+   **Z X C V**.
+4. Every quest is split into **steps** ("find the goblin camp", "defeat 5 goblins", "report
+   to the Guide"). The HUD tracker shows the current step, and a gold **quest pointer**
+   floats over where it wants you to go (with a light beam you can see from far away, and an
+   arrow at the screen edge when it's behind you). The **Frontier Compass** points there too.
+
+**Play on Easy or harder** — on Peaceful no monsters appear, so the story can't progress.
+Towns are safe: hostile monsters never spawn in Firstia, Secondil, Thirdrema or Rabituza.
 
 Your avatar's stats, stamina and skills only exist *inside* the Frontier — outside you're
 just yourself.
@@ -131,12 +166,16 @@ and dodging — or parrying.
 * Sprinting and skills use **stamina**; it refills when you stop.
 * Dying in the Frontier sends you back to your last waypoint crystal (or Firstia) with a
   temporary **Death Penalty**. A **Rebirth Tearjewel** saves you once.
+* **You keep your inventory and EXP when you die in the Frontier** (outside it, vanilla's
+  `keepInventory` rule applies as usual).
+* Monsters you've hit, that are under your crosshair or that are coming for you show a
+  **health bar** with their name and level.
 
 ### Skills
 
 | Skill | How to get it | Effect |
 |---|---|---|
-| Tap Step → **Slide Step** | Start / use 40× | Dash with invincibility frames (sneak = backstep). |
+| Tap Step → **Slide Step** | Start / use 40× | Dash with invincibility frames in the direction you're moving (W A S D, diagonals too; straight ahead when standing still). |
 | Drill Piercer → **Glowing Pierce** | Lv 3 / use 30× | Lunging thrust; double damage on weak points (from behind). |
 | Perfect Parry → **Repel Counter** | Lv 5 / 15 parries | Nullify an attack; evolved form counterattacks. |
 | Cyclone Slash | Lv 8 | Spinning AoE. |
@@ -168,31 +207,65 @@ hit weak points (+25%), and Luck gives critical hits. Skills and big swings play
 body animations (in first and third person) with slash arcs, shockwaves, spirals and
 damage numbers.
 
+### Inventory and crafting
+
+Inside the Frontier (outside creative mode), **E** opens the **Frontier inventory** instead of vanilla's: your avatar
+with its gear, the bag sorted into tabs (Weapons, Armor, Consumables, Materials, Key Items)
+with a Sort button, and a details panel comparing the hovered item with what you're wearing.
+
+Gear and consumables are made with **Frontier crafting**, not the vanilla grid. Craft a
+station once at a crafting table — **Frontier Workbench** (gear, arrows, rations), **Frontier
+Forge** (blades, armor, gray steel) or **Alchemy Table** (potions, tonics, holy water) — then
+use it: pick a recipe, see what you have and what you need, choose how many and watch it
+work. Some recipes need a level or a point in the story, and a few only exist at **Bilac**'s
+forge in Rabituza or with the **Secondil smith** (`[Forge]` in their dialogue). **Frontier
+Herbs** drop from grass in the Frontier.
+
 ### The Frontier
 
-**Terrain** blends vanilla's shape with amplified mountains, and the land is dotted with
-landmarks: colossal trees in the Rampant Forest, prismatic crystal spires in the Grotto,
-natural stone arches, the tilted monoliths of the Divinity ruins and gnarled dead trees.
+![The designed Frontier](docs/worldmap.png)
 
-**Biomes:** Firstia Plains, the Rampant Forest, the Diremarsh Waste (mud, gray ore,
-Redcaps at night), the Prismatic Forest Grotto, the Hidden Garden, the Nightslayer Woods,
-the Thirdrema Highlands, the Lightless Barrens and the Frontier Sea.
+The Frontier is **one designed continent**, not random terrain: the map above *is* the
+world. Firstia sits at its heart; the main road runs east through the Rampant Forest, over the
+**Serpent Bridge**, on to **Secondil** and across the marsh to **Thirdrema** in its valley.
+Trails branch off to every dungeon, lit by lanterns on the main road, with plank bridges
+over the rivers. **Rabituza** is an island to the south-east. The northern peaks wall it all
+in, and the sea surrounds it.
 
-**Towns and landmarks** are hand-built and placed on levelled, blended terraces the first
-time anyone comes near:
+**Regions:** the Fastera Plains, the Rampant Forest (giant trees), the Nightslayer Woods,
+the Diremarsh Waste (mud, gray ore, Redcaps at night), the Prismatic Forest Grotto (crystal
+spires), the Lightless Barrens, the Thirdrema Highlands, the Hidden Garden on its plateau,
+the Northern Peaks, Rabituza Isle, the coast and the Frontier Sea. Each has its own sky, fog,
+drifting motes, ambient sounds and music, and **Frontier Vision** (a colour grade with soft
+bloom) tints the view for the region and time of day — turn it off under *Mods →
+Shangri-La Frontier → Config* if you prefer vanilla colours.
 
-* **Firstia** — walled, with slate-roofed towers, two gatehouses, a fountain plaza, an inn,
-  a chapel, a guild hall and a market.
-* **The Serpent Bridge** — a great arched bridge over a river gorge.
-* **Secondil** — tan walls, a twin-towered west gate hung with red-and-gold banners, the white
-  inn straight ahead, the smithy, market stalls and a castle on a terraced hill.
-* **Thirdrema** — a stone city climbing a valley between two forested cliffs in three tiers,
-  white houses with orange roofs, a white castle with orange spires and the *Serpent's Apple*.
-* **Rabituza** — the hidden nation: a giant cherry-crowned tree, the red palace with its
-  tiered roofs, the Vorpal Colosseum, rabbit burrows and carrot fields.
+**Towns and landmarks** are hand-built and stand at fixed places on the map:
 
-Dungeons: Wezaemon's Tomb, the Nightslayer's Den, the Empire Bee Hive, the Mud Digger's
-Lair, the Iron Ruins of the Divinity and the Lightless Barrens' shadow altar.
+* **Firstia** — machicolated walls and towers with two gatehouses; half-timbered houses on
+  stone ground floors with jettied upper storeys and dormers; the fountain plaza with the Guide,
+  a Frontier Workbench and an Alchemy Table; the inn with its bar, a chapel with bell tower and
+  churchyard, the Adventurers' Guild, a market, a well and kitchen gardens.
+* **The Serpent Bridge** — piers with cutwaters and arches over the river gorge, a serpent
+  carved along both faces, serpent statues, lamp-lit balustrades and gate towers at each end.
+* **The Goblin War Camp** — a log palisade in the Rampant Forest with hide tents, skull
+  totems, fire pits, a lookout and a cage; goblins keep coming back while you hunt them.
+* **Secondil** — sandstone walls, a twin round-towered west gate with red-and-gold banners,
+  red-tiled houses, a market square with a fountain, the smithy with its Frontier Forge, and a
+  terraced castle with a grand stair, inner wall and keep.
+* **Thirdrema** — a white city climbing its valley in three terraces: townhouses with orange
+  and copper roofs, a fountain plaza with all three crafting stations, the *Serpent's Apple*,
+  and a spired castle with a hedge garden and gazebo.
+* **Rabituza** — the hidden nation on its island: a three-tier pagoda palace with Vysache's
+  throne, the giant cherry tree, torii over every road, a shrine and koi pond, rabbit burrows,
+  carrot beds, Bilac's forge and the Vorpal Colosseum.
+
+Dungeons: Wezaemon's Tomb, the Nightslayer's Den, the Empire Bee Hive, the Mud Digger's Lair,
+the Iron Ruins of the Divinity and the Lightless Barrens' shadow altar.
+
+> **Upgrading from 0.1:** the Frontier was redrawn, so it's a new dimension
+> (`slfrontier:the_frontier`). Your level, stats, skills, items and story progress carry over;
+> the next time you log in you wake in Firstia, and old waypoints have to be found again.
 
 ### Map and fast travel
 
@@ -200,7 +273,40 @@ The **map** (M, or the Map tab) is drawn from the terrain you explore: pan, zoom
 cursor, drop pins (right-click), see towns, waypoints and your objective. Towns become
 **waypoints** when you reach them, and every dungeon has a **Waypoint Crystal** to attune to.
 Select a waypoint and press **Fast Travel** (not while in combat or near a boss; short
-cooldown — configurable in the server config). You respawn at the last crystal you attuned.
+cooldown — configurable in the server config). A short loading screen with a tip or a bit of
+Frontier lore covers the trip. You respawn at the last crystal you attuned.
+
+The HUD extras (quest pointer, enemy health bars, travel screen, Frontier Vision) can each be
+turned off in the client config.
+
+### Add-ons with data packs
+
+Paper/Spigot plugins can't run on a NeoForge server, so the mod is extended the NeoForge way —
+with **data packs** (drop a folder or zip into the world's `datapacks/`, then `/reload`):
+
+* **Frontier recipes** live in `data/<namespace>/frontier_recipe/*.json`. A pack can add new
+  ones or override the mod's by using the same path:
+
+  ```json
+  {
+    "station": "alchemy",
+    "category": "consumable",
+    "result": { "item": "slfrontier:healing_potion", "count": 2 },
+    "ingredients": [
+      { "item": "minecraft:glass_bottle", "count": 2 },
+      { "tag": "minecraft:flowers", "count": 3 }
+    ],
+    "min_level": 5,
+    "requires_stage": "reach_secondil",
+    "time": 60
+  }
+  ```
+
+  `station` is `workbench`, `forge` or `alchemy`; `category` sorts it into a tab;
+  `requires_stage` (optional) is a story chapter; `npc` (optional, e.g. `"bilac"`) limits it
+  to that smith's forge.
+* **Biomes** (sky, fog, music, spawns) and **loot tables** can be overridden the vanilla way
+  under `data/slfrontier/worldgen/biome/` and `data/slfrontier/loot_table/`.
 
 ### Commands
 
@@ -220,9 +326,13 @@ src/main/java/com/slfrontier/
   entity/       FrontierMonster/FrontierBoss bases, mobs, bosses, NPCs and allies
   fx/           World-space effects the server sends to clients (arcs, rings, telegraphs, beams)
   item/ block/  Weapons, key items, altars, waypoint crystals
-  world/        Frontier keys, login/logout, Landmarks (town planning + building), fast travel,
-                map sync, worldgen features
-  client/       HUD, menus, map, dialogue screen, models, renderers, animations, effects
+  world/        Frontier keys, login/logout, Landmarks (fixed sites), fast travel, map sync,
+                worldgen features
+  world/design/ The designed map: density function, biome source, fixed-site structures, roads
+  crafting/     Frontier recipes, stations and the crafting screen
+  inventory/    The Frontier inventory menu and screen
+  client/       HUD, menus, map, dialogue screen, models, renderers, animations, effects,
+                overlays (quest pointer, health bars, travel screen), Frontier Vision
   mixin/        Player animation hooks
 tools/
   models.py      creature geometry and palettes  -> creatures.py paints textures + ModelDefs.java
@@ -231,6 +341,10 @@ tools/
   townkit.py     building blocks (walls, towers, roofs, houses...) used by towns.py
   towns.py       Firstia, Secondil, Thirdrema, Rabituza and the Serpent Bridge
   structures.py  dungeons; writes every template (.nbt)
+  worldmap.py    the continent: height, regions, rivers, sites and roads -> worldmap/frontier.bin,
+                 sites.json, roads.json and docs/worldmap.png
+  crafting_data.py  Frontier recipes          inventory.py  item categories
+  modpack.py     pins the companion mods; builds the .mrpack and the CurseForge .zip
   gen_assets.py  -> every texture and model     gen_data.py -> lang, loot, tags, worldgen
   preview.py     quick software renders: `items`, `mobs`, `structure <name>`
   ci_boot_test.py boots a real NeoForge server in CI and exercises everything
@@ -240,9 +354,10 @@ tools/
 
 Every push runs `.github/workflows/shangri-la-frontier.yml`, which:
 
-1. builds the jar;
+1. builds the jar and the modpacks;
 2. installs a real NeoForge server, boots it with the mod, generates Frontier terrain,
-   locates every biome, places every structure and template and summons every creature;
+   locates every biome, checks every fixed site generated where the map says, places every
+   template and summons every creature;
 3. runs `/slf debug selftest` and `/slf debug storytest` — the latter drives a fake
    player through every skill, every NPC dialogue at every quest stage, the compass, every
    chapter's story hook, builds every landmark, triggers the Serpent Bridge ambush and runs

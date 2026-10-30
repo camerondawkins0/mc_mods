@@ -88,7 +88,50 @@ public final class CommonEvents {
         if (event.getEntity() instanceof ServerPlayer player) {
             Progression.applyStats(player);
             ModNetwork.sync(player);
+            if (Frontier.isIn(player) && player.serverLevel().getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL) {
+                player.sendSystemMessage(Component.translatable("message.slfrontier.peaceful").withStyle(ChatFormatting.GOLD));
+            }
         }
+    }
+
+    // ---- Keeping your things -----------------------------------------------------------
+
+    private static final String KEPT = "slfrontier_kept";
+
+    /**
+     * Dying in the Frontier costs you a death penalty, not your gear: the inventory and experience
+     * are set aside before anything drops and handed back on respawn. Runs last, so a revive
+     * (Rebirth Tearjewel, totems) or another mod cancelling the death wins.
+     */
+    @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.LOWEST)
+    public static void keepInventory(LivingDeathEvent event) {
+        if (event.isCanceled() || !(event.getEntity() instanceof ServerPlayer player) || !Frontier.isIn(player)) return;
+        if (player.level().getGameRules().getBoolean(net.minecraft.world.level.GameRules.RULE_KEEPINVENTORY)) return;
+        net.minecraft.nbt.CompoundTag kept = new net.minecraft.nbt.CompoundTag();
+        kept.put("Items", player.getInventory().save(new net.minecraft.nbt.ListTag()));
+        kept.putInt("XpLevel", player.experienceLevel);
+        kept.putFloat("XpProgress", player.experienceProgress);
+        kept.putInt("XpTotal", player.totalExperience);
+        player.getPersistentData().put(KEPT, kept);
+        player.getInventory().clearContent();
+    }
+
+    @SubscribeEvent
+    public static void noExperienceOrbs(net.neoforged.neoforge.event.entity.living.LivingExperienceDropEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && player.getPersistentData().contains(KEPT)) event.setCanceled(true);
+    }
+
+    @SubscribeEvent
+    public static void restoreInventory(PlayerEvent.Clone event) {
+        if (!event.isWasDeath()) return;
+        net.minecraft.nbt.CompoundTag kept = event.getOriginal().getPersistentData().getCompound(KEPT);
+        event.getEntity().getPersistentData().remove(KEPT);
+        if (kept.isEmpty()) return;
+        var player = event.getEntity();
+        player.getInventory().load(kept.getList("Items", net.minecraft.nbt.Tag.TAG_COMPOUND));
+        player.experienceLevel = kept.getInt("XpLevel");
+        player.experienceProgress = kept.getFloat("XpProgress");
+        player.totalExperience = kept.getInt("XpTotal");
     }
 
     @SubscribeEvent

@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "slfrontier:block/frontier_workbench"
+    },
+    "facing=east": {
+      "model": "slfrontier:block/frontier_workbench",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "slfrontier:block/frontier_workbench",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "slfrontier:block/frontier_workbench",
+      "y": 270
+    }
+  }
+}

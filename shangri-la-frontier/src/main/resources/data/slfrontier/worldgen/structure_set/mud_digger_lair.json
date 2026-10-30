@@ -6,9 +6,7 @@
     }
   ],
   "placement": {
-    "type": "minecraft:random_spread",
-    "spacing": 18,
-    "separation": 6,
-    "salt": 7712304
+    "type": "slfrontier:designed",
+    "site": "mud_digger_lair"
   }
 }

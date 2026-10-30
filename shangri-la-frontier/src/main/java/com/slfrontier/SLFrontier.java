@@ -39,7 +39,15 @@ public class SLFrontier {
         ModAttachments.ATTACHMENTS.register(modBus);
         ModCreativeTabs.TABS.register(modBus);
         com.slfrontier.world.feature.FrontierFeatures.FEATURES.register(modBus);
+        com.slfrontier.world.design.DesignRegistries.register(modBus);
+        com.slfrontier.registry.ModMenus.MENUS.register(modBus);
         modBus.addListener(ModNetwork::register);
+        modBus.addListener(com.slfrontier.network.InventoryNetwork::register);
+        modBus.addListener(com.slfrontier.network.OverlayNetwork::register);
+        com.slfrontier.registry.CraftingRegistry.BLOCKS.register(modBus);
+        com.slfrontier.registry.CraftingRegistry.ITEMS.register(modBus);
+        modBus.addListener(com.slfrontier.registry.CraftingRegistry::addToCreativeTab);
+        modBus.addListener(com.slfrontier.network.CraftingNetwork::register);
         LOGGER.info("Connecting to Shangri-La Frontier...");
     }
 

@@ -1,0 +1,33 @@
+{
+  "type": "neoforge:add_table",
+  "conditions": [
+    {
+      "condition": "minecraft:any_of",
+      "terms": [
+        {
+          "condition": "neoforge:loot_table_id",
+          "loot_table_id": "minecraft:blocks/short_grass"
+        },
+        {
+          "condition": "neoforge:loot_table_id",
+          "loot_table_id": "minecraft:blocks/tall_grass"
+        },
+        {
+          "condition": "neoforge:loot_table_id",
+          "loot_table_id": "minecraft:blocks/fern"
+        },
+        {
+          "condition": "neoforge:loot_table_id",
+          "loot_table_id": "minecraft:blocks/large_fern"
+        }
+      ]
+    },
+    {
+      "condition": "minecraft:location_check",
+      "predicate": {
+        "dimension": "slfrontier:frontier"
+      }
+    }
+  ],
+  "table": "slfrontier:gameplay/frontier_herb_from_grass"
+}

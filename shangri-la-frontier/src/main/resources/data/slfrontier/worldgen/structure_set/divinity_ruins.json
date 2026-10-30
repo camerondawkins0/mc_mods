@@ -6,9 +6,7 @@
     }
   ],
   "placement": {
-    "type": "minecraft:random_spread",
-    "spacing": 28,
-    "separation": 10,
-    "salt": 7712305
+    "type": "slfrontier:designed",
+    "site": "divinity_ruins"
   }
 }

@@ -20,6 +20,12 @@
         "type": "minecraft:cherry_leaves"
       },
       "probability": 0.003
+    },
+    "music": {
+      "sound": "minecraft:music.overworld.cherry_grove",
+      "min_delay": 12000,
+      "max_delay": 24000,
+      "replace_current_music": false
     }
   },
   "spawners": {
@@ -58,6 +64,7 @@
     [],
     [],
     [
+      "slfrontier:frontier_roads",
       "minecraft:amethyst_geode"
     ],
     [

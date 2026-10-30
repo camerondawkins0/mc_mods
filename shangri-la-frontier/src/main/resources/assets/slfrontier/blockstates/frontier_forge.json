@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "slfrontier:block/frontier_forge"
+    },
+    "facing=east": {
+      "model": "slfrontier:block/frontier_forge",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "slfrontier:block/frontier_forge",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "slfrontier:block/frontier_forge",
+      "y": 270
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "slfrontier:leather_grip",
+  "station": "workbench",
+  "category": "material",
+  "result": {
+    "item": "slfrontier:leather_grip",
+    "count": 1
+  },
+  "ingredients": [
+    {
+      "tag": "slfrontier:hides",
+      "count": 2
+    }
+  ],
+  "min_level": 1,
+  "time": 30
+}

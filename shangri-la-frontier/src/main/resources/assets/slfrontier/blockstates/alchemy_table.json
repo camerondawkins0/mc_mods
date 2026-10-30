@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "slfrontier:block/alchemy_table"
+    },
+    "facing=east": {
+      "model": "slfrontier:block/alchemy_table",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "slfrontier:block/alchemy_table",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "slfrontier:block/alchemy_table",
+      "y": 270
+    }
+  }
+}

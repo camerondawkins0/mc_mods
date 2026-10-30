@@ -107,9 +107,13 @@ public final class SkillExecutor {
 
     // ---- Movement ------------------------------------------------------------------
 
+    /** Dashes the way the movement keys point (WASD and diagonals); straight ahead with none held. */
     private static boolean dash(ServerPlayer player, PlayerData data, double power, int iframes) {
-        Vec3 dir = horizontalLook(player);
-        if (player.isShiftKeyDown()) dir = dir.scale(-1);
+        int strafe = data.moveStrafe(), forward = data.moveForward();
+        data.setMoveInput((byte) 0, (byte) 0);
+        Vec3 dir = strafe == 0 && forward == 0 ? horizontalLook(player)
+                : new Vec3(strafe, 0, forward).normalize().yRot(-player.getYRot() * Mth.DEG_TO_RAD);
+        boolean back = forward < 0 && strafe == 0;
         power *= 1 + data.stat(Stat.AGI) * 0.005;
         push(player, dir.x * power, player.onGround() ? 0.2 : 0.05, dir.z * power);
         data.iframeTicks = iframes;
@@ -119,7 +123,7 @@ public final class SkillExecutor {
         level.sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY() + 0.1, player.getZ(), 6, 0.3, 0.05, 0.3, 0.02);
         Fx.ring(level, player.position(), power > 1.3 ? 1.6f : 1.1f, 0xC07FFF6A, 10, 0);
         sound(player, SoundEvents.PLAYER_ATTACK_SWEEP, 0.6f, 1.8f);
-        ModNetwork.animate(player, player.isShiftKeyDown() ? PlayerAnims.BACKSTEP : PlayerAnims.DASH, 8);
+        ModNetwork.animate(player, back ? PlayerAnims.BACKSTEP : PlayerAnims.DASH, 8);
         return true;
     }
 

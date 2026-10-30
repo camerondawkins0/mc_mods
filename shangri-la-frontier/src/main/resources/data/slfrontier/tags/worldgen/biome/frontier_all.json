@@ -1,0 +1,29 @@
+{
+  "replace": false,
+  "values": [
+    "slfrontier:frontier_sea",
+    "slfrontier:frontier_shore",
+    "slfrontier:fastera_plains",
+    "slfrontier:rampant_forest",
+    "slfrontier:nightslayer_woods",
+    "slfrontier:diremarsh_waste",
+    "slfrontier:prismatic_forest_grotto",
+    "slfrontier:lightless_barrens",
+    "slfrontier:thirdrema_highlands",
+    "slfrontier:hidden_garden",
+    "slfrontier:frontier_peaks",
+    "slfrontier:rabbit_isle",
+    "slfrontier:firstia",
+    "slfrontier:secondil",
+    "slfrontier:thirdrema",
+    "slfrontier:rabituza",
+    "slfrontier:goblin_camp",
+    "slfrontier:serpent_bridge",
+    "slfrontier:nightslayer_den",
+    "slfrontier:wezaemon_tomb",
+    "slfrontier:empire_bee_hive",
+    "slfrontier:mud_digger_lair",
+    "slfrontier:shadow_altar",
+    "slfrontier:divinity_ruins"
+  ]
+}

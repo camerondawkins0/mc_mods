@@ -9,6 +9,7 @@ import com.slfrontier.entity.FrontierBoss;
 import com.slfrontier.entity.LeveledMob;
 import com.slfrontier.network.ModNetwork;
 import com.slfrontier.quest.QuestStage;
+import com.slfrontier.quest.QuestSteps;
 import com.slfrontier.quest.SideQuest;
 import com.slfrontier.registry.ModAttachments;
 import com.slfrontier.skill.Skill;
@@ -68,7 +69,7 @@ public final class FrontierHud {
 
     public static void tick() {
         clientTicks++;
-        if (announceTicks > 0) announceTicks--;
+        if (announceTicks > 0 && !com.slfrontier.client.overlay.TravelOverlay.isActive()) announceTicks--;
         if (regionTicks > 0) regionTicks--;
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
@@ -283,8 +284,17 @@ public final class FrontierHud {
         SideQuest side = SideQuest.byId(data.tracked());
         if (stage != QuestStage.NOT_STARTED && (side == null || stage != QuestStage.COMPLETE)) {
             ModNetwork.Marker target = ClientState.questMarker();
+            Component objective = Component.translatable(stage.objectiveKey());
+            int progress = stage.goal > 0 ? data.questProgress() : -1;
+            List<QuestSteps.Step> steps = QuestSteps.of(stage);
+            if (!steps.isEmpty()) {
+                // Show the step the player is on, not the whole chapter.
+                QuestSteps.Step step = steps.get(Math.min(data.questStep(), steps.size() - 1));
+                objective = Component.translatable(QuestSteps.textKey(stage, step));
+                if (!step.counts()) progress = -1;
+            }
             y = trackerEntry(g, font, player, qx, y, qw, "main_quest", Component.translatable(stage.titleKey()),
-                    Component.translatable(stage.objectiveKey()), stage.goal > 0 ? data.questProgress() : -1, stage.goal, target, Theme.GOLD) + 4;
+                    objective, progress, progress >= 0 ? stage.goal : 0, target, Theme.GOLD) + 4;
         }
         if (side != null && data.sideState(side) == PlayerData.SideState.ACTIVE) {
             trackerEntry(g, font, player, qx, y, qw, "side_quest", Component.translatable(side.titleKey()),
@@ -317,7 +327,7 @@ public final class FrontierHud {
             int dist = (int) Math.sqrt(dx * dx + dz * dz);
             float bearing = (float) Math.atan2(dz, dx);
             float facing = (player.getYRot() + 90f) * Mth.DEG_TO_RAD;
-            MapView.icon(g, Theme.icon("player"), x + 10, ly + 5, 8, bearing - facing);
+            MapView.icon(g, Theme.icon("quest_arrow"), x + 10, ly + 5, 8, bearing - facing);
             g.drawString(font, Component.translatable("hud.slfrontier.distance", dist, Component.translatable(target.nameKey())),
                     x + 17, ly + 1, Theme.TEXT_DIM, false);
         }

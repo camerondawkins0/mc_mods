@@ -6,9 +6,7 @@
     }
   ],
   "placement": {
-    "type": "minecraft:random_spread",
-    "spacing": 22,
-    "separation": 8,
-    "salt": 7712306
+    "type": "slfrontier:designed",
+    "site": "shadow_altar"
   }
 }

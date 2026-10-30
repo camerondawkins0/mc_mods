@@ -655,15 +655,28 @@ def build_model(model, materials, display):
     return out, img
 
 
-def handheld_display(gui_scale=1.0, hand_scale=1.0, fp_scale=1.0, roll=-45, ground=0.5, fixed=1.0, lift=0.0):
-    """Vanilla item/handheld transforms with an extra roll applied first (see module doc)."""
+def handheld_display(gui_scale=1.0, hand_scale=1.0, fp_scale=1.0, roll=-45, ground=0.5, fixed=1.0, lift=0.0, flip=True):
+    """Vanilla item/handheld transforms with an extra roll applied first (see module doc).
+
+    Single-edged models carry their cutting edge on +x. With ``flip`` the model is also turned
+    half a turn about its own blade axis (Ry(-90)·Rz(a)·Ry(180) = Ry(90)·Rz(-a)), so the edge
+    leads: away from you in first person, down toward the ground in third person. Models whose
+    edge is on -x (the mirrored Waning moonblade) pass ``flip=False``.
+
+    Minecraft negates the y and z rotations of the left-hand transforms when it applies them, so
+    the left hand is written with the signs reversed and ends up with the same rotation."""
     def t(rot, tr, s):
         return {"rotation": [rot[0], rot[1], rot[2]], "translation": [tr[0], tr[1], tr[2]], "scale": [s, s, s]}
+
+    def hand(z, left):
+        y, z = (90, -z) if flip else (-90, z)
+        return (0, -y, -z) if left else (0, y, z)
+
     return {
-        "thirdperson_righthand": t((0, -90, 55 + roll), (0, 4.0 + lift, 0.5), 0.85 * hand_scale),
-        "thirdperson_lefthand": t((0, 90, -55 + roll), (0, 4.0 + lift, 0.5), 0.85 * hand_scale),
-        "firstperson_righthand": t((0, -90, 25 + roll), (1.13, 3.2 + lift * 0.5, 1.13), 0.68 * fp_scale),
-        "firstperson_lefthand": t((0, 90, -25 + roll), (1.13, 3.2 + lift * 0.5, 1.13), 0.68 * fp_scale),
+        "thirdperson_righthand": t(hand(55 + roll, False), (0, 4.0 + lift, 0.5), 0.85 * hand_scale),
+        "thirdperson_lefthand": t(hand(55 + roll, True), (0, 4.0 + lift, 0.5), 0.85 * hand_scale),
+        "firstperson_righthand": t(hand(25 + roll, False), (1.13, 3.2 + lift * 0.5, 1.13), 0.68 * fp_scale),
+        "firstperson_lefthand": t(hand(25 + roll, True), (1.13, 3.2 + lift * 0.5, 1.13), 0.68 * fp_scale),
         "ground": t((0, 0, roll), (0, 2, 0), ground),
         "gui": t((0, 0, roll), (0, 0, 0), gui_scale),
         "head": t((0, 180, roll), (0, 13, 7), 1.0),
@@ -829,7 +842,7 @@ def moonblade(name, waxing):
         mats = {"moon": edged("#3A3C44", "#9AA0AC", edge, width=0.4, sheen="#6A6E7A"), "bevel": flat("#24262C", 0.03),
                 "silver": metal("#C8CCD4", "#FFFFFF"), "grip": wrap("#4A0E18", "#8A2030", width=0.6),
                 "bead": gem("#D02030", "#FF9AA0"), "charm": flat("#F4F4F0", 0.02)}
-    return m, mats, handheld_display()
+    return m, mats, handheld_display(flip=waxing)
 
 
 def twin_moon():

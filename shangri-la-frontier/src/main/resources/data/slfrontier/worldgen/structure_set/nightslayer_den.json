@@ -6,9 +6,7 @@
     }
   ],
   "placement": {
-    "type": "minecraft:random_spread",
-    "spacing": 20,
-    "separation": 6,
-    "salt": 7712302
+    "type": "slfrontier:designed",
+    "site": "nightslayer_den"
   }
 }

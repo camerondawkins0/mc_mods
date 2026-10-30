@@ -1,0 +1,21 @@
+{
+  "id": "slfrontier:chainmail_helmet",
+  "station": "forge",
+  "category": "armor",
+  "result": {
+    "item": "minecraft:chainmail_helmet",
+    "count": 1
+  },
+  "ingredients": [
+    {
+      "item": "slfrontier:gray_steel_ingot",
+      "count": 3
+    },
+    {
+      "item": "slfrontier:leather_grip",
+      "count": 1
+    }
+  ],
+  "min_level": 6,
+  "time": 60
+}

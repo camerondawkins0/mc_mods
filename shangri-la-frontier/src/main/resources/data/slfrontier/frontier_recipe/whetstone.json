@@ -1,0 +1,21 @@
+{
+  "id": "slfrontier:whetstone",
+  "station": "forge",
+  "category": "gear",
+  "result": {
+    "item": "slfrontier:whetstone",
+    "count": 2
+  },
+  "ingredients": [
+    {
+      "item": "slfrontier:gray_steel_ingot",
+      "count": 1
+    },
+    {
+      "item": "minecraft:flint",
+      "count": 1
+    }
+  ],
+  "min_level": 3,
+  "time": 30
+}

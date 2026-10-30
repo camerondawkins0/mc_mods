@@ -122,6 +122,8 @@ public final class ClientTestDriver {
         server(60, FrontierTravel::login);
         server(140, sp -> {
             ServerLevel level = sp.serverLevel();
+            // Bosses the server story test left behind would put their bars on every shot.
+            level.getEntitiesOfClass(FrontierBoss.class, sp.getBoundingBox().inflate(256)).forEach(Entity::discard);
             level.setDayTime(6000);
             level.setWeatherParameters(6000, 0, false, false);
             Progression.grantExp(sp, 3000);
@@ -141,6 +143,7 @@ public final class ClientTestDriver {
         if (wants("creatures")) creatures();
         if (wants("bosses")) bosses();
         if (wants("weapons")) weapons();
+        if (wants("grip")) grip();
         if (wants("poses")) poses();
         if (wants("skills")) skills();
         if (wants("menus")) menus();
@@ -223,12 +226,13 @@ public final class ClientTestDriver {
             mc.options.hideGui = true;
             mc.options.renderDistance().set(10);
         });
-        for (Landmarks.Site site : Landmarks.Site.values()) {
+        for (Landmarks.Site site : List.of(Landmarks.Site.FIRSTIA, Landmarks.Site.GOBLIN_CAMP, Landmarks.Site.SERPENT_BRIDGE,
+                Landmarks.Site.SECONDIL, Landmarks.Site.THIRDREMA, Landmarks.Site.RABITUZA, Landmarks.Site.NIGHTSLAYER_DEN,
+                Landmarks.Site.WEZAEMON_TOMB)) {
             server(10, sp -> {
                 ServerLevel level = sp.serverLevel();
-                BlockPos spawn = Landmarks.ensure(level, site);
-                BlockPos planned = com.slfrontier.world.TownData.get(level).planned(site.id);
-                BlockPos c = planned == null ? spawn : new BlockPos(planned.getX(), spawn.getY(), planned.getZ());
+                Landmarks.ensure(level, site);
+                BlockPos c = Landmarks.center(site);
                 Vec3i size = Landmarks.size(level, site);
                 // Thirdrema is long and narrow: look up its valley. The rest: from the north-west corner.
                 double d = Math.max(size.getX(), size.getZ()) * 0.8;
@@ -342,6 +346,28 @@ public final class ClientTestDriver {
         server(5, sp -> clear());
     }
 
+    /** A vanilla iron sword next to the Mercenary Twinblades, to compare how each hand holds them. */
+    private static void grip() {
+        String[] views = {"first", "front", "back"};
+        CameraType[] cams = {CameraType.FIRST_PERSON, CameraType.THIRD_PERSON_FRONT, CameraType.THIRD_PERSON_BACK};
+        for (int swap = 0; swap < 2; swap++) {
+            final boolean oursInMain = swap == 1;
+            server(5, sp -> {
+                ItemStack vanilla = new ItemStack(net.minecraft.world.item.Items.IRON_SWORD);
+                ItemStack ours = new ItemStack(ModItems.MERCENARY_TWIN_BLADES.get());
+                sp.setItemInHand(InteractionHand.MAIN_HAND, oursInMain ? ours : vanilla);
+                sp.setItemInHand(InteractionHand.OFF_HAND, oursInMain ? vanilla : ours);
+                sp.teleportTo(sp.serverLevel(), sp.getX(), sp.getY(), sp.getZ(), sp.getYRot(), 0f);
+            });
+            for (int v = 0; v < views.length; v++) {
+                final CameraType cam = cams[v];
+                at(5, mc -> mc.options.setCameraType(cam));
+                shot(25, "50_grip_" + (oursInMain ? "ours_main_" : "vanilla_main_") + views[v]);
+            }
+        }
+        at(5, mc -> mc.options.setCameraType(CameraType.FIRST_PERSON));
+    }
+
     private static void poses() {
         at(0, mc -> {
             mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
@@ -433,8 +459,10 @@ public final class ClientTestDriver {
             com.slfrontier.block.WaypointBlock.attune(level, crystal, sp);
             sp.getAbilities().flying = false;
             sp.onUpdateAbilities();
-            sp.teleportTo(level, sp.getX(), sp.getY() - 1, sp.getZ(), 0f, 5f);
-            lineUp(sp, List.of(ModEntities.GOBLIN), 0, 3.5);
+            // From Firstia's spawn, look east across the plaza toward the Alchemy Table and the houses beyond.
+            BlockPos home = Landmarks.where(level, Landmarks.Site.FIRSTIA);
+            sp.teleportTo(level, home.getX() + 0.5, home.getY() + 1, home.getZ() + 0.5, 270f, 5f);
+            lineUp(sp, List.of(ModEntities.GOBLIN), 0, 3.5, 270f);
             com.slfrontier.world.MapSync.invalidate(sp);
         });
         shot(120, "16_hud");
@@ -448,6 +476,24 @@ public final class ClientTestDriver {
         at(5, mc -> mc.setScreen(new com.slfrontier.client.screen.MapScreen()));
         shot(40, "19_map");
         at(5, mc -> mc.setScreen(null));
+        server(5, sp -> {
+            sp.getInventory().add(new ItemStack(com.slfrontier.registry.CraftingRegistry.HEALING_POTION.get(), 3));
+            sp.getInventory().add(new ItemStack(net.minecraft.world.item.Items.IRON_INGOT, 6));
+            sp.openMenu(new net.minecraft.world.SimpleMenuProvider(
+                    (id, inv, p) -> new com.slfrontier.inventory.FrontierInventoryMenu(id, inv),
+                    net.minecraft.network.chat.Component.translatable("gui.slfrontier.inventory")));
+        });
+        shot(40, "20_frontier_inventory");
+        server(5, sp -> {
+            sp.closeContainer();
+            com.slfrontier.crafting.FrontierCrafting.open(sp, com.slfrontier.crafting.Station.FORGE, null);
+        });
+        shot(40, "21_crafting_forge");
+        at(5, mc -> mc.setScreen(null));
+        at(5, mc -> com.slfrontier.client.overlay.TravelOverlay.begin(
+                new com.slfrontier.network.OverlayNetwork.TravelStart(0, "waypoint.slfrontier.fastera", java.util.Optional.empty())));
+        shot(12, "22_travel_screen");
+        at(80, mc -> mc.setScreen(null));
         server(5, sp -> lineUp(sp, List.of(ModEntities.EMUL), 0, 2.5));
         at(30, mc -> {
             int id = spawned.isEmpty() ? mc.player.getId() : spawned.get(0).getId();
@@ -516,16 +562,25 @@ public final class ClientTestDriver {
 
     private static void lineUp(ServerPlayer sp, List<? extends Supplier<? extends EntityType<? extends Mob>>> types,
                                double spacing, double distance) {
+        lineUp(sp, types, spacing, distance, 0f);
+    }
+
+    /** Lines mobs up {@code distance} in front of a player looking toward {@code yaw}, facing back at them. */
+    private static void lineUp(ServerPlayer sp, List<? extends Supplier<? extends EntityType<? extends Mob>>> types,
+                               double spacing, double distance, float yaw) {
         ServerLevel level = sp.serverLevel();
         double width = spacing * (types.size() - 1);
+        double rad = Math.toRadians(yaw);
+        double fx = -Math.sin(rad), fz = Math.cos(rad), sx = Math.cos(rad), sz = Math.sin(rad);
         for (int i = 0; i < types.size(); i++) {
             Mob mob = types.get(i).get().create(level);
             if (mob == null) continue;
-            double x = sp.getX() - width / 2 + i * spacing;
-            double z = sp.getZ() + distance;
-            mob.moveTo(x, sp.getY() - 1, z, 180f, 0f);
-            mob.setYHeadRot(180f);
-            mob.setYBodyRot(180f);
+            double offset = -width / 2 + i * spacing;
+            double x = sp.getX() + sx * offset + fx * distance;
+            double z = sp.getZ() + sz * offset + fz * distance;
+            mob.moveTo(x, sp.getY() - 1, z, yaw + 180f, 0f);
+            mob.setYHeadRot(yaw + 180f);
+            mob.setYBodyRot(yaw + 180f);
             mob.setNoAi(true);
             mob.setPersistenceRequired();
             level.addFreshEntity(mob);

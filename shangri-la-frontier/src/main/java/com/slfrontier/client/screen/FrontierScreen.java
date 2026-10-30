@@ -1,5 +1,6 @@
 package com.slfrontier.client.screen;
 
+import com.slfrontier.client.InventoryClient;
 import com.slfrontier.client.KeyBindings;
 import com.slfrontier.client.ui.Gfx;
 import com.slfrontier.client.ui.SlfButton;
@@ -9,6 +10,7 @@ import com.slfrontier.data.Stat;
 import com.slfrontier.network.ModNetwork;
 import com.slfrontier.progression.Progression;
 import com.slfrontier.quest.QuestStage;
+import com.slfrontier.quest.QuestSteps;
 import com.slfrontier.quest.SideQuest;
 import com.slfrontier.registry.ModAttachments;
 import com.slfrontier.registry.ModEffects;
@@ -31,10 +33,19 @@ import java.util.List;
 
 /**
  * The avatar menu (default key K): Status, Skills and Quests, drawn as a Shangri-La
- * Frontier system window. The Map tab opens {@link MapScreen}.
+ * Frontier system window. The Items tab opens {@link FrontierInventoryScreen}, the Map tab
+ * opens {@link MapScreen}.
  */
 public class FrontierScreen extends Screen {
-    public enum Tab { STATUS, SKILLS, QUESTS, MAP }
+    public enum Tab {
+        STATUS("player"), SKILLS("target"), ITEMS("bag"), QUESTS("main_quest"), MAP("waypoint");
+
+        public final String icon;
+
+        Tab(String icon) {
+            this.icon = icon;
+        }
+    }
 
     private static Tab lastTab = Tab.STATUS;
     private static Skill selectedSkill = Skill.TAP_STEP;
@@ -94,16 +105,10 @@ public class FrontierScreen extends Screen {
         lastHash = data().syncHash();
         int tx = left + 10;
         for (Tab t : Tab.values()) {
-            String icon = switch (t) {
-                case STATUS -> "player";
-                case SKILLS -> "target";
-                case QUESTS -> "main_quest";
-                case MAP -> "waypoint";
-            };
             Component label = Component.translatable("gui.slfrontier.tab." + t.name().toLowerCase());
             int bw = font.width(label) + 26;
             addRenderableWidget(new SlfButton(tx, top - 17, bw, 17, label, SlfButton.Style.TAB, b -> switchTab(t))
-                    .icon(Theme.icon(icon), 16).selected(t == tab));
+                    .icon(Theme.icon(t.icon), 16).selected(t == tab));
             tx += bw + 3;
         }
         PlayerData d = data();
@@ -117,13 +122,22 @@ public class FrontierScreen extends Screen {
     }
 
     private void switchTab(Tab t) {
-        if (t == Tab.MAP) {
-            Minecraft.getInstance().setScreen(new MapScreen());
+        if (t == Tab.MAP || t == Tab.ITEMS) {
+            open(t);
             return;
         }
         tab = t;
         lastTab = t;
         rebuild();
+    }
+
+    /** Opens a tab of the avatar menu from any of its screens. */
+    public static void open(Tab t) {
+        switch (t) {
+            case MAP -> Minecraft.getInstance().setScreen(new MapScreen());
+            case ITEMS -> InventoryClient.openInventory();
+            default -> Minecraft.getInstance().setScreen(new FrontierScreen(t));
+        }
     }
 
     @Override
@@ -613,6 +627,11 @@ public class FrontierScreen extends Screen {
         int ty = Gfx.wrapped(g, font, Component.translatable(s.journalKey()), x, y + 40, w, Theme.TEXT, 10) + 6;
         boolean current = s == d.stage() && s != QuestStage.COMPLETE;
         boolean done = s.ordinal() < d.stage().ordinal() || d.stage() == QuestStage.COMPLETE;
+        List<QuestSteps.Step> steps = QuestSteps.of(s);
+        if (!steps.isEmpty()) {
+            renderSteps(g, d, s, steps, current, done, x, ty, w);
+            return;
+        }
         int objLines = font.split(Component.translatable(s.objectiveKey()), w - 10).size();
         int boxH = 18 + objLines * 9 + (s.goal > 0 && current ? 8 : 0);
         int boxY = Math.min(ty, cy1() - 20 - boxH);
@@ -624,6 +643,33 @@ public class FrontierScreen extends Screen {
             String p = Math.min(d.questProgress(), s.goal) + "/" + s.goal;
             g.drawString(font, p, x + w - 5 - font.width(p), boxY + 4, Gfx.fade(Theme.TEXT), false);
             Gfx.bar(g, x + 5, boxY + boxH - 8, w - 10, 3, d.questProgress() / (float) s.goal, Theme.GOLD, 0xFFC98A10, Theme.BAR_BACK, s.goal);
+        }
+    }
+
+    /** The chapter's steps: ticked off, the current one highlighted (with its counter), the rest dimmed. */
+    private void renderSteps(GuiGraphics g, PlayerData d, QuestStage s, List<QuestSteps.Step> steps, boolean current, boolean done,
+                             int x, int ty, int w) {
+        int at = done ? steps.size() : current ? Math.min(d.questStep(), steps.size() - 1) : -1;
+        int boxH = 16;
+        for (QuestSteps.Step step : steps) {
+            boxH += font.split(Component.translatable(QuestSteps.textKey(s, step)), w - 22).size() * 9 + 3;
+        }
+        int boxY = Math.min(ty, cy1() - 4 - boxH);
+        Gfx.inset(g, x, boxY, w, boxH);
+        g.drawString(font, Component.translatable(done ? "gui.slfrontier.objective_done" : "gui.slfrontier.objective"),
+                x + 5, boxY + 4, Gfx.fade(done ? Theme.GREEN : Theme.ACCENT), false);
+        int ly = boxY + 15;
+        for (int i = 0; i < steps.size(); i++) {
+            QuestSteps.Step step = steps.get(i);
+            boolean past = i < at, now = i == at;
+            int color = past ? Theme.TEXT_DIM : now ? Theme.TEXT : Theme.TEXT_FAINT;
+            String mark = past ? "\u2714" : now ? "\u25B6" : "\u25CB";
+            g.drawString(font, mark, x + 6, ly, Gfx.fade(past ? Theme.GREEN : now ? Theme.GOLD : Theme.TEXT_FAINT), false);
+            Component text = Component.translatable(QuestSteps.textKey(s, step));
+            if (now && step.counts() && s.goal > 0) {
+                text = text.copy().append(" " + Math.min(d.questProgress(), s.goal) + "/" + s.goal);
+            }
+            ly = Gfx.wrapped(g, font, text, x + 17, ly, w - 22, color, 9) + 3;
         }
     }
 

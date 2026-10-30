@@ -1,0 +1,92 @@
+{
+  "files": [
+    {
+      "path": "mods/sodium-neoforge-0.8.13+mc1.21.1.jar",
+      "hashes": {
+        "sha1": "1757289be21ed18db5b0d90703fa3db1b2de5693",
+        "sha512": "4f537696af95411e9daf15795fb5fcbc49913d488a96fa912fa8f1d7db408710995e8a1461190f3cd0f8217bf9e35e9539176592428ed587ca2d7aa84450a390"
+      },
+      "env": {
+        "client": "required",
+        "server": "unsupported"
+      },
+      "downloads": [
+        "https://cdn.modrinth.com/data/AANobbMI/versions/uMOpc5uV/sodium-neoforge-0.8.13%2Bmc1.21.1.jar"
+      ],
+      "fileSize": 1292934,
+      "_project": "sodium",
+      "_version": "mc1.21.1-0.8.13-neoforge",
+      "_why": "Faster rendering; needed by Iris.",
+      "_curseforge": {
+        "projectID": 394468,
+        "fileID": 8756580
+      }
+    },
+    {
+      "path": "mods/iris-neoforge-1.8.14-beta.1+mc1.21.1.jar",
+      "hashes": {
+        "sha1": "1bd129cf7bce65d6b1c0543045f0620c98a0f885",
+        "sha512": "33fddb430e16222902eac75b8b3d57c381b0f3cc729f3b56c4628df12ca108f23a0b11e2feb167923d6d14d1fc7e8ee1a977ec421b19d1951bdca74c4092b9c5"
+      },
+      "env": {
+        "client": "required",
+        "server": "unsupported"
+      },
+      "downloads": [
+        "https://cdn.modrinth.com/data/YL57xq9U/versions/KduFYu4t/iris-neoforge-1.8.14-beta.1%2Bmc1.21.1.jar"
+      ],
+      "fileSize": 2540723,
+      "_project": "iris",
+      "_version": "1.8.14-beta.1+1.21.1-neoforge",
+      "_why": "Shader pack loader.",
+      "_curseforge": {
+        "projectID": 455508,
+        "fileID": 8242804
+      }
+    },
+    {
+      "path": "shaderpacks/ComplementaryReimagined_r5.9.3.zip",
+      "hashes": {
+        "sha1": "838139b54cddb56b2e83cd260d8efd960ac536d6",
+        "sha512": "45304b1d7862afdb2177b7e6226fc9c6737911d17a4ad46cc9c519ca4deb935f05072cd337cd8b19a15bb8062b57b54eceec7bdee4cd572d94858e2946d37d85"
+      },
+      "env": {
+        "client": "required",
+        "server": "unsupported"
+      },
+      "downloads": [
+        "https://cdn.modrinth.com/data/HVnmMxH1/versions/Bqen1mJX/ComplementaryReimagined_r5.9.3.zip"
+      ],
+      "fileSize": 553397,
+      "_project": "complementary-reimagined",
+      "_version": "r5.9.3",
+      "_why": "The shader pack the pack switches on.",
+      "_curseforge": {
+        "projectID": 627557,
+        "fileID": 8884654
+      }
+    },
+    {
+      "path": "mods/DistantHorizons-3.3.3-1.21.1-fabric-neoforge.jar",
+      "hashes": {
+        "sha1": "4357b4d19fab818780c94f0e43dad1cc931634b2",
+        "sha512": "d14b32d3fd143a06514d6ad388eee11e9d657c84e1a937aaf8d033b1137fb43ef8b05cff1011a994cc42f3106823c51234f8bc18d72bb05bc317a20ea83c50ed"
+      },
+      "env": {
+        "client": "optional",
+        "server": "unsupported"
+      },
+      "downloads": [
+        "https://cdn.modrinth.com/data/uCdwusMi/versions/9w34y8ai/DistantHorizons-3.3.3-1.21.1-fabric-neoforge.jar"
+      ],
+      "fileSize": 28289212,
+      "_project": "distanthorizons",
+      "_version": "3.3.3-1.21.1",
+      "_why": "Optional: see the designed continent to the horizon.",
+      "_curseforge": {
+        "projectID": 508933,
+        "fileID": 9004764
+      }
+    }
+  ]
+}

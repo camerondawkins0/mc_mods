@@ -1,0 +1,12 @@
+{
+  "structures": [
+    {
+      "structure": "slfrontier:thirdrema",
+      "weight": 1
+    }
+  ],
+  "placement": {
+    "type": "slfrontier:designed",
+    "site": "thirdrema"
+  }
+}

@@ -2,6 +2,7 @@ package com.slfrontier.world;
 
 import com.slfrontier.data.PlayerData;
 import com.slfrontier.network.ModNetwork;
+import com.slfrontier.network.OverlayNetwork;
 import com.slfrontier.quest.QuestStage;
 import com.slfrontier.quest.Story;
 import com.slfrontier.registry.ModAttachments;
@@ -35,9 +36,13 @@ public final class FrontierTravel {
         }
         PlayerData data = ModAttachments.get(player);
         data.setReturnPoint(player.level().dimension().location().toString(), player.getX(), player.getY(), player.getZ());
+        if (data.migrateToDesignedMap()) {
+            player.sendSystemMessage(Component.translatable("message.slfrontier.new_map").withStyle(ChatFormatting.AQUA));
+        }
         BlockPos spawn = ensureFastera(frontier);
         // Like any MMO, you log back in where you logged out.
         BlockPos target = data.hasFrontierPos() ? BlockPos.of(data.frontierPos()) : spawn;
+        OverlayNetwork.travel(player, OverlayNetwork.LOGIN, OverlayNetwork.placeName(frontier, target), target);
         player.teleportTo(frontier, target.getX() + 0.5, target.getY(), target.getZ() + 0.5, player.getYRot(), player.getXRot());
         frontier.playSound(null, target, SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 1f, 1.6f);
         ModNetwork.announce(player, "announce.slfrontier.login", "announce.slfrontier.login.sub", 0x7FE7FF);
@@ -76,6 +81,7 @@ public final class FrontierTravel {
         ServerLevel frontier = frontierLevel(player);
         if (frontier == null) return;
         BlockPos spawn = ensureFastera(frontier);
+        OverlayNetwork.travel(player, OverlayNetwork.TRAVEL, Landmarks.Site.FIRSTIA.nameKey(), spawn);
         player.teleportTo(frontier, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, player.getYRot(), player.getXRot());
     }
 
@@ -83,6 +89,7 @@ public final class FrontierTravel {
         ServerLevel frontier = frontierLevel(player);
         if (frontier == null) return;
         BlockPos pos = FastTravel.arrival(frontier, wp);
+        OverlayNetwork.travel(player, OverlayNetwork.TRAVEL, wp.nameKey(), pos);
         player.teleportTo(frontier, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, player.getYRot(), player.getXRot());
     }
 
@@ -90,6 +97,7 @@ public final class FrontierTravel {
         ServerLevel frontier = frontierLevel(player);
         if (frontier == null) return;
         BlockPos pos = ensureRabituza(frontier);
+        OverlayNetwork.travel(player, OverlayNetwork.TRAVEL, Landmarks.Site.RABITUZA.nameKey(), pos);
         player.teleportTo(frontier, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, player.getYRot(), player.getXRot());
         frontier.playSound(null, pos, SoundEvents.RABBIT_JUMP, SoundSource.PLAYERS, 1f, 0.8f);
         player.displayClientMessage(Component.translatable("message.slfrontier.arrive_rabituza").withStyle(ChatFormatting.LIGHT_PURPLE), true);
@@ -101,15 +109,12 @@ public final class FrontierTravel {
         return server == null ? null : server.getLevel(Frontier.LEVEL);
     }
 
-    /** Firstia (internally "fastera"), built at the world origin the first time anyone logs in. */
+    /** Firstia (internally "fastera"), the starting town at the heart of the map. */
     public static BlockPos ensureFastera(ServerLevel frontier) {
-        BlockPos spawn = Landmarks.ensure(frontier, Landmarks.Site.FIRSTIA);
-        // Plan the rest of the world in the background so maps and compasses know where it is.
-        Landmarks.planAhead(frontier);
-        return spawn;
+        return Landmarks.ensure(frontier, Landmarks.Site.FIRSTIA);
     }
 
-    /** Rabituza, the hidden nation of the Vorpal Bunnies, far from everything else. */
+    /** Rabituza, the hidden nation of the Vorpal Bunnies, on its island out at sea. */
     public static BlockPos ensureRabituza(ServerLevel frontier) {
         return Landmarks.ensure(frontier, Landmarks.Site.RABITUZA);
     }
@@ -118,6 +123,7 @@ public final class FrontierTravel {
         ServerLevel frontier = frontierLevel(player);
         if (frontier == null) return;
         BlockPos pos = Landmarks.ensure(frontier, site);
+        OverlayNetwork.travel(player, OverlayNetwork.TRAVEL, site.nameKey(), pos);
         player.teleportTo(frontier, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, player.getYRot(), player.getXRot());
     }
 

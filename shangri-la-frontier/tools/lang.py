@@ -1,4 +1,8 @@
 """English text for the mod (assets/slfrontier/lang/en_us.json)."""
+import lang_inventory
+
+import lang_overlays
+import lang_crafting
 
 ITEMS = {
     "fulldive_headset": ("Full-Dive VR Headset", "Hold use to log in to Shangri-La Frontier. Use again inside to log out."),
@@ -69,7 +73,7 @@ BIOMES = {
 }
 
 SKILLS = {
-    "tap_step": ("Tap Step", "Dash a short distance, untouchable for a moment. Sneak to dash backward."),
+    "tap_step": ("Tap Step", "Dash a short distance the way you're moving (any direction; straight ahead if you stand still), untouchable for a moment."),
     "slide_step": ("Slide Step", "Evolved Tap Step: a longer dash with more invincibility."),
     "drill_piercer": ("Drill Piercer", "Lunge and pierce the first enemy ahead. Huge damage on weak points (from behind)."),
     "glowing_pierce": ("Glowing Pierce", "Evolved Drill Piercer: a longer lunge that pierces every enemy in a line."),
@@ -733,6 +737,96 @@ GUI.update({
 
 
 
+# The designed map: new regions, the biomes painted under each site, and the migration notice.
+BIOMES.update({
+    "frontier_shore": "Frontier Coast",
+    "frontier_peaks": "Northern Peaks",
+    "rabbit_isle": "Rabituza Isle",
+    "firstia": "Firstia",
+    "secondil": "Secondil",
+    "thirdrema": "Thirdrema",
+    "rabituza": "Rabituza",
+    "goblin_camp": "Goblin War Camp",
+    "serpent_bridge": "Serpent Bridge",
+    "nightslayer_den": "Nightslayer's Den",
+    "wezaemon_tomb": "Wezaemon's Tomb",
+    "empire_bee_hive": "Empire Bee Hive",
+    "mud_digger_lair": "Mud Digger's Lair",
+    "shadow_altar": "Shadow Altar",
+    "divinity_ruins": "Iron Ruins of the Divinity",
+})
+
+MISC.update({
+    "quest.slfrontier.meet_guide.step.talk_guide": 'Talk to the Guide by the fountain in Firstia.',
+    "quest.slfrontier.goblin_hunt.step.find_camp": 'Goblins have pitched a war camp at the edge of the Rampant Forest, north-east of Firstia. Find it.',
+    "quest.slfrontier.goblin_hunt.step.defeat_goblins": 'Defeat goblins at the war camp.',
+    "quest.slfrontier.goblin_hunt.step.report_guide": 'Report back to the Guide in Firstia.',
+    "quest.slfrontier.ravenous_snake.step.road_to_bridge": 'Follow the road east from Firstia, through the Rampant Forest, to the Serpent Bridge.',
+    "quest.slfrontier.ravenous_snake.step.slay_snake": 'Defeat the Ravenous Snake guarding the bridge.',
+    "quest.slfrontier.reach_secondil.step.reach_secondil": 'Cross the Serpent Bridge and follow the road east to Secondil.',
+    "quest.slfrontier.reach_secondil.step.meet_smith": 'Find the blacksmith in Secondil.',
+    "quest.slfrontier.gray_ore.step.mine_ore": 'Mine Gray Ore in the Diremarsh Waste, south-east of Secondil.',
+    "quest.slfrontier.gray_ore.step.deliver_ore": 'Bring the Gray Ore to the blacksmith in Secondil.',
+    "quest.slfrontier.nightslayer_encounter.step.find_den": "Find the Nightslayer's Den deep in the Nightslayer Woods, north of the Serpent Bridge.",
+    "quest.slfrontier.nightslayer_encounter.step.touch_altar": 'Wait for nightfall and touch the altar in the den.',
+    "quest.slfrontier.invitation.step.return_guide": 'Return to the Guide in Firstia. Someone has been asking about you.',
+    "quest.slfrontier.meet_vysache.step.go_rabituza": 'Ask the Guide in Firstia (or Emul) to take you to Rabituza.',
+    "quest.slfrontier.meet_vysache.step.meet_vysache": 'Meet Vysache in the palace of Rabituza.',
+    "quest.slfrontier.vorpal_colosseum.step.enter_colosseum": 'Enter the Vorpal Colosseum in Rabituza and win all three rounds.',
+    "quest.slfrontier.moonblades.step.find_beetle": 'Hunt a Quad Beetle in the Prismatic Forest Grotto, north-west of Firstia, for its shell.',
+    "quest.slfrontier.moonblades.step.bring_shell": 'Bring the Quad Beetle Shell to Vysache in Rabituza.',
+    "quest.slfrontier.mud_digger_road.step.marsh_road": 'Take the marsh road from Secondil toward Thirdrema.',
+    "quest.slfrontier.mud_digger_road.step.slay_digger": 'Defeat the Mud Digger, the Solo Killer of the marsh road.',
+    "quest.slfrontier.thirdrema.step.reach_thirdrema": 'Follow the road up the valley to Thirdrema.',
+    "quest.slfrontier.thirdrema.step.meet_allies": "Meet Arthur Pencilgon and Oikatzo at the Serpent's Apple.",
+    "quest.slfrontier.find_setsuna.step.mountain_pass": 'Find the hidden pass into the Northern Peaks, at the eastern edge of the Nightslayer Woods.',
+    "quest.slfrontier.find_setsuna.step.find_setsuna": 'Follow the pass to the Hidden Garden and find Setsuna of Distant Days.',
+    "quest.slfrontier.tombguard.step.slay_tombguard": 'Defeat Wezaemon the Tombguard.',
+    "quest.slfrontier.lycagon_shadow.step.to_barrens": 'Travel to the Lightless Barrens, south-west of Firstia.',
+    "quest.slfrontier.lycagon_shadow.step.wake_altar": "Wake the shadow altar and break Lycagon's Shadow.",
+    "quest.slfrontier.nightslayer_final.step.learn_crescent": 'Learn Crescent Vorpal from Vysache in Rabituza.',
+    "quest.slfrontier.nightslayer_final.step.slay_lycagon": 'Slay Lycagon the Nightslayer at its den.',
+    "target.slfrontier.guide": "the Guide",
+    "target.slfrontier.goblin_camp": "the goblin war camp",
+    "target.slfrontier.smith": "the blacksmith",
+    "target.slfrontier.vysache": "Vysache",
+    "target.slfrontier.serpents_apple": "the Serpent's Apple",
+    "target.slfrontier.pass": "the hidden pass",
+})
+
+MISC.update({
+    # In-game config screen (Mods -> Shangri-La Frontier -> Config)
+    "slfrontier.configuration.title": "Shangri-La Frontier",
+    "slfrontier.configuration.hud": "HUD",
+    "slfrontier.configuration.frontierHud": "Frontier HUD",
+    "slfrontier.configuration.hideVanillaBars": "Hide vanilla bars",
+    "slfrontier.configuration.damageNumbers": "Damage numbers",
+    "slfrontier.configuration.questPointer": "Quest pointer",
+    "slfrontier.configuration.enemyHealthBars": "Enemy health bars",
+    "slfrontier.configuration.travelScreen": "Travel loading screen",
+    "slfrontier.configuration.visuals": "Visuals",
+    "slfrontier.configuration.frontierVision": "Frontier Vision (colour grade)",
+    "slfrontier.configuration.minimap": "Minimap",
+    "slfrontier.configuration.showMinimap": "Show minimap",
+    "slfrontier.configuration.size": "Size",
+    "slfrontier.configuration.rotates": "Rotate with camera",
+    "slfrontier.configuration.effects": "Effects",
+    "slfrontier.configuration.cameraShake": "Camera shake",
+    "slfrontier.configuration.firstPersonSkillAnimations": "First-person skill animations",
+    "slfrontier.configuration.fastTravel": "Fast travel",
+    "slfrontier.configuration.enabled": "Enabled",
+    "slfrontier.configuration.cooldownSeconds": "Cooldown (seconds)",
+    "slfrontier.configuration.allowInCombat": "Allow in combat",
+    "slfrontier.configuration.requireAttunement": "Require attunement",
+    "slfrontier.configuration.respawnAtLastWaypoint": "Respawn at last waypoint",
+})
+MISC.update({
+    "message.slfrontier.new_map": "The Frontier has been redrawn. Your avatar wakes in Firstia; old waypoints have faded.",
+    "waypoint.slfrontier.goblin_camp": "Goblin War Camp",
+    "message.slfrontier.peaceful": "Monsters don't appear on Peaceful. Set the difficulty to Easy or higher to fight your way through the story.",
+})
+
+
 def build():
     lang = dict(MISC)
     lang.update(GUI)
@@ -774,4 +868,7 @@ def build():
         lang[f"dialogue.slfrontier.{k}"] = text
     for k, text in OPTIONS.items():
         lang[f"dialogue.slfrontier.option.{k}"] = text
+    lang.update(lang_inventory.STRINGS)
+    lang.update(lang_overlays.STRINGS)
+    lang.update(lang_crafting.STRINGS)
     return lang

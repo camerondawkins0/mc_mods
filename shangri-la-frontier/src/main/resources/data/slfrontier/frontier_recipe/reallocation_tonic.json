@@ -1,0 +1,18 @@
+{
+  "id": "slfrontier:reallocation_tonic",
+  "station": "forge",
+  "category": "consumable",
+  "result": {
+    "item": "slfrontier:reallocation_tonic",
+    "count": 1
+  },
+  "ingredients": [
+    {
+      "item": "slfrontier:prismatic_shard",
+      "count": 4
+    }
+  ],
+  "min_level": 1,
+  "time": 50,
+  "npc": "bilac"
+}

@@ -61,10 +61,13 @@ public final class ClientEvents {
         }
         while (KeyBindings.MINIMAP.consumeClick()) {
             SlfConfig.SHOW_MINIMAP.set(!SlfConfig.SHOW_MINIMAP.get());
+            com.slfrontier.client.overlay.HudNotice.minimapToggled(SlfConfig.SHOW_MINIMAP.get());
         }
         for (int i = 0; i < KeyBindings.SKILLS.length; i++) {
             while (KeyBindings.SKILLS[i].consumeClick()) {
-                PacketDistributor.sendToServer(new ModNetwork.UseSkill(i));
+                var input = mc.player.input;
+                PacketDistributor.sendToServer(new ModNetwork.UseSkill(i, (byte) Math.signum(input.leftImpulse),
+                        (byte) Math.signum(input.forwardImpulse)));
             }
         }
 

@@ -41,6 +41,8 @@ public final class FrontierFeatures {
             FEATURES.register("divinity_monolith", () -> new Simple(FrontierFeatures::monoliths));
     public static final DeferredHolder<Feature<?>, Feature<NoneFeatureConfiguration>> DEAD_TREE =
             FEATURES.register("dead_tree", () -> new Simple(FrontierFeatures::deadTree));
+    public static final DeferredHolder<Feature<?>, Feature<NoneFeatureConfiguration>> ROADS =
+            FEATURES.register("frontier_roads", com.slfrontier.world.design.RoadFeature::new);
 
     private static final int REACH = 15;
 

@@ -1,0 +1,21 @@
+{
+  "id": "slfrontier:chainmail_leggings",
+  "station": "forge",
+  "category": "armor",
+  "result": {
+    "item": "minecraft:chainmail_leggings",
+    "count": 1
+  },
+  "ingredients": [
+    {
+      "item": "slfrontier:gray_steel_ingot",
+      "count": 4
+    },
+    {
+      "item": "slfrontier:leather_grip",
+      "count": 1
+    }
+  ],
+  "min_level": 8,
+  "time": 70
+}

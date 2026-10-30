@@ -1,0 +1,21 @@
+{
+  "replace": false,
+  "values": [
+    "slfrontier:bird_mask",
+    "slfrontier:battlehorn_helm",
+    "#minecraft:head_armor",
+    "#minecraft:chest_armor",
+    "#minecraft:leg_armor",
+    "#minecraft:foot_armor",
+    "minecraft:shield",
+    "minecraft:elytra",
+    {
+      "id": "#c:armors",
+      "required": false
+    },
+    {
+      "id": "#c:tools/shield",
+      "required": false
+    }
+  ]
+}

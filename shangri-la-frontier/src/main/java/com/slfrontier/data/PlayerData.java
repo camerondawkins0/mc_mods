@@ -43,6 +43,8 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
 
     private QuestStage stage = QuestStage.NOT_STARTED;
     private int questProgress = 0;
+    /** Index of the current step within the chapter (see QuestSteps). */
+    private int questStep = 0;
     private final Set<String> flags = new HashSet<>();
     private boolean cursed = false;
     /** Active side quests and their progress, in the order they were accepted. */
@@ -65,6 +67,8 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
     // Transient combat state (server side only, never saved)
     public int parryTicks;
     public int iframeTicks;
+    /** Movement keys held when the last skill key was pressed (not saved). */
+    private byte moveStrafe, moveForward;
     public int offhandTargetId = -1;
     public int offhandDelay;
     public int pierceTicks;
@@ -229,6 +233,15 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
     public void setStage(QuestStage stage) {
         this.stage = stage;
         this.questProgress = 0;
+        this.questStep = 0;
+    }
+
+    public int questStep() {
+        return questStep;
+    }
+
+    public void setQuestStep(int step) {
+        this.questStep = step;
     }
 
     public int questProgress() {
@@ -342,8 +355,36 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
         this.frontierPos = pos;
     }
 
+    public void setMoveInput(byte strafe, byte forward) {
+        this.moveStrafe = strafe;
+        this.moveForward = forward;
+    }
+
+    public byte moveStrafe() {
+        return moveStrafe;
+    }
+
+    public byte moveForward() {
+        return moveForward;
+    }
+
     public boolean hasFrontierPos() {
         return hasFrontierPos;
+    }
+
+    /**
+     * Saves from before the designed map remember places in the old Frontier (where you logged
+     * out, your waypoints). Forget them once, so the avatar starts over in Firstia.
+     * @return true if anything was reset
+     */
+    public boolean migrateToDesignedMap() {
+        if (flag("designed_map")) return false;
+        setFlag("designed_map", true);
+        boolean had = hasFrontierPos || !waypoints.isEmpty();
+        hasFrontierPos = false;
+        respawnWaypoint = "";
+        waypoints.clear();
+        return had;
     }
 
     public long frontierPos() {
@@ -393,6 +434,7 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
         tag.put("uses", useTag);
         tag.putString("stageName", stage.name());
         tag.putInt("questProgress", questProgress);
+        tag.putInt("questStep", questStep);
         CompoundTag side = new CompoundTag();
         sideProgress.forEach(side::putInt);
         tag.put("sideProgress", side);
@@ -451,6 +493,7 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
         QuestStage named = tag.contains("stageName") ? QuestStage.byName(tag.getString("stageName")) : null;
         stage = named != null ? named : QuestStage.fromLegacyOrdinal(tag.getInt("stage"));
         questProgress = tag.getInt("questProgress");
+        questStep = tag.getInt("questStep");
         sideProgress.clear();
         CompoundTag side = tag.getCompound("sideProgress");
         for (String key : side.getAllKeys()) {
@@ -497,6 +540,7 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
         for (Map.Entry<Skill, Integer> e : cooldowns.entrySet()) h = 31 * h + e.getKey().ordinal() * 7 + (e.getValue() + 9) / 10;
         h = 31 * h + stage.ordinal();
         h = 31 * h + questProgress;
+        h = 31 * h + questStep;
         h = 31 * h + flags.hashCode();
         h = 31 * h + (cursed ? 1 : 0);
         h = 31 * h + sideProgress.hashCode();

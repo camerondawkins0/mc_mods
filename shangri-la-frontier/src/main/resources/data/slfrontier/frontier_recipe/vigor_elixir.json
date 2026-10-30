@@ -1,0 +1,25 @@
+{
+  "id": "slfrontier:vigor_elixir",
+  "station": "alchemy",
+  "category": "consumable",
+  "result": {
+    "item": "slfrontier:vigor_elixir",
+    "count": 1
+  },
+  "ingredients": [
+    {
+      "item": "slfrontier:stamina_draught",
+      "count": 1
+    },
+    {
+      "item": "minecraft:honeycomb",
+      "count": 1
+    },
+    {
+      "item": "slfrontier:prismatic_shard",
+      "count": 1
+    }
+  ],
+  "min_level": 12,
+  "time": 60
+}

@@ -23,9 +23,12 @@ import com.slfrontier.world.Landmarks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.util.FakePlayer;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
 
 import java.util.ArrayList;
@@ -39,6 +42,16 @@ import java.util.function.Supplier;
  */
 public final class StoryTest {
     private static final GameProfile PROFILE = new GameProfile(UUID.fromString("5e1f0000-0000-4000-8000-00000000510f"), "[SLF-Test]");
+
+    /** Bosses and allies that dialogue choices summon (Setsuna calls the Tombguard), so the test can send them away. */
+    private static final List<Entity> summoned = new ArrayList<>();
+    private static boolean listening;
+
+    private static void collectSummons(EntityJoinLevelEvent event) {
+        if (event.getEntity() instanceof FrontierBoss || event.getEntity() instanceof com.slfrontier.entity.npc.AllyNpc) {
+            summoned.add(event.getEntity());
+        }
+    }
 
     private StoryTest() {
     }
@@ -88,8 +101,16 @@ public final class StoryTest {
                     npc.moveTo(player.getX() + 1, player.getY(), player.getZ(), 0f, 0f);
                     player.serverLevel().addFreshEntity(npc);
                     Story.onTalk(player, npc);
+                    if (!listening) {
+                        listening = true;
+                        NeoForge.EVENT_BUS.addListener(StoryTest::collectSummons);
+                    }
+                    summoned.clear();
                     Story.onDialogueChoice(player, npc.getId(), 0);
                     npc.discard();
+                    // The fake player keeps no chunks loaded, so these can't be found by searching; discard them directly.
+                    summoned.forEach(Entity::discard);
+                    summoned.clear();
                 });
             }
             check(failures, "compass " + stage, () -> {
@@ -135,9 +156,16 @@ public final class StoryTest {
             if (!data.flag("contusion")) throw new IllegalStateException("contusion not set");
         });
         check(failures, "landmarks", () -> {
+            var structures = frontier.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
             for (Landmarks.Site site : Landmarks.Site.values()) {
                 BlockPos at = Landmarks.ensure(frontier, site);
                 SLFrontier.LOGGER.info("Story test: {} is at {}", site.id, at);
+                var structure = structures.get(SLFrontier.id(site.id));
+                BlockPos center = Landmarks.center(site);
+                frontier.getChunk(center);
+                if (structure == null || !frontier.structureManager().getStructureWithPieceAt(center, structure).isValid()) {
+                    throw new IllegalStateException(site.id + " did not generate at " + center);
+                }
             }
             if (Landmarks.marker(frontier, Landmarks.Site.RABITUZA, "arena") == null) throw new IllegalStateException("no colosseum marker");
             if (Landmarks.marker(frontier, Landmarks.Site.SERPENT_BRIDGE, "arena") == null) throw new IllegalStateException("no bridge marker");
@@ -148,9 +176,13 @@ public final class StoryTest {
             data.setStage(QuestStage.RAVENOUS_SNAKE);
             player.moveTo(bridge.getX() + 0.5, bridge.getY(), bridge.getZ() + 0.5);
             Story.tickPlayer(player);
-            if (frontier.getEntitiesOfClass(RavenousSnakeEntity.class, player.getBoundingBox().inflate(64)).isEmpty()) {
-                throw new IllegalStateException("the snake did not appear");
+            // A fake player doesn't keep chunks loaded, so the new entity isn't listed until the next tick;
+            // check the serpent itself.
+            RavenousSnakeEntity snake = Story.lastSnake();
+            if (snake == null || snake.level() != frontier || snake.distanceTo(player) > 64) {
+                throw new IllegalStateException("the snake did not appear (bridge " + bridge + ", player " + player.blockPosition() + ")");
             }
+            snake.discard();
             player.moveTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
         });
         // Every boss runs its whole moveset once against the test player.
