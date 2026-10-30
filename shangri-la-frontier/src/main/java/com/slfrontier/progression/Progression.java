@@ -30,6 +30,9 @@ public final class Progression {
     private static final ResourceLocation VIT_ID = SLFrontier.id("stat_vit");
     private static final ResourceLocation STR_ID = SLFrontier.id("stat_str");
     private static final ResourceLocation AGI_ID = SLFrontier.id("stat_agi");
+    private static final ResourceLocation AGI_JUMP_ID = SLFrontier.id("stat_agi_jump");
+    /** Jump strength per AGI point, and the cap: 1.25 blocks base, at most ~1.85 (never a 2-block wall). */
+    private static final double JUMP_PER_AGI = 0.0015, JUMP_CAP = 0.10;
     private static final ResourceLocation DEX_ID = SLFrontier.id("stat_dex");
     private static final ResourceLocation LUC_ID = SLFrontier.id("stat_luc");
     private static final ResourceLocation MASK_ID = SLFrontier.id("bird_mask_agility");
@@ -143,6 +146,8 @@ public final class Progression {
         set(player, Attributes.MAX_HEALTH, VIT_ID, active ? data.stat(Stat.VIT) * 1.0 : 0, AttributeModifier.Operation.ADD_VALUE);
         set(player, Attributes.ATTACK_DAMAGE, STR_ID, active ? data.stat(Stat.STR) * 0.25 : 0, AttributeModifier.Operation.ADD_VALUE);
         set(player, Attributes.MOVEMENT_SPEED, AGI_ID, active ? Math.min(0.6, data.stat(Stat.AGI) * 0.004) : 0, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
+        set(player, Attributes.JUMP_STRENGTH, AGI_JUMP_ID, active ? Math.min(JUMP_CAP, data.stat(Stat.AGI) * JUMP_PER_AGI) : 0,
+                AttributeModifier.Operation.ADD_VALUE);
         set(player, Attributes.ATTACK_SPEED, DEX_ID, active ? Math.min(1.0, data.stat(Stat.DEX) * 0.01) : 0, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
         set(player, Attributes.LUCK, LUC_ID, active ? data.stat(Stat.LUC) * 0.1 : 0, AttributeModifier.Operation.ADD_VALUE);
         boolean mask = active && player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD).is(ModItems.BIRD_MASK.get());

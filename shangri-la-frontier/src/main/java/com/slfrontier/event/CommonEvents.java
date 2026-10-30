@@ -1,5 +1,7 @@
 package com.slfrontier.event;
 
+import com.slfrontier.entity.Stun;
+
 import com.slfrontier.SLFrontier;
 import com.slfrontier.command.SlfCommand;
 import com.slfrontier.data.PlayerData;
@@ -229,6 +231,12 @@ public final class CommonEvents {
     @SubscribeEvent
     public static void onServerTick(net.neoforged.neoforge.event.tick.ServerTickEvent.Post event) {
         if (event.getServer().getTickCount() % 20 == 0) com.slfrontier.quest.ColosseumTrial.tick(event.getServer());
+        if (event.getServer().getTickCount() % 10 == 0) com.slfrontier.entity.FrontierBoss.sweepBossBars();
+    }
+
+    @SubscribeEvent
+    public static void onEntityTick(net.neoforged.neoforge.event.tick.EntityTickEvent.Post event) {
+        if (event.getEntity() instanceof net.minecraft.world.entity.Mob mob && !mob.level().isClientSide) Stun.tick(mob);
     }
 
     @SubscribeEvent
@@ -277,7 +285,13 @@ public final class CommonEvents {
         LivingEntity victim = event.getEntity();
         DamageSource source = event.getSource();
 
-        // Defensive skills: dash i-frames and parries.
+        // A monster reeling from a parry can't land a blow (projectiles already in flight still can).
+        if (source.getEntity() != null && source.getDirectEntity() == source.getEntity() && Stun.isStunned(source.getEntity())) {
+            event.setCanceled(true);
+            return;
+        }
+
+        // Defensive skills: dash and attack-skill i-frames, and parries.
         if (victim instanceof ServerPlayer player && Frontier.isIn(player) && !source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
             PlayerData data = ModAttachments.get(player);
             if (data.iframeTicks > 0) {
@@ -322,6 +336,10 @@ public final class CommonEvents {
         Fx.flash(level, player.position().add(player.getLookAngle().scale(0.8)).add(0, 1.3, 0), 1.4f, 0xFFBFE8FF, 6, 0.8f);
         ModNetwork.animate(player, PlayerAnims.PARRY_HIT, 7);
         if (data.hasSkill(Skill.PERFECT_PARRY)) SkillExecutor.countUse(player, data, Skill.PERFECT_PARRY);
+        // A perfect parry knocks a nearby attacker off balance.
+        if (attacker instanceof LivingEntity living && living != player && living.distanceToSqr(player) < 8 * 8) {
+            Stun.apply(living, Stun.PARRY_TICKS);
+        }
         if (attacker instanceof WezaemonEntity wezaemon) wezaemon.onParried(player);
         if (data.hasSkill(Skill.REPEL_COUNTER) && attacker instanceof LivingEntity living && living.distanceToSqr(player) < 6 * 6) {
             SkillExecutor.strike(player, living, SkillExecutor.attack(player) * 2f, false);

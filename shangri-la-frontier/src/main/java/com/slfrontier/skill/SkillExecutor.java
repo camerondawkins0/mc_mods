@@ -85,6 +85,7 @@ public final class SkillExecutor {
             default -> false;
         };
         if (!used) return false;
+        data.iframeTicks = Math.max(data.iframeTicks, skill.castIframes());
         data.setStamina(data.stamina() - skill.staminaCost);
         data.setCooldown(skill, Math.round(skill.cooldown * Progression.cooldownScale(data)));
         if (skill != Skill.PERFECT_PARRY) {

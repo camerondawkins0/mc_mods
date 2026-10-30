@@ -88,6 +88,57 @@ public final class StoryTest {
             });
         }
 
+        check(failures, "combat rules", () -> {
+            // Attack skills give a beat of i-frames.
+            data.setCooldown(Skill.DRILL_PIERCER, 0);
+            data.setStamina(data.maxStamina());
+            data.iframeTicks = 0;
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.DUCUSRAM.get()));
+            if (!SkillExecutor.use(player, Skill.DRILL_PIERCER) || data.iframeTicks < Skill.DRILL_PIERCER.castIframes()) {
+                throw new IllegalStateException("Drill Piercer gave no i-frames");
+            }
+            data.iframeTicks = 0;
+            // AGI raises jumps, up to a cap.
+            int agi = data.stat(Stat.AGI);
+            for (int value : new int[]{20, 500}) {
+                data.setStat(Stat.AGI, value);
+                Progression.applyStats(player);
+                double jump = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.JUMP_STRENGTH);
+                double expected = 0.42 + Math.min(0.10, value * 0.0015);
+                if (Math.abs(jump - expected) > 1e-4) throw new IllegalStateException("AGI " + value + " gave jump " + jump);
+            }
+            data.setStat(Stat.AGI, agi);
+            Progression.applyStats(player);
+            // The serpent shrugs off its own venom.
+            RavenousSnakeEntity snake = ModEntities.RAVENOUS_SNAKE.get().create(frontier);
+            if (snake == null || snake.canBeAffected(new net.minecraft.world.effect.MobEffectInstance(
+                    net.minecraft.world.effect.MobEffects.POISON, 40))) {
+                throw new IllegalStateException("the snake is hurt by its own poison");
+            }
+            // A perfect parry stuns the attacker, and a stunned attacker can't land a hit.
+            var goblin = ModEntities.GOBLIN.get().create(frontier);
+            if (goblin == null) throw new IllegalStateException("no goblin");
+            goblin.moveTo(player.getX() + 1.5, player.getY(), player.getZ(), 0f, 0f);
+            // Tough enough to survive the test avatar's Repel Counter.
+            java.util.Objects.requireNonNull(goblin.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH)).setBaseValue(1000);
+            goblin.setHealth(1000);
+            frontier.addFreshEntity(goblin);
+            try {
+                data.parryTicks = 10;
+                var parried = NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent(player,
+                        new net.neoforged.neoforge.common.damagesource.DamageContainer(frontier.damageSources().mobAttack(goblin), 4f)));
+                if (!parried.isCanceled()) throw new IllegalStateException("the parry didn't block the hit");
+                if (!com.slfrontier.entity.Stun.isStunned(goblin)) throw new IllegalStateException("the parry didn't stun the goblin");
+                data.parryTicks = 0;
+                var reeling = NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent(player,
+                        new net.neoforged.neoforge.common.damagesource.DamageContainer(frontier.damageSources().mobAttack(goblin), 4f)));
+                if (!reeling.isCanceled()) throw new IllegalStateException("a stunned goblin still landed a hit");
+            } finally {
+                goblin.discard();
+                data.parryTicks = 0;
+            }
+        });
+
         List<Supplier<? extends EntityType<? extends FrontierNpc>>> npcs = List.of(
                 ModEntities.GUIDE, ModEntities.BLACKSMITH, ModEntities.VYSACHE, ModEntities.BILAC,
                 ModEntities.SETSUNA, ModEntities.EMUL, ModEntities.PENCILGON, ModEntities.OIKATZO);

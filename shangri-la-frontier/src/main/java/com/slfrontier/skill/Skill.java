@@ -47,6 +47,18 @@ public enum Skill {
         };
     }
 
+    /**
+     * Ticks of untouchability while an attack skill goes off, so lunging or spinning into a
+     * monster isn't a free hit for it. (Dashes, Rabbit Gun and Crescent Vorpal set their own.)
+     */
+    public int castIframes() {
+        return switch (this) {
+            case DRILL_PIERCER, GLOWING_PIERCE -> 8;
+            case CYCLONE_SLASH, MOON_REFLECTION, SKY_CLEAR -> 6;
+            default -> 0;
+        };
+    }
+
     /** Uses (or successful parries) needed before {@link #evolution()} unlocks. */
     public int evolutionUses() {
         return switch (this) {

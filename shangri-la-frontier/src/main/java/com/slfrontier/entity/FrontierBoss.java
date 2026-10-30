@@ -24,7 +24,12 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
  * Base for bosses. Bosses fight with a simple state machine: chase the target, pick an
@@ -42,6 +47,12 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
     protected int attackTick;
     protected int attackCooldown = 40;
     protected int idleTicks;
+    /** Ticks left of a stun (a perfect parry): the boss holds still and its attack pauses. */
+    private int stunTicks;
+
+    /** Bosses whose bar someone can see, so {@link #sweepBossBars} can clear bars of bosses that stopped ticking. */
+    private static final Set<FrontierBoss> SHOWING = Collections.newSetFromMap(new WeakHashMap<>());
+    private int sweptAt = -1;
 
     protected FrontierBoss(EntityType<? extends Monster> type, Level level, int frontierLevel, int frontierExp,
                            BossEvent.BossBarColor color) {
@@ -122,10 +133,25 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
         return attack;
     }
 
+    /** Knocked off balance: holds still and pauses whatever it was doing (attacks resume afterwards). */
+    public void stun(int ticks) {
+        stunTicks = Math.max(stunTicks, ticks);
+        getNavigation().stop();
+    }
+
+    public boolean isStunned() {
+        return stunTicks > 0;
+    }
+
     @Override
     protected void customServerAiStep() {
         super.customServerAiStep();
         bossEvent.setProgress(getHealth() / getMaxHealth());
+        if (stunTicks > 0) {
+            stunTicks--;
+            getNavigation().stop();
+            return;
+        }
         LivingEntity target = getTarget();
         if (target != null && (!target.isAlive() || (target instanceof Player p && (p.isCreative() || p.isSpectator())))) {
             setTarget(null);
@@ -184,16 +210,52 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
         }
     }
 
-    /** Only players actually near the fight see the boss bar. */
+    /** Only players actually near the fight see the boss bar, and nobody sees a fallen boss's bar. */
     private void updateBossBarViewers() {
-        for (ServerPlayer p : new java.util.ArrayList<>(bossEvent.getPlayers())) {
-            if (!p.isAlive() || p.level() != level() || p.distanceToSqr(this) > BOSS_BAR_RANGE * BOSS_BAR_RANGE) {
+        if (isDeadOrDying()) {
+            bossEvent.removeAllPlayers();
+            return;
+        }
+        dropFarViewers();
+        for (ServerPlayer p : playersNear(BOSS_BAR_RANGE * 0.8)) {
+            bossEvent.addPlayer(p);
+            SHOWING.add(this);
+        }
+    }
+
+    private void dropFarViewers() {
+        for (ServerPlayer p : new ArrayList<>(bossEvent.getPlayers())) {
+            if (p.isRemoved() || !p.isAlive() || p.level() != level() || p.distanceToSqr(this) > BOSS_BAR_RANGE * BOSS_BAR_RANGE) {
                 bossEvent.removePlayer(p);
             }
         }
-        for (ServerPlayer p : playersNear(BOSS_BAR_RANGE * 0.8)) {
-            bossEvent.addPlayer(p);
+    }
+
+    /**
+     * Runs every 10 server ticks. A boss only updates its own bar while it ticks, so a boss whose
+     * chunk fell out of simulation range (you fast-traveled, died and respawned elsewhere, or ran)
+     * would leave its bar on screen; this clears those, and viewers who left or respawned.
+     */
+    public static void sweepBossBars() {
+        for (Iterator<FrontierBoss> it = SHOWING.iterator(); it.hasNext(); ) {
+            FrontierBoss boss = it.next();
+            boolean ticking = boss.tickCount != boss.sweptAt;
+            boss.sweptAt = boss.tickCount;
+            if (boss.isRemoved() || boss.isDeadOrDying() || !ticking) {
+                boss.bossEvent.removeAllPlayers();
+                it.remove();
+            } else {
+                boss.dropFarViewers();
+                if (boss.bossEvent.getPlayers().isEmpty()) it.remove();
+            }
         }
+    }
+
+    @Override
+    public void die(DamageSource source) {
+        super.die(source);
+        bossEvent.setProgress(0f);
+        bossEvent.removeAllPlayers();
     }
 
     /** Damages every valid target within {@code radius}, optionally only in front (dot > minDot). */
@@ -329,6 +391,13 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
     public void remove(RemovalReason reason) {
         super.remove(reason);
         // Viewers are added by distance, not tracking, so drop them all when the boss goes away.
+        bossEvent.removeAllPlayers();
+    }
+
+    /** Also called when the boss's chunk unloads, which doesn't go through {@link #remove}. */
+    @Override
+    public void onRemovedFromLevel() {
+        super.onRemovedFromLevel();
         bossEvent.removeAllPlayers();
     }
 

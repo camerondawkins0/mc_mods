@@ -52,13 +52,17 @@ public final class EnemyHealthBars {
     private static final float WIDTH = 40, LEVELED_WIDTH = 46, HEIGHT = 4;
     private static final int FRAME = 0xD0060C16, TRAIL = 0xFFFFE3A0;
 
-    /** Alpha-blended, depth-tested and depth-writing quads, drawn in the order given. */
+    /**
+     * Alpha-blended quads, hidden by terrain but not writing depth, so each layer of a bar simply
+     * paints over the one before it in the order drawn (frame, track, damage trail, HP fill...).
+     * Layering by depth instead left the fill hidden behind the frame.
+     */
     private static final RenderType BAR = RenderType.create("slfrontier_health_bar", DefaultVertexFormat.POSITION_COLOR,
             VertexFormat.Mode.QUADS, 4096, false, false, RenderType.CompositeState.builder()
                     .setShaderState(RenderStateShard.POSITION_COLOR_SHADER)
                     .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
                     .setCullState(RenderStateShard.NO_CULL)
-                    .setWriteMaskState(RenderStateShard.COLOR_DEPTH_WRITE)
+                    .setWriteMaskState(RenderStateShard.COLOR_WRITE)
                     .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)
                     .createCompositeState(false));
 
@@ -196,7 +200,10 @@ public final class EnemyHealthBars {
         pose.scale(k, -k, k);
     }
 
-    /** Frame, empty track, trailing damage, HP fill and a highlight, each a little nearer the camera. */
+    /**
+     * Frame, empty track, trailing damage, HP fill and a highlight, painted in that order. (The
+     * billboard's -z points away from the camera, so each layer also sits a hair nearer it.)
+     */
     private static void drawBar(VertexConsumer v, Matrix4f m, Shown s) {
         float w = s.mob instanceof LeveledMob ? LEVELED_WIDTH : WIDTH;
         float x0 = -w / 2, x1 = w / 2;
@@ -204,18 +211,18 @@ public final class EnemyHealthBars {
         float hp = Mth.clamp(s.bar.health / max, 0f, 1f), trail = Mth.clamp(s.bar.trail / max, 0f, 1f);
         float a = s.alpha;
         rect(v, m, x0 - 1, -1, x1 + 1, HEIGHT + 1, 0f, fade(FRAME, a), fade(FRAME, a));
-        rect(v, m, x0, 0, x1, HEIGHT, -0.4f, fade(Theme.BAR_BACK, a), fade(Theme.BAR_BACK, a));
+        rect(v, m, x0, 0, x1, HEIGHT, 0.1f, fade(Theme.BAR_BACK, a), fade(Theme.BAR_BACK, a));
         float fx = x0 + w * hp;
-        if (trail > hp) rect(v, m, fx, 0, x0 + w * trail, HEIGHT, -0.8f, fade(TRAIL, a), fade(TRAIL, a * 0.85f));
+        if (trail > hp) rect(v, m, fx, 0, x0 + w * trail, HEIGHT, 0.2f, fade(TRAIL, a), fade(TRAIL, a * 0.85f));
         if (hp > 0) {
-            rect(v, m, x0, 0, fx, HEIGHT, -1.2f, fade(Theme.HP_A, a), fade(Theme.HP_B, a));
-            rect(v, m, x0, 0, fx, HEIGHT / 3f, -1.6f, fade(0x50FFFFFF, a), fade(0x18FFFFFF, a));
+            rect(v, m, x0, 0, fx, HEIGHT, 0.3f, fade(Theme.HP_A, a), fade(Theme.HP_B, a));
+            rect(v, m, x0, 0, fx, HEIGHT / 3f, 0.4f, fade(0x50FFFFFF, a), fade(0x18FFFFFF, a));
         }
         for (int i = 1; i < 4; i++) {
             float tx = x0 + w * i / 4f;
-            rect(v, m, tx, 0, tx + 0.5f, HEIGHT, -2f, fade(0x60000000, a), fade(0x60000000, a));
+            rect(v, m, tx, 0, tx + 0.5f, HEIGHT, 0.5f, fade(0x60000000, a), fade(0x60000000, a));
         }
-        rect(v, m, x0 - 1, -1, x1 + 1, -0.5f, -2f, fade(0xFF7A2A36, a), fade(0xFF7A2A36, a));
+        rect(v, m, x0 - 1, -1, x1 + 1, -0.5f, 0.5f, fade(0xFF7A2A36, a), fade(0xFF7A2A36, a));
     }
 
     private static int nameColor(Mob mob, int playerLevel) {

@@ -71,6 +71,21 @@ public class RavenousSnakeEntity extends FrontierBoss {
         }
     }
 
+    /** It's a venomous serpent: its own poison clouds don't hurt it. */
+    @Override
+    public boolean canBeAffected(MobEffectInstance effect) {
+        return !effect.is(MobEffects.POISON) && super.canBeAffected(effect);
+    }
+
+    /**
+     * The serpent that rises at the bridge isn't saved with its chunk: leave and it sinks back
+     * into the river, and the next visit raises a fresh one (never two).
+     */
+    @Override
+    public boolean shouldBeSaved() {
+        return home == null && super.shouldBeSaved();
+    }
+
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);

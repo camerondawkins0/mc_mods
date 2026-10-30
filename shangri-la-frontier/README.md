@@ -161,7 +161,8 @@ and dodging — or parrying.
 
 * EXP comes from defeating monsters in the Frontier (bosses give a lot). Level cap 99.
 * Each level gives **3 stat points** (5 with the Vorpal Soul Collar, which costs 30% EXP).
-* Stats: **VIT** health, **STR** damage, **AGI** speed, **DEX** attack speed,
+* Stats: **VIT** health, **STR** damage, **AGI** speed and jump height (up to about 1.8
+  blocks, so no leaping over walls), **DEX** attack speed,
   **TEC** cooldowns/parry window, **LUC** critical chance, **STA** stamina.
 * Sprinting and skills use **stamina**; it refills when you stop.
 * Dying in the Frontier sends you back to your last waypoint crystal (or Firstia) with a
@@ -177,13 +178,16 @@ and dodging — or parrying.
 |---|---|---|
 | Tap Step → **Slide Step** | Start / use 40× | Dash with invincibility frames in the direction you're moving (W A S D, diagonals too; straight ahead when standing still). |
 | Drill Piercer → **Glowing Pierce** | Lv 3 / use 30× | Lunging thrust; double damage on weak points (from behind). |
-| Perfect Parry → **Repel Counter** | Lv 5 / 15 parries | Nullify an attack; evolved form counterattacks. |
+| Perfect Parry → **Repel Counter** | Lv 5 / 15 parries | Nullify an attack and stun the attacker for half a second; evolved form counterattacks. |
 | Cyclone Slash | Lv 8 | Spinning AoE. |
 | Double Jump | Lv 10 | Passive: jump again in midair. |
 | Rabbit Gun | Meet Vysache | With Emul: Magic Edge + launch at the target. |
 | Moon Reflection | Moonblades | Crescent wave in front of you. |
 | Crescent Vorpal | Vysache (final chapter) | Twin Moon leap-and-slam. |
 | Sky Clear | Seiten Skillbook | Wezaemon's 360° cut. (It also clears the weather.) |
+
+Attack skills make you untouchable for a moment as they go off (Drill Piercer's lunge for
+0.4 s, the slashes for 0.3 s), so diving into a monster with one isn't a free hit for it.
 
 ### Weapons
 
