@@ -39,6 +39,7 @@ public final class ClientHooks {
 
     public static void hit(ModNetwork.Hit payload) {
         com.slfrontier.client.fx.DamageNumbers.add(payload.entityId(), payload.amount(), payload.flags());
+        com.slfrontier.client.fx.Impact.onHit(payload);
     }
 
     public static void markers(ModNetwork.Markers payload) {

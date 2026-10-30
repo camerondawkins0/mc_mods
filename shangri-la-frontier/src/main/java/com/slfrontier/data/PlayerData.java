@@ -71,6 +71,10 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
     private byte moveStrafe, moveForward;
     public int offhandTargetId = -1;
     public int offhandDelay;
+    /** Twin-blade combo: hits landed in a row (the third is a cross-slash finisher). */
+    public int comboStage;
+    public long comboLastHit = -1000;
+    public boolean finisherPending;
     public int pierceTicks;
     public boolean pierceGlowing;
     public boolean airJumpUsed;

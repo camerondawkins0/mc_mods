@@ -2,6 +2,7 @@ package com.slfrontier.client;
 
 import com.slfrontier.client.anim.PlayerAnim;
 import com.slfrontier.client.anim.SkillAnims;
+import com.slfrontier.client.fx.Impact;
 import com.slfrontier.item.FrontierWeapon;
 import com.slfrontier.skill.PlayerAnims;
 import net.minecraft.client.model.HumanoidModel;
@@ -38,7 +39,18 @@ public final class ClientAnims {
 
     public static void tick() {
         clock++;
-        ACTIVE.values().removeIf(a -> clock - a.start > a.duration + 2);
+        ACTIVE.entrySet().removeIf(e -> elapsed(e.getKey(), e.getValue(), 0) > e.getValue().duration + 2);
+    }
+
+    /** The animation clock in ticks (hit-stop windows are measured on it). */
+    public static float clock() {
+        return clock;
+    }
+
+    /** Ticks an animation has played, not counting time it spent held by a hit-stop. */
+    private static float elapsed(int entityId, Active a, float partialTick) {
+        float now = clock + partialTick;
+        return now - a.start - Impact.lost(entityId, a.start, now);
     }
 
     public static void start(int entityId, int anim, int duration) {
@@ -59,7 +71,7 @@ public final class ClientAnims {
     /** Elapsed fraction of the server-started animation on an entity, or -1. */
     public static float progress(int entityId, float partialTick) {
         Active a = ACTIVE.get(entityId);
-        return a == null ? -1 : Mth.clamp((clock + partialTick - a.start) / a.duration, 0f, 1f);
+        return a == null ? -1 : Mth.clamp(elapsed(entityId, a, partialTick) / a.duration, 0f, 1f);
     }
 
     /** The animation affecting an entity right now: a skill, else a weapon slash, else null. */
@@ -69,7 +81,7 @@ public final class ClientAnims {
         if (a != null) {
             PlayerAnim def = SkillAnims.get(a.anim);
             if (def != null) {
-                float elapsed = clock + partialTick - a.start;
+                float elapsed = elapsed(entity.getId(), a, partialTick);
                 float t = Mth.clamp(elapsed / a.duration, 0f, 1f);
                 float in = def.blendIn <= 0 ? 1 : Mth.clamp(elapsed / def.blendIn, 0f, 1f);
                 float out = def.blendOut <= 0 ? 1 : Mth.clamp((a.duration - elapsed) / def.blendOut, 0f, 1f);

@@ -144,6 +144,7 @@ public final class ClientTestDriver {
         if (wants("bosses")) bosses();
         if (wants("weapons")) weapons();
         if (wants("grip")) grip();
+        if (wants("impact")) impact();
         if (wants("poses")) poses();
         if (wants("skills")) skills();
         if (wants("menus")) menus();
@@ -366,6 +367,49 @@ public final class ClientTestDriver {
             }
         }
         at(5, mc -> mc.options.setCameraType(CameraType.FIRST_PERSON));
+    }
+
+    /** Three twin-blade hits on a sturdy goblin: white flashes, then the cross-slash finisher's hit-stop and burst. */
+    private static void impact() {
+        at(0, mc -> com.slfrontier.client.fx.Impact.testStretch = 6);
+        server(5, sp -> {
+            sp.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.MERCENARY_TWIN_BLADES.get()));
+            sp.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(ModItems.MERCENARY_TWIN_BLADES.get()));
+            sp.getAbilities().flying = false;
+            sp.onUpdateAbilities();
+            sp.teleportTo(sp.serverLevel(), sp.getX(), sp.getY(), sp.getZ(), 0f, 18f);
+            lineUp(sp, List.of(ModEntities.GOBLIN), 0, 2.2);
+            for (Entity e : spawned) {
+                if (e instanceof net.minecraft.world.entity.LivingEntity living) {
+                    java.util.Objects.requireNonNull(living.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH))
+                            .setBaseValue(500);
+                    living.setHealth(500);
+                }
+            }
+        });
+        for (int i = 1; i <= 3; i++) {
+            // Software rendering makes client ticks bunch up against the server's, so keep the combo
+            // window open from the server's side right before each scripted hit.
+            if (i > 1) server(14, sp -> ModAttachments.get(sp).comboLastHit = sp.level().getGameTime());
+            at(i == 1 ? 40 : 2, mc -> mc.level.getEntitiesOfClass(com.slfrontier.entity.mob.GoblinEntity.class,
+                    mc.player.getBoundingBox().inflate(6)).stream().findFirst().ifPresent(goblin -> {
+                mc.gameMode.attack(mc.player, goblin);
+                mc.player.swing(InteractionHand.MAIN_HAND);
+            }));
+            shot(1, "60_impact_hit_" + i);
+        }
+        // The finisher's pose, slowed right down for a still from the front.
+        at(20, mc -> {
+            mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+            ClientAnims.start(mc.player.getId(), PlayerAnims.CROSS_SLASH, 200);
+        });
+        shot(60, "61_cross_slash_windup");
+        shot(50, "62_cross_slash_cut");
+        at(5, mc -> {
+            mc.options.setCameraType(CameraType.FIRST_PERSON);
+            com.slfrontier.client.fx.Impact.testStretch = 1;
+        });
+        server(5, sp -> clear());
     }
 
     private static void poses() {

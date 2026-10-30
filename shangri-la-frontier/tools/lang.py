@@ -813,6 +813,8 @@ MISC.update({
     "slfrontier.configuration.effects": "Effects",
     "slfrontier.configuration.cameraShake": "Camera shake",
     "slfrontier.configuration.firstPersonSkillAnimations": "First-person skill animations",
+    "slfrontier.configuration.hitStop": "Hit-stop on heavy hits",
+    "slfrontier.configuration.impactScreenEffects": "Impact screen effects",
     "slfrontier.configuration.fastTravel": "Fast travel",
     "slfrontier.configuration.enabled": "Enabled",
     "slfrontier.configuration.cooldownSeconds": "Cooldown (seconds)",

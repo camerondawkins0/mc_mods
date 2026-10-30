@@ -20,6 +20,8 @@ public final class PlayerAnims {
     public static final int SLASH_B = 16;
     public static final int DRAW = 17;
     public static final int SLASH_HEAVY = 18;
+    /** Third hit of a twin-blade combo: both blades cut an X. */
+    public static final int CROSS_SLASH = 19;
 
     private PlayerAnims() {
     }

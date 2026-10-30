@@ -208,6 +208,28 @@ public final class SkillAnims {
                 .rot(Part.LEFT_ARM, 0, -120, 20, -30, 0.4f, -40, -55, 10, 1, -20, 0, 0)
                 .build());
 
+        // Twin-blade combo finisher: both blades rise crossed overhead, then cut down and out in an X
+        // as the avatar lunges in.
+        put(PlayerAnims.CROSS_SLASH, PlayerAnim.of(9).blend(1f, 2.5f)
+                .ease(Ease.OUT)
+                .spin(0, 0, 0, 0, 0.3f, 0, -12, 0)
+                .ease(Ease.BACK)
+                .spin(0.55f, 0, 22, 0, 1, 0, 0, 0)
+                .ease(Ease.OUT)
+                .move(0, 0, 0, 0.3f, 0.06f, -0.05f, 0.55f, -0.14f, 0.3f, 1, 0, 0)
+                .rot(Part.RIGHT_ARM, 0, -40, 0, 0, 0.3f, -168, -25, -38)
+                .ease(Ease.BACK)
+                .rot(Part.RIGHT_ARM, 0.55f, -38, 30, 48, 1, -20, 0, 14)
+                .ease(Ease.OUT)
+                .rot(Part.LEFT_ARM, 0, -40, 0, 0, 0.3f, -168, 25, 38)
+                .ease(Ease.BACK)
+                .rot(Part.LEFT_ARM, 0.55f, -38, -30, -48, 1, -20, 0, -14)
+                .ease(Ease.OUT)
+                .rot(Part.HEAD, 0, 0, 0, 0, 0.3f, -15, 0, 0, 0.55f, 10, 0, 0, 1, 0, 0, 0)
+                .rot(Part.RIGHT_LEG, 0, 0, 0, 0, 0.3f, 8, 0, 0, 0.55f, -38, 0, 6, 1, 0, 0, 0)
+                .rot(Part.LEFT_LEG, 0, 0, 0, 0, 0.3f, -8, 0, 0, 0.55f, 30, 0, -6, 1, 0, 0, 0)
+                .build());
+
         // Basic twin-blade swings (driven by the vanilla swing timer, not by packets).
         put(PlayerAnims.SLASH_A, PlayerAnim.of(6).blend(0.5f, 2f)
                 .ease(Ease.OUT)

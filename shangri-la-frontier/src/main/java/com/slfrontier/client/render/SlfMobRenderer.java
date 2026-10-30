@@ -11,6 +11,7 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.MobRenderer;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Mob;
@@ -29,6 +30,7 @@ public class SlfMobRenderer<T extends Mob & SlfAnimated> extends MobRenderer<T, 
         this.texture = texture;
         this.scale = scale;
         addLayer(new GlowLayer<>(this, texture));
+        addLayer(new FlashLayer<>(this, texture));
     }
 
     @Override
@@ -39,6 +41,29 @@ public class SlfMobRenderer<T extends Mob & SlfAnimated> extends MobRenderer<T, 
     @Override
     protected void scale(T entity, PoseStack poseStack, float partialTick) {
         if (scale != 1f) poseStack.scale(scale, scale, scale);
+    }
+
+    /**
+     * The white flash of a fresh hit: the model drawn again, washed white and fading out.
+     * (Vanilla's white overlay would be tinted red by the hurt overlay, so it's a second pass.)
+     */
+    static final class FlashLayer<T extends Mob & SlfAnimated> extends RenderLayer<T, SlfModel<T>> {
+        private static final int WHITE_OVERLAY = OverlayTexture.pack(15, 10);
+        private final ResourceLocation texture;
+
+        FlashLayer(RenderLayerParent<T, SlfModel<T>> parent, ResourceLocation texture) {
+            super(parent);
+            this.texture = texture;
+        }
+
+        @Override
+        public void render(PoseStack pose, MultiBufferSource buffers, int light, T entity, float limbSwing, float limbSwingAmount,
+                           float partialTick, float ageInTicks, float netHeadYaw, float headPitch) {
+            float flash = com.slfrontier.client.fx.Impact.flash(entity.getId(), partialTick);
+            if (flash <= 0 || entity.isInvisible()) return;
+            VertexConsumer buffer = buffers.getBuffer(RenderType.entityTranslucent(texture));
+            getParentModel().renderToBuffer(pose, buffer, 0xF000F0, WHITE_OVERLAY, (int) (flash * 235) << 24 | 0xFFFFFF);
+        }
     }
 
     /** Draws the emissive {@code _glow} texture, if the creature has one. */

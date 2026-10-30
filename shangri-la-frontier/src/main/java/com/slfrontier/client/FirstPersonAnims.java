@@ -68,6 +68,14 @@ public final class FirstPersonAnims {
                 pose.translate(-side * 0.32f * b, 0.12f * b, 0.05f * b);
                 pose.mulPose(Axis.ZP.rotationDegrees(side * 40 * b));
             }
+            case PlayerAnims.CROSS_SLASH -> {
+                // Both blades lift crossed into view, then cut down and out past the screen edges.
+                float wind = t < 0.4f ? bump(t / 0.4f, 0.75f) : 0;
+                float cut = t < 0.3f ? 0 : bump((t - 0.3f) / 0.7f, 0.3f);
+                pose.translate(-side * 0.18f * wind + side * 0.3f * cut, 0.28f * wind - 0.2f * cut, 0.05f * wind - 0.25f * cut);
+                pose.mulPose(Axis.ZP.rotationDegrees(side * (40 * wind - 60 * cut)));
+                pose.mulPose(Axis.XP.rotationDegrees(35 * wind - 40 * cut));
+            }
             case PlayerAnims.PARRY_HIT -> {
                 float b = bump(t, 0.3f);
                 pose.translate(side * 0.25f * b, 0.15f * b, 0.1f * b);

@@ -157,6 +157,15 @@ and dodging — or parrying.
 | Lycagon's Shadow | Lightless Barrens | Surfaces from the dark for one attack at a time; faster on dark nights. |
 | Lycagon the Nightslayer | Nightslayer's Den | Bites, claws, shadow dashes, howls, Night Rend, vanishing pounces and shadow clones. |
 
+### Combat feel
+
+Hits land with weight. Every hit flashes the monster white. Critical and weak-point hits,
+skill hits, cross-slash finishers and kills also add a **hit-stop** (your swing and the
+monster hold for a split second) and a quick **FOV punch**. Skill hits, finishers and boss
+kills burst the screen with a flash and speed lines. All of this can be switched off under
+*Mods → Shangri-La Frontier → Config → Effects*. The flash also follows Minecraft's *Hide
+Lightning Flashes* option, and the punch follows its *FOV Effects* slider.
+
 ### Levels, stats and stamina
 
 * EXP comes from defeating monsters in the Frontier (bosses give a lot). Level cap 99.
@@ -203,7 +212,9 @@ Every weapon is a full 3D model, designed after the anime:
 * **Twin Moon** — the two locked into one huge crescent, white outside and black inside.
 * **Tombguard Katana** — Wezaemon's long, slim blade with a red-corded hilt.
 
-Twin blades: hold one in each hand — every main-hand hit is followed by an off-hand strike.
+Twin blades: hold one in each hand — every main-hand hit is followed by an off-hand strike,
+and the third hit in a row (each within two seconds of the last) is a **cross-slash**: both
+blades cut an X together for +20% damage.
 Waxing is +20% by day, Waning +20% by night; **sneak + use** with both in hand to join them
 into the Twin Moon (hold use to charge a cleave; sneak + use with an empty off hand to
 split). The katana: hold use to draw, release for an iaijutsu dash-cut. Attacks from behind

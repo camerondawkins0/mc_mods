@@ -23,6 +23,8 @@ public final class SlfConfig {
     public static final ModConfigSpec.BooleanValue FRONTIER_VISION;
     public static final ModConfigSpec.BooleanValue CAMERA_SHAKE;
     public static final ModConfigSpec.BooleanValue FIRST_PERSON_SKILL_ANIMS;
+    public static final ModConfigSpec.BooleanValue HIT_STOP;
+    public static final ModConfigSpec.BooleanValue IMPACT_SCREEN;
 
     // Server
     public static final ModConfigSpec.BooleanValue FAST_TRAVEL;
@@ -60,6 +62,10 @@ public final class SlfConfig {
         c.push("effects");
         CAMERA_SHAKE = c.comment("Shake the camera on heavy hits and boss slams.").define("cameraShake", true);
         FIRST_PERSON_SKILL_ANIMS = c.comment("Animate your arms in first person when using skills.").define("firstPersonSkillAnimations", true);
+        HIT_STOP = c.comment("Freeze your swing and the monster for a split second when a heavy hit lands.").define("hitStop", true);
+        IMPACT_SCREEN = c.comment("FOV punch on heavy hits, and a screen flash with speed lines on skill hits and finishers.",
+                "The flash also respects Minecraft's 'Hide Lightning Flashes', and the punch its 'FOV Effects' slider.")
+                .define("impactScreenEffects", true);
         c.pop();
         CLIENT_SPEC = c.build();
 

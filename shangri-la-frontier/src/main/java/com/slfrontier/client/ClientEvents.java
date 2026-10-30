@@ -43,6 +43,7 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         ClientAnims.tick();
+        com.slfrontier.client.fx.Impact.tick();
         FrontierHud.tick();
         FxRenderer.tick();
         DamageNumbers.tick();
@@ -105,6 +106,14 @@ public final class ClientEvents {
         }
     }
 
+    /** Heavy hits punch the field of view in for a moment (scaled by the FOV Effects slider). */
+    @SubscribeEvent
+    public static void onFov(ViewportEvent.ComputeFov event) {
+        if (!event.usedConfiguredFov()) return;
+        float punch = com.slfrontier.client.fx.Impact.fovPunchAt((float) event.getPartialTick());
+        if (punch > 0) event.setFOV(event.getFOV() * (1 - punch));
+    }
+
     @SubscribeEvent
     public static void onCameraAngles(ViewportEvent.ComputeCameraAngles event) {
         float[] shake = CameraShake.offsets((float) event.getPartialTick());
@@ -144,6 +153,7 @@ public final class ClientEvents {
         ClientState.reset();
         FxRenderer.clear();
         DamageNumbers.clear();
+        com.slfrontier.client.fx.Impact.clear();
     }
 
     @SubscribeEvent

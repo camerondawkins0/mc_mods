@@ -1,5 +1,7 @@
 package com.slfrontier.network;
 
+import com.slfrontier.fx.HitFlags;
+
 import com.slfrontier.SLFrontier;
 import com.slfrontier.client.ClientHooks;
 import com.slfrontier.data.PlayerData;
@@ -142,7 +144,8 @@ public final class ModNetwork {
 
     /** Damage the player dealt, for floating damage numbers. Flags: 1 = critical, 2 = weak point. */
     public record Hit(int entityId, float amount, int flags) implements CustomPacketPayload {
-        public static final int CRIT = 1, WEAK = 2;
+        public static final int CRIT = HitFlags.CRIT, WEAK = HitFlags.WEAK, SKILL = HitFlags.SKILL,
+                FINISHER = HitFlags.FINISHER, KILL = HitFlags.KILL;
         public static final Type<Hit> TYPE = new Type<>(SLFrontier.id("hit"));
         public static final StreamCodec<ByteBuf, Hit> CODEC = StreamCodec.composite(
                 ByteBufCodecs.VAR_INT, Hit::entityId,

@@ -321,6 +321,7 @@ public final class SkillExecutor {
         }
         target.invulnerableTime = 0;
         HitFlags.mark(target, crit, weakPoints && isBehind(player, target));
+        HitFlags.add(target, HitFlags.SKILL);
         target.hurt(player.damageSources().playerAttack(player), damage);
         if (crit) {
             player.serverLevel().sendParticles(ParticleTypes.CRIT, target.getX(), target.getY(0.6), target.getZ(), 12, 0.3, 0.3, 0.3, 0.3);

@@ -88,6 +88,8 @@ public final class ClientSetup {
     @SubscribeEvent
     public static void registerGui(RegisterGuiLayersEvent event) {
         event.registerAboveAll(SLFrontier.id("frontier_hud"), FrontierHud::render);
+        // Under every HUD element: the screen flash and speed lines of a big hit.
+        event.registerBelowAll(SLFrontier.id("impact"), com.slfrontier.client.fx.Impact::renderOverlay);
     }
 
     @SubscribeEvent

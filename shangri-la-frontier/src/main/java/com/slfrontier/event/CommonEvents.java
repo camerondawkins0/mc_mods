@@ -246,9 +246,35 @@ public final class CommonEvents {
         if (player.getMainHandItem().getItem() instanceof TwinBladeItem && player.getOffhandItem().getItem() instanceof TwinBladeItem
                 && player.getAttackStrengthScale(0.5f) > 0.8f) {
             PlayerData data = ModAttachments.get(player);
-            data.offhandTargetId = target.getId();
-            data.offhandDelay = 4;
+            long now = player.level().getGameTime();
+            data.comboStage = now - data.comboLastHit <= COMBO_WINDOW ? data.comboStage + 1 : 1;
+            data.comboLastHit = now;
+            if (data.comboStage >= 3 && player instanceof ServerPlayer sp && Frontier.isIn(sp)) {
+                crossSlash(sp, data, target);
+            } else {
+                data.offhandTargetId = target.getId();
+                data.offhandDelay = 4;
+            }
         }
+    }
+
+    /** Ticks between twin-blade hits that still count as one combo (forgiving enough for some lag). */
+    private static final int COMBO_WINDOW = 40;
+
+    /** Third hit in a row: both blades cut an X together (instead of the off-hand follow-up) for +20% damage. */
+    private static void crossSlash(ServerPlayer player, PlayerData data, LivingEntity target) {
+        data.comboStage = 0;
+        data.finisherPending = true;
+        data.offhandTargetId = -1;
+        ServerLevel level = player.serverLevel();
+        Fx.arc(player, 2.2f, 52, 150, 0xFFEAF4FF, 8);
+        Fx.arc(player, 2.2f, -52, 150, 0xFF9FD0FF, 8);
+        Fx.flash(level, target.position().add(0, target.getBbHeight() * 0.6, 0), 1.6f, 0xFFE8F4FF, 7, 0.6f);
+        level.sendParticles(ParticleTypes.SWEEP_ATTACK, target.getX(), target.getY(0.6), target.getZ(), 2, 0.3, 0.2, 0.3, 0);
+        level.playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 1f, 0.75f);
+        level.playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.PLAYERS, 0.8f, 1.2f);
+        target.knockback(0.5, player.getX() - target.getX(), player.getZ() - target.getZ());
+        ModNetwork.animate(player, PlayerAnims.CROSS_SLASH, 9);
     }
 
     private static void tickOffhand(ServerPlayer player, PlayerData data) {
@@ -319,6 +345,12 @@ public final class CommonEvents {
                 player.serverLevel().sendParticles(ParticleTypes.CRIT, victim.getX(), victim.getY(0.6), victim.getZ(), 10, 0.3, 0.3, 0.3, 0.3);
             }
             HitFlags.mark(victim, crit, weak);
+            PlayerData attackerData = ModAttachments.get(player);
+            if (attackerData.finisherPending) {
+                attackerData.finisherPending = false;
+                amount *= 1.2f;
+                HitFlags.add(victim, HitFlags.FINISHER);
+            }
             if (weapon.is(ModItems.EMPIRE_BEE_TWINBLADES.get())) {
                 victim.addEffect(new MobEffectInstance(MobEffects.POISON, 60, 0), player);
             }
@@ -356,6 +388,7 @@ public final class CommonEvents {
         int flags = HitFlags.take(victim);
         if (victim.level().isClientSide || !(event.getSource().getEntity() instanceof ServerPlayer player) || victim == player) return;
         if (!Frontier.isIn(player) || event.getNewDamage() <= 0) return;
+        if (victim.isDeadOrDying()) flags |= HitFlags.KILL;
         PacketDistributor.sendToPlayer(player, new ModNetwork.Hit(victim.getId(), event.getNewDamage(), flags));
     }
 

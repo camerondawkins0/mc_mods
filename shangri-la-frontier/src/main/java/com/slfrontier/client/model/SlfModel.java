@@ -57,8 +57,10 @@ public class SlfModel<T extends Mob & SlfAnimated> extends HierarchicalModel<T> 
             animateWalk(anims.walk(), limbSwing, limbSwingAmount, anims.walkSpeed(), anims.walkScale());
         }
         AnimationState[] states = entity.animStates();
+        // A hit-stop holds the creature mid-motion; its animations resume where they left off.
+        float speed = com.slfrontier.client.fx.Impact.animSpeed(entity.getId(), ageInTicks - Mth.floor(ageInTicks));
         for (int i = 0; i < anims.slots().length && i < states.length; i++) {
-            if (anims.slots()[i] != null) animate(states[i], anims.slots()[i], ageInTicks);
+            if (anims.slots()[i] != null) animate(states[i], anims.slots()[i], ageInTicks, speed);
         }
         if (anims.headPart() != null) {
             part(anims.headPart()).ifPresent(p -> {
