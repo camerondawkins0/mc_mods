@@ -79,7 +79,7 @@ public final class MapStore {
         if (server != null) {
             // The seed tells apart a new world that reuses an old world's name.
             key = "sp_" + server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize().getFileName()
-                    + "_" + Long.toHexString(server.getWorldData().worldGenOptions().seed());
+                    + "_" + Long.toHexString(server.getWorldGenSettings().options().seed());
         } else if (mc.getCurrentServer() != null) {
             key = "mp_" + mc.getCurrentServer().ip;
         } else {
@@ -120,10 +120,10 @@ public final class MapStore {
         if (QUEUE.isEmpty() && ticks % 10 == 0) enqueueAround(mc, level);
         for (int i = 0; i < CHUNKS_PER_TICK && !QUEUE.isEmpty(); i++) {
             ChunkPos cp = QUEUE.poll();
-            LevelChunk chunk = level.getChunkSource().getChunk(cp.x, cp.z, false);
+            LevelChunk chunk = level.getChunkSource().getChunk(cp.x(), cp.z(), false);
             if (chunk != null && !chunk.isEmpty()) {
                 scanChunk(level, chunk);
-                SCANNED.put(cp.toLong(), ticks);
+                SCANNED.put(cp.pack(), ticks);
             }
         }
         if (ticks % (20 * 60) == 0) saveAll();
@@ -136,8 +136,8 @@ public final class MapStore {
             for (int dx = -d; dx <= d; dx++) {
                 for (int dz = -d; dz <= d; dz++) {
                     if (Math.max(Math.abs(dx), Math.abs(dz)) != d) continue;
-                    ChunkPos cp = new ChunkPos(center.x + dx, center.z + dz);
-                    Long at = SCANNED.get(cp.toLong());
+                    ChunkPos cp = new ChunkPos(center.x() + dx, center.z() + dz);
+                    Long at = SCANNED.get(cp.pack());
                     if (at == null || ticks - at > RESCAN_TICKS) QUEUE.add(cp);
                 }
             }
@@ -157,7 +157,7 @@ public final class MapStore {
                 BlockState state = chunk.getBlockState(pos);
                 int y = top;
                 // Skip see-through blocks with no map colour (glass, etc.).
-                while (y > level.getMinBuildHeight() && state.getMapColor(level, pos) == MapColor.NONE) {
+                while (y > level.getMinY() && state.getMapColor(level, pos) == MapColor.NONE) {
                     pos.setY(--y);
                     state = chunk.getBlockState(pos);
                 }
@@ -185,7 +185,7 @@ public final class MapStore {
     }
 
     private static int surface(ClientLevel level, LevelChunk chunk, int wx, int wz, BlockPos.MutableBlockPos tmp) {
-        LevelChunk c = (wx >> 4) == chunk.getPos().x && (wz >> 4) == chunk.getPos().z ? chunk
+        LevelChunk c = (wx >> 4) == chunk.getPos().x() && (wz >> 4) == chunk.getPos().z() ? chunk
                 : level.getChunkSource().getChunk(wx >> 4, wz >> 4, false);
         if (c == null || c.isEmpty()) return chunk.getHeight(Heightmap.Types.WORLD_SURFACE, wx & 15, 0);
         return c.getHeight(Heightmap.Types.WORLD_SURFACE, wx & 15, wz & 15);

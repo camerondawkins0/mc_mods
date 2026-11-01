@@ -6,15 +6,16 @@ import com.slfrontier.client.ui.Theme;
 import com.slfrontier.network.ModNetwork;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 import java.util.List;
 
@@ -92,7 +93,7 @@ public class DialogueScreen extends Screen {
     }
 
     private void choose(int option) {
-        PacketDistributor.sendToServer(new ModNetwork.DialogueChoice(dialogue.entityId(), option));
+        ClientPacketDistributor.sendToServer(new ModNetwork.DialogueChoice(dialogue.entityId(), option));
         onClose();
     }
 
@@ -108,9 +109,9 @@ public class DialogueScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (super.mouseClicked(mouseX, mouseY, button)) return true;
-        if (mouseY > boxTop() - 4) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (super.mouseClicked(event, doubleClick)) return true;
+        if (event.y() > boxTop() - 4) {
             advance();
             return true;
         }
@@ -118,7 +119,8 @@ public class DialogueScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int key, int scan, int modifiers) {
+    public boolean keyPressed(KeyEvent event) {
+        int key = event.key();
         if (key == 32 || key == 257 || key == 335) { // space / enter
             advance();
             return true;
@@ -130,11 +132,11 @@ public class DialogueScreen extends Screen {
                 return true;
             }
         }
-        return super.keyPressed(key, scan, modifiers);
+        return super.keyPressed(event);
     }
 
     @Override
-    public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+    public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         // Letterbox bars instead of a blurred world: the speaker stays visible.
         float t = Mth.clamp((openTicks + partialTick) / 6f, 0f, 1f);
         int bar = (int) (22 * t);
@@ -143,13 +145,12 @@ public class DialogueScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        renderBackground(g, mouseX, mouseY, partialTick);
+    public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         float t = Mth.clamp((openTicks + partialTick) / 5f, 0f, 1f);
         Gfx.alpha = t;
         int left = boxLeft(), right = boxRight(), top = boxTop();
-        g.pose().pushPose();
-        g.pose().translate(0, (1 - t) * 10, 0);
+        g.pose().pushMatrix();
+        g.pose().translate(0, (1 - t) * 10);
         Gfx.panel(g, left, top, right - left, BOX_HEIGHT, 8);
 
         // Portrait of the speaker
@@ -164,7 +165,7 @@ public class DialogueScreen extends Screen {
             int scale = (int) Mth.clamp((ph - 14) / (0.62f * height), 10, 90);
             int centerY = (int) (py + 10 + height * scale / 2f);
             g.enableScissor(px + 1, py + 1, px + pw - 1, py + ph - 1);
-            InventoryScreen.renderEntityInInventoryFollowsMouse(g, px, centerY - ph / 2, px + pw, centerY + ph / 2,
+            Gfx.entity(g, px, centerY - ph / 2, px + pw, centerY + ph / 2,
                     scale, 0.0625f, mouseX, mouseY, living);
             g.disableScissor();
         }
@@ -174,14 +175,14 @@ public class DialogueScreen extends Screen {
         int nameWidth = font.width(title) + 16;
         Gfx.chamfer(g, nx, top - 12, nameWidth, 14, 4, 0, 4, 0, 0xF02A5F88, 0xF0123A5A);
         Gfx.outline(g, Gfx.chamferPoints(nx, top - 12, nameWidth, 14, 4, 0, 4, 0), 1f, Theme.GOLD);
-        g.drawString(font, title, nx + 8, top - 9, Gfx.fade(Theme.GOLD), true);
+        g.text(font, title, nx + 8, top - 9, Gfx.fade(Theme.GOLD), true);
 
         // Typewriter text
         String full = currentLine().getString();
         String shown = full.substring(0, Math.min(full.length(), (int) typed));
         int y = top + 10;
         for (FormattedCharSequence seq : font.split(Component.literal(shown), right - nx - 12)) {
-            g.drawString(font, seq, nx, y, Gfx.fade(0xFFF0F6FF), false);
+            g.text(font, seq, nx, y, Gfx.fade(0xFFF0F6FF), false);
             y += 11;
         }
         boolean done = typed >= full.length();
@@ -191,13 +192,13 @@ public class DialogueScreen extends Screen {
             Gfx.flush(g);
         }
         String counter = (Math.min(line, dialogue.lines().size() - 1) + 1) + "/" + dialogue.lines().size();
-        g.drawString(font, counter, nx, top + BOX_HEIGHT - 12, Gfx.fade(Theme.TEXT_FAINT), false);
+        g.text(font, counter, nx, top + BOX_HEIGHT - 12, Gfx.fade(Theme.TEXT_FAINT), false);
         if (!onLastLine()) {
             Component hint = Component.translatable("gui.slfrontier.dialogue_hint");
-            g.drawString(font, hint, right - 28 - font.width(hint), top + BOX_HEIGHT - 12, Gfx.fade(Theme.TEXT_FAINT), false);
+            g.text(font, hint, right - 28 - font.width(hint), top + BOX_HEIGHT - 12, Gfx.fade(Theme.TEXT_FAINT), false);
         }
-        g.pose().popPose();
-        for (var r : renderables) r.render(g, mouseX, mouseY, partialTick);
+        g.pose().popMatrix();
+        for (var r : renderables) r.extractRenderState(g, mouseX, mouseY, partialTick);
         Gfx.alpha = 1f;
     }
 

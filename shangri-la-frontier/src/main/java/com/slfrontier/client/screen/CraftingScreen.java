@@ -12,12 +12,16 @@ import com.slfrontier.network.CraftingNetwork;
 import com.slfrontier.registry.ModAttachments;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -26,7 +30,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -46,7 +50,7 @@ public class CraftingScreen extends Screen {
     private static final int ROW = 24, HEADER = 14, ING_ROW = 18;
 
     private static String lastTab = "all";
-    private static final Map<Station, ResourceLocation> LAST_SELECTED = new EnumMap<>(Station.class);
+    private static final Map<Station, Identifier> LAST_SELECTED = new EnumMap<>(Station.class);
 
     private final Station station;
     private final int npcEntity;
@@ -62,10 +66,10 @@ public class CraftingScreen extends Screen {
     private int left, top, w, h;
     private final List<Row> rows = new ArrayList<>();
     /** How many times each recipe can be made right now; refreshed every tick. */
-    private final Map<ResourceLocation, Integer> craftable = new HashMap<>();
+    private final Map<Identifier, Integer> craftable = new HashMap<>();
 
     @Nullable
-    private ResourceLocation crafting;
+    private Identifier crafting;
     private int craftQty, craftTotal, craftStart;
     @Nullable
     private Component status;
@@ -87,7 +91,7 @@ public class CraftingScreen extends Screen {
         this.npcEntity = npcEntity;
         this.npcId = npcId;
         this.anchor = anchor;
-        ResourceLocation last = LAST_SELECTED.get(station);
+        Identifier last = LAST_SELECTED.get(station);
         this.selected = last == null ? null : CraftingClient.get(last);
     }
 
@@ -279,10 +283,10 @@ public class CraftingScreen extends Screen {
 
     private void pressCraft() {
         if (crafting != null) {
-            PacketDistributor.sendToServer(new CraftingNetwork.CancelCraft());
+            ClientPacketDistributor.sendToServer(new CraftingNetwork.CancelCraft());
             return;
         }
-        if (canCraftSelected()) PacketDistributor.sendToServer(new CraftingNetwork.Craft(selected.id(), quantity));
+        if (canCraftSelected()) ClientPacketDistributor.sendToServer(new CraftingNetwork.Craft(selected.id(), quantity));
     }
 
     /** Recipes were re-sent (login or /reload). */
@@ -359,7 +363,7 @@ public class CraftingScreen extends Screen {
 
     @Override
     public void removed() {
-        if (crafting != null) PacketDistributor.sendToServer(new CraftingNetwork.CancelCraft());
+        if (crafting != null) ClientPacketDistributor.sendToServer(new CraftingNetwork.CancelCraft());
         crafting = null;
     }
 
@@ -369,8 +373,9 @@ public class CraftingScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int key, int scan, int modifiers) {
-        if (minecraft != null && minecraft.options.keyInventory.matches(key, scan)) {
+    public boolean keyPressed(KeyEvent event) {
+        int key = event.key();
+        if (minecraft.options.keyInventory.matches(event)) {
             onClose();
             return true;
         }
@@ -382,7 +387,7 @@ public class CraftingScreen extends Screen {
             moveSelection(key == 264 ? 1 : -1);
             return true;
         }
-        return super.keyPressed(key, scan, modifiers);
+        return super.keyPressed(event);
     }
 
     private void moveSelection(int dir) {
@@ -395,9 +400,9 @@ public class CraftingScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mx, double my, int button) {
-        if (super.mouseClicked(mx, my, button)) return true;
-        Row row = rowAt(mx, my);
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (super.mouseClicked(event, doubleClick)) return true;
+        Row row = rowAt(event.x(), event.y());
         if (row != null && row.recipe() != null) {
             select(row.recipe());
             rebuild();
@@ -431,41 +436,40 @@ public class CraftingScreen extends Screen {
     // ---- Rendering -------------------------------------------------------------------
 
     @Override
-    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         float t = Mth.clamp((ticks + partialTick) / 5f, 0f, 1f);
-        renderBackground(g, mouseX, mouseY, partialTick);
-        g.pose().pushPose();
-        g.pose().translate(0, (1 - t) * 8, 0);
+        g.pose().pushMatrix();
+        g.pose().translate(0, (1 - t) * 8);
         Gfx.alpha = t;
         Gfx.panel(g, left, top, w, h, 8, Theme.PANEL_TOP, Theme.PANEL_BOTTOM, Theme.BORDER, station.color);
         renderTitle(g);
         @Nullable ItemStack hovered = renderList(g, mouseX, mouseY);
         ItemStack detailHover = renderDetail(g, mouseX, mouseY, partialTick);
         if (hovered == null) hovered = detailHover;
-        for (var r : renderables) r.render(g, mouseX, mouseY, partialTick);
+        for (var r : renderables) r.extractRenderState(g, mouseX, mouseY, partialTick);
         Gfx.alpha = 1f;
-        g.pose().popPose();
-        if (hovered != null && !hovered.isEmpty()) g.renderTooltip(font, hovered, mouseX, mouseY);
+        g.pose().popMatrix();
+        if (hovered != null && !hovered.isEmpty()) g.setTooltipForNextFrame(font, hovered, mouseX, mouseY);
     }
 
-    private void renderTitle(GuiGraphics g) {
+    private void renderTitle(GuiGraphicsExtractor g) {
         float[] diamond = Gfx.ngon(left + 16, top + 10, 3.5f, 4, 0);
         Gfx.poly(g, diamond, top + 6, top + 14, station.color, Theme.withA(station.color, 0.6f));
         Component name = Component.translatable(station.nameKey()).withStyle(ChatFormatting.BOLD);
-        g.drawString(font, name, left + 24, top + 6, Gfx.fade(station.color), false);
+        g.text(font, name, left + 24, top + 6, Gfx.fade(station.color), false);
         if (!npcId.isEmpty()) {
             Component smith = Component.translatable("gui.slfrontier.craft.run_by", Component.translatable("entity.slfrontier." + npcId));
-            g.drawString(font, smith, left + 30 + font.width(name), top + 6, Gfx.fade(Theme.TEXT_DIM), false);
+            g.text(font, smith, left + 30 + font.width(name), top + 6, Gfx.fade(Theme.TEXT_DIM), false);
         }
         Component right = Component.translatable("gui.slfrontier.craft.level", data().level());
-        g.drawString(font, right, left + w - 12 - font.width(right), top + 6, Gfx.fade(Theme.TEXT_DIM), false);
+        g.text(font, right, left + w - 12 - font.width(right), top + 6, Gfx.fade(Theme.TEXT_DIM), false);
         Gfx.hgrad(g, left + 10, top + 17, left + w / 2f, top + 18, Theme.withA(station.color, 0.05f), Theme.withA(station.color, 0.5f));
         Gfx.hgrad(g, left + w / 2f, top + 17, left + w - 10, top + 18, Theme.withA(station.color, 0.5f), Theme.withA(station.color, 0.05f));
     }
 
     /** @return the item under the mouse, for a tooltip */
     @Nullable
-    private ItemStack renderList(GuiGraphics g, int mouseX, int mouseY) {
+    private ItemStack renderList(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         int x0 = cx0(), y0 = cy0(), lw = listW(), y1 = cy1();
         Gfx.inset(g, x0, y0, lw, y1 - y0);
         ItemStack hovered = null;
@@ -480,7 +484,7 @@ public class CraftingScreen extends Screen {
             int y = y0 + 2 + row.y() - (int) scroll;
             if (y + row.h() < y0 || y > y1) continue;
             if (row.header() != null) {
-                g.drawString(font, row.header(), x0 + 5, y + 4, Gfx.fade(Theme.TEXT_DIM), false);
+                g.text(font, row.header(), x0 + 5, y + 4, Gfx.fade(Theme.TEXT_DIM), false);
                 int tw = font.width(row.header()) + 9;
                 Gfx.hgrad(g, x0 + tw, y + 8, x0 + lw - 6, y + 9, Theme.withA(Theme.ACCENT, 0.4f), Theme.withA(Theme.ACCENT, 0f));
                 continue;
@@ -496,8 +500,8 @@ public class CraftingScreen extends Screen {
                 Gfx.chamfer(g, x0 + 2, y, lw - 4, ROW - 2, 3, 0, 3, 0, 0x30FFFFFF, 0x10FFFFFF);
             }
             ItemStack stack = r.result();
-            g.renderItem(stack, x0 + 6, y + 3);
-            g.renderItemDecorations(font, stack, x0 + 6, y + 3);
+            g.item(stack, x0 + 6, y + 3);
+            g.itemDecorations(font, stack, x0 + 6, y + 3);
             boolean locked = lock != FrontierRecipe.Lock.NONE;
             if (locked) Gfx.rect(g, x0 + 6, y + 3, x0 + 22, y + 19, 0xA0060C16);
             if (hover && mouseX < x0 + 24) hovered = stack;
@@ -505,7 +509,7 @@ public class CraftingScreen extends Screen {
             int count = craftable(r);
             int nameColor = locked ? Theme.TEXT_FAINT : sel ? 0xFFFFFFFF : Theme.TEXT;
             String name = font.plainSubstrByWidth(stack.getHoverName().getString(), lw - 32);
-            g.drawString(font, name, x0 + 26, y + 3, Gfx.fade(nameColor), !locked);
+            g.text(font, name, x0 + 26, y + 3, Gfx.fade(nameColor), !locked);
             Component sub;
             int subColor;
             if (locked) {
@@ -519,7 +523,7 @@ public class CraftingScreen extends Screen {
                 subColor = 0xFFB08A60;
             }
             String subText = font.plainSubstrByWidth(sub.getString(), lw - 32);
-            g.drawString(font, subText, x0 + 26, y + 13, Gfx.fade(subColor), false);
+            g.text(font, subText, x0 + 26, y + 13, Gfx.fade(subColor), false);
         }
         g.disableScissor();
         int content = contentHeight(), view = viewHeight();
@@ -543,11 +547,11 @@ public class CraftingScreen extends Screen {
 
     /** @return the item under the mouse, for a tooltip */
     @Nullable
-    private ItemStack renderDetail(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+    private ItemStack renderDetail(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         int x = dx(), y = cy0(), dw = dw();
         FrontierRecipe r = selected;
         if (r == null) {
-            g.drawString(font, Component.translatable("gui.slfrontier.craft.select"), x, y + 4, Gfx.fade(Theme.TEXT_FAINT), false);
+            g.text(font, Component.translatable("gui.slfrontier.craft.select"), x, y + 4, Gfx.fade(Theme.TEXT_FAINT), false);
             return null;
         }
         ItemStack hovered = null;
@@ -557,17 +561,14 @@ public class CraftingScreen extends Screen {
         // Result: big icon, name, category and smith chips.
         Gfx.chamfer(g, x, y, 40, 40, 6, 0, 6, 0, Theme.withA(station.color, 0.28f), 0x90081018);
         Gfx.outline(g, Gfx.chamferPoints(x, y, 40, 40, 6, 0, 6, 0), 1f, station.color);
-        g.pose().pushPose();
-        g.pose().translate(x + 4, y + 4, 0);
-        g.pose().scale(2f, 2f, 1f);
-        g.renderItem(result, 0, 0);
-        g.pose().popPose();
+        g.pose().pushMatrix();
+        g.pose().translate(x + 4, y + 4);
+        g.pose().scale(2f, 2f);
+        g.item(result, 0, 0);
+        g.pose().popMatrix();
         if (result.getCount() > 1) {
             String n = "×" + result.getCount();
-            g.pose().pushPose();
-            g.pose().translate(0, 0, 300);
-            g.drawString(font, n, x + 38 - font.width(n), y + 30, Gfx.fade(0xFFFFFFFF), true);
-            g.pose().popPose();
+            g.text(font, n, x + 38 - font.width(n), y + 30, Gfx.fade(0xFFFFFFFF), true);
         }
         if (mouseX >= x && mouseX < x + 40 && mouseY >= y && mouseY < y + 40) hovered = result;
         Gfx.text(g, font, Component.literal(font.plainSubstrByWidth(result.getHoverName().getString(), (int) ((dw - 46) / 1.25f))),
@@ -577,10 +578,10 @@ public class CraftingScreen extends Screen {
         if (!r.npc().isEmpty()) chip(g, chipX + 3, y + 16, Component.translatable("entity.slfrontier." + r.npc()), Theme.GOLD);
         String time = String.format("%.1fs", r.time() / 20f);
         Gfx.icon(g, Theme.icon("hourglass"), x + 46, y + 30, 9, 16);
-        g.drawString(font, time, x + 58, y + 31, Gfx.fade(Theme.TEXT_DIM), false);
+        g.text(font, time, x + 58, y + 31, Gfx.fade(Theme.TEXT_DIM), false);
         if (r.minLevel() > 1) {
             Component lv = Component.translatable("gui.slfrontier.craft.req_level", r.minLevel());
-            g.drawString(font, lv, x + 64 + font.width(time), y + 31,
+            g.text(font, lv, x + 64 + font.width(time), y + 31,
                     Gfx.fade(data().level() >= r.minLevel() ? Theme.TEXT_DIM : Theme.RED), false);
         }
 
@@ -601,8 +602,8 @@ public class CraftingScreen extends Screen {
         }
         for (int i = 0; i < Math.min(maxLines, lines.size()); i++) {
             boolean cut = i == maxLines - 1 && lines.size() > maxLines;
-            if (cut) g.drawString(font, "…", x, lore + i * 10, Gfx.fade(Theme.TEXT_FAINT), false);
-            else g.drawString(font, lines.get(i), x, lore + i * 10, Gfx.fade(0xFFFFFFFF), false);
+            if (cut) g.text(font, "…", x, lore + i * 10, Gfx.fade(Theme.TEXT_FAINT), false);
+            else g.text(font, lines.get(i), x, lore + i * 10, Gfx.fade(0xFFFFFFFF), false);
         }
 
         matY = Math.min(matY, lore + Math.min(maxLines, lines.size()) * 10 + 6);
@@ -614,10 +615,10 @@ public class CraftingScreen extends Screen {
             int need = part.count() * Math.max(1, quantity);
             int have = FrontierRecipe.have(player, part);
             Gfx.chamfer(g, x, iy, dw, ING_ROW - 2, 2, 0, 2, 0, 0x50101C2C, 0x30081018);
-            g.renderItem(icon, x + 2, iy);
-            g.drawString(font, font.plainSubstrByWidth(part.name().getString(), dw - 70), x + 22, iy + 4, Gfx.fade(Theme.TEXT), false);
+            g.item(icon, x + 2, iy);
+            g.text(font, font.plainSubstrByWidth(part.name().getString(), dw - 70), x + 22, iy + 4, Gfx.fade(Theme.TEXT), false);
             String count = have + "/" + need;
-            g.drawString(font, count, x + dw - 5 - font.width(count), iy + 4, Gfx.fade(have >= need ? Theme.GREEN : Theme.RED), true);
+            g.text(font, count, x + dw - 5 - font.width(count), iy + 4, Gfx.fade(have >= need ? Theme.GREEN : Theme.RED), true);
             if (mouseX >= x && mouseX < x + dw && mouseY >= iy && mouseY < iy + ING_ROW - 2) hovered = icon;
             iy += ING_ROW;
         }
@@ -644,7 +645,7 @@ public class CraftingScreen extends Screen {
             line = Component.translatable("gui.slfrontier.craft.batch_time", quantity, String.format("%.1f", r.batchTicks(quantity) / 20f));
             color = Theme.TEXT_DIM;
         }
-        g.drawString(font, font.plainSubstrByWidth(line.getString(), dw), x, statusY, Gfx.fade(color), false);
+        g.text(font, font.plainSubstrByWidth(line.getString(), dw), x, statusY, Gfx.fade(color), false);
 
         float frac = 0;
         if (crafting != null) frac = Mth.clamp((ticks - craftStart + partialTick) / craftTotal, 0f, 1f);
@@ -656,28 +657,28 @@ public class CraftingScreen extends Screen {
             Gfx.rect(g, sx, barY, Math.min(x + dw * frac, sx + 3), barY + 5, 0x60FFFFFF);
             if (running) {
                 String left = String.format("%.1fs", Math.max(0, craftTotal - (ticks - craftStart + partialTick)) / 20f);
-                g.drawString(font, left, x + dw - font.width(left), statusY, Gfx.fade(Theme.TEXT), false);
+                g.text(font, left, x + dw - font.width(left), statusY, Gfx.fade(Theme.TEXT), false);
             }
         }
 
         // Quantity readout between the quantity buttons and the Craft button.
         String q = "×" + quantity;
-        g.drawString(font, q, x + 88, cy1() - 13, Gfx.fade(Theme.TEXT), true);
+        g.text(font, q, x + 88, cy1() - 13, Gfx.fade(Theme.TEXT), true);
         return hovered;
     }
 
     /** A small coloured label; returns its right edge. */
-    private int chip(GuiGraphics g, int x, int y, Component text, int color) {
+    private int chip(GuiGraphicsExtractor g, int x, int y, Component text, int color) {
         int cw = font.width(text) + 8;
         Gfx.chamfer(g, x, y, cw, 11, 2, 0, 2, 0, Theme.withA(color, 0.45f), Theme.withA(color, 0.2f));
-        g.drawString(font, text, x + 4, y + 2, Gfx.fade(0xFFFFFFFF), false);
+        g.text(font, text, x + 4, y + 2, Gfx.fade(0xFFFFFFFF), false);
         return x + cw;
     }
 
     private static int rarityColor(ItemStack stack) {
         Rarity rarity = stack.getRarity();
         if (rarity == Rarity.COMMON) return Theme.GOLD;
-        Integer c = rarity.color().getColor();
-        return c == null ? Theme.GOLD : 0xFF000000 | c;
+        TextColor c = rarity.getStyleModifier().apply(Style.EMPTY).getColor();
+        return c == null ? Theme.GOLD : 0xFF000000 | c.getValue();
     }
 }

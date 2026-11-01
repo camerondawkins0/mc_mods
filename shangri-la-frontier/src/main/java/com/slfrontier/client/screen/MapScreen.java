@@ -13,12 +13,14 @@ import com.slfrontier.registry.ModAttachments;
 import com.slfrontier.world.Frontier;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -105,7 +107,7 @@ public class MapScreen extends Screen {
 
     private void travel() {
         if (selected == null) return;
-        PacketDistributor.sendToServer(new ModNetwork.FastTravel(selected));
+        ClientPacketDistributor.sendToServer(new ModNetwork.FastTravel(selected));
         onClose();
     }
 
@@ -129,15 +131,14 @@ public class MapScreen extends Screen {
     // ---- Rendering -------------------------------------------------------------------
 
     @Override
-    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        renderBackground(g, mouseX, mouseY, partialTick);
+    public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         float t = Mth.clamp((openTicks + partialTick) / 5f, 0f, 1f);
         Gfx.alpha = t;
         Gfx.panel(g, left, top, w, h, 8);
         LocalPlayer player = Minecraft.getInstance().player;
         float[] diamond = Gfx.ngon(left + 16, top + 10, 3.5f, 4, 0);
         Gfx.poly(g, diamond, top + 6, top + 14, Theme.ACCENT, Theme.ACCENT_SOFT);
-        g.drawString(font, Component.translatable("gui.slfrontier.map_title").withStyle(ChatFormatting.BOLD), left + 24, top + 6,
+        g.text(font, Component.translatable("gui.slfrontier.map_title").withStyle(ChatFormatting.BOLD), left + 24, top + 6,
                 Gfx.fade(Theme.ACCENT), false);
 
         boolean inFrontier = player != null && Frontier.isIn(player);
@@ -145,7 +146,7 @@ public class MapScreen extends Screen {
         Gfx.outline(g, new float[]{view.x0, view.y0, view.x1, view.y0, view.x1, view.y1, view.x0, view.y1}, 1f, Theme.BORDER);
         if (!inFrontier) {
             Component msg = Component.translatable("gui.slfrontier.map_unavailable");
-            g.drawString(font, msg, (int) view.screenCX() - font.width(msg) / 2, (int) view.screenCY(), Gfx.fade(Theme.TEXT_DIM), true);
+            g.text(font, msg, (int) view.screenCX() - font.width(msg) / 2, (int) view.screenCY(), Gfx.fade(Theme.TEXT_DIM), true);
         } else {
             renderMarkers(g, player, mouseX, mouseY, partialTick);
         }
@@ -153,21 +154,21 @@ public class MapScreen extends Screen {
         if (view.contains(mouseX, mouseY)) {
             double[] wpos = view.toWorld(mouseX, mouseY);
             String c = String.format("X %d  Z %d", Mth.floor(wpos[0]), Mth.floor(wpos[1]));
-            g.drawString(font, c, view.x1 - 4 - font.width(c), view.y1 - 12, Gfx.fade(Theme.TEXT), true);
+            g.text(font, c, view.x1 - 4 - font.width(c), view.y1 - 12, Gfx.fade(Theme.TEXT), true);
         }
         String scale = String.format("%.0f%%", view.zoom * 100);
-        g.drawString(font, scale, view.x0 + 60, view.y1 - 14, Gfx.fade(Theme.TEXT_DIM), true);
+        g.text(font, scale, view.x0 + 60, view.y1 - 14, Gfx.fade(Theme.TEXT_DIM), true);
 
         renderSidebar(g, mouseX, mouseY);
-        for (var r : renderables) r.render(g, mouseX, mouseY, partialTick);
+        for (var r : renderables) r.extractRenderState(g, mouseX, mouseY, partialTick);
         Gfx.alpha = 1f;
         if (travelButton != null && travelButton.isHovered() && !travelButton.active) {
             Component why = travelRefusal();
-            if (why != null) g.renderTooltip(font, why, mouseX, mouseY);
+            if (why != null) g.setTooltipForNextFrame(font, why, mouseX, mouseY);
         }
     }
 
-    private void renderMarkers(GuiGraphics g, LocalPlayer player, int mouseX, int mouseY, float partialTick) {
+    private void renderMarkers(GuiGraphicsExtractor g, LocalPlayer player, int mouseX, int mouseY, float partialTick) {
         g.enableScissor(view.x0, view.y0, view.x1, view.y1);
         // Pins
         for (long[] pin : MapStore.pins()) {
@@ -188,7 +189,7 @@ public class MapScreen extends Screen {
                 Component name = Component.translatable(m.nameKey());
                 int nw = font.width(name);
                 Gfx.rect(g, s[0] - nw / 2f - 2, s[1] + 7, s[0] + nw / 2f + 2, s[1] + 17, 0xA0050A14);
-                g.drawString(font, name, (int) (s[0] - nw / 2f), (int) s[1] + 8, Gfx.fade(town ? 0xFFF2D8A0 : Theme.TEXT), false);
+                g.text(font, name, (int) (s[0] - nw / 2f), (int) s[1] + 8, Gfx.fade(town ? 0xFFF2D8A0 : Theme.TEXT), false);
             }
         }
         // Objective
@@ -213,7 +214,7 @@ public class MapScreen extends Screen {
         // Hover tooltip for markers
         ModNetwork.Marker hover = markerAt(mouseX, mouseY);
         if (hover != null) {
-            g.renderTooltip(font, List.of(Component.translatable(hover.nameKey()).getVisualOrderText(),
+            g.setTooltipForNextFrame(font, List.of(Component.translatable(hover.nameKey()).getVisualOrderText(),
                     Component.translatable("gui.slfrontier.distance", distance(hover)).withStyle(ChatFormatting.GRAY).getVisualOrderText()),
                     mouseX, mouseY);
         }
@@ -224,7 +225,7 @@ public class MapScreen extends Screen {
         return (int) Math.sqrt(m.pos().distToCenterSqr(p.getX(), m.pos().getY(), p.getZ()));
     }
 
-    private void renderSidebar(GuiGraphics g, int mouseX, int mouseY) {
+    private void renderSidebar(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         int sx = left + w - SIDEBAR - 2, sy = top + 22, sw = SIDEBAR - 4;
         Gfx.header(g, font, Component.translatable("gui.slfrontier.waypoints"), sx, sy, sw);
         List<ModNetwork.Marker> wps = ClientState.waypoints();
@@ -247,9 +248,9 @@ public class MapScreen extends Screen {
             boolean town = m.kind() == ModNetwork.Marker.TOWN;
             Gfx.icon(g, Theme.icon(town ? "town" : "waypoint"), sx + 4, y + 4, 10, 16);
             String name = font.plainSubstrByWidth(Component.translatable(m.nameKey()).getString(), sw - 22);
-            g.drawString(font, name, sx + 17, y + 2, Gfx.fade(town ? 0xFFF2D8A0 : Theme.TEXT), false);
+            g.text(font, name, sx + 17, y + 2, Gfx.fade(town ? 0xFFF2D8A0 : Theme.TEXT), false);
             String dist = distance(m) + "m" + (m.id().equals(d.respawnWaypoint()) ? "  ✚" : "");
-            g.drawString(font, dist, sx + 17, y + 11, Gfx.fade(Theme.TEXT_DIM), false);
+            g.text(font, dist, sx + 17, y + 11, Gfx.fade(Theme.TEXT_DIM), false);
             y += rowH;
         }
         if (wps.isEmpty()) {
@@ -261,10 +262,10 @@ public class MapScreen extends Screen {
         int cy = listY + listH + 6;
         ModNetwork.Marker sel = selectedMarker();
         if (sel != null) {
-            g.drawString(font, Component.translatable(sel.nameKey()), sx, cy, Gfx.fade(Theme.GOLD), true);
-            g.drawString(font, Component.translatable("gui.slfrontier.distance", distance(sel)), sx, cy + 11, Gfx.fade(Theme.TEXT_DIM), false);
+            g.text(font, Component.translatable(sel.nameKey()), sx, cy, Gfx.fade(Theme.GOLD), true);
+            g.text(font, Component.translatable("gui.slfrontier.distance", distance(sel)), sx, cy + 11, Gfx.fade(Theme.TEXT_DIM), false);
             if (sel.id().equals(d.respawnWaypoint())) {
-                g.drawString(font, Component.translatable("gui.slfrontier.respawn_point"), sx, cy + 21, Gfx.fade(Theme.GREEN), false);
+                g.text(font, Component.translatable("gui.slfrontier.respawn_point"), sx, cy + 21, Gfx.fade(Theme.GREEN), false);
             }
         } else {
             Gfx.wrapped(g, font, Component.translatable("gui.slfrontier.map_help"), sx, cy, sw, Theme.TEXT_FAINT, 9);
@@ -273,9 +274,9 @@ public class MapScreen extends Screen {
         if (quest != null) {
             int qy = top + h - 50;
             Gfx.icon(g, Theme.icon("main_quest"), sx, qy, 9, 16);
-            g.drawString(font, font.plainSubstrByWidth(Component.translatable(quest.nameKey()).getString(), sw - 12), sx + 12, qy,
+            g.text(font, font.plainSubstrByWidth(Component.translatable(quest.nameKey()).getString(), sw - 12), sx + 12, qy,
                     Gfx.fade(Theme.GOLD), false);
-            g.drawString(font, Component.translatable("gui.slfrontier.distance", distance(quest)), sx + 12, qy + 10, Gfx.fade(Theme.TEXT_DIM), false);
+            g.text(font, Component.translatable("gui.slfrontier.distance", distance(quest)), sx + 12, qy + 10, Gfx.fade(Theme.TEXT_DIM), false);
         }
     }
 
@@ -315,8 +316,10 @@ public class MapScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mx, double my, int button) {
-        if (super.mouseClicked(mx, my, button)) return true;
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (super.mouseClicked(event, doubleClick)) return true;
+        double mx = event.x(), my = event.y();
+        int button = event.button();
         int sx = left + w - SIDEBAR - 2, listY = top + 34, listH = h - 22 - 12 - 104;
         if (mx >= sx && mx < sx + SIDEBAR - 4 && my >= listY && my < listY + listH) {
             int idx = (int) ((my - listY - 2) / 20 + listScroll);
@@ -348,19 +351,19 @@ public class MapScreen extends Screen {
     }
 
     @Override
-    public boolean mouseDragged(double mx, double my, int button, double dx, double dy) {
+    public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
         if (dragging) {
             view.centerX -= dx / view.zoom;
             view.centerZ -= dy / view.zoom;
             return true;
         }
-        return super.mouseDragged(mx, my, button, dx, dy);
+        return super.mouseDragged(event, dx, dy);
     }
 
     @Override
-    public boolean mouseReleased(double mx, double my, int button) {
+    public boolean mouseReleased(MouseButtonEvent event) {
         dragging = false;
-        return super.mouseReleased(mx, my, button);
+        return super.mouseReleased(event);
     }
 
     @Override
@@ -374,11 +377,11 @@ public class MapScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int key, int scan, int modifiers) {
-        if (KeyBindings.MAP.matches(key, scan)) {
+    public boolean keyPressed(KeyEvent event) {
+        if (KeyBindings.MAP.matches(event)) {
             onClose();
             return true;
         }
-        return super.keyPressed(key, scan, modifiers);
+        return super.keyPressed(event);
     }
 }

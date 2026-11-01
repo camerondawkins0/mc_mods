@@ -3,12 +3,13 @@ package com.slfrontier.client.overlay;
 import com.slfrontier.client.ui.Gfx;
 import com.slfrontier.client.ui.Theme;
 import net.minecraft.ChatFormatting;
-import net.minecraft.Util;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.ReceivingLevelScreen;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.LevelLoadingScreen;
+import net.minecraft.client.multiplayer.LevelLoadTracker;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.minecraft.util.Util;
 
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -18,16 +19,28 @@ import java.util.function.BooleanSupplier;
  * bar and a random tip or piece of Frontier lore. It never pauses the game; the running
  * {@link TravelOverlay} trip decides when it fades out.
  */
-public class TravelScreen extends ReceivingLevelScreen {
+public class TravelScreen extends LevelLoadingScreen {
     private static final int MAX_TIP_LINES = 4;
 
-    private final BooleanSupplier levelReady;
+    private BooleanSupplier levelReady;
     private boolean finished;
     private long lastFrame;
 
-    public TravelScreen(BooleanSupplier levelReady, Reason reason) {
-        super(levelReady, reason);
+    /** For a level change: the trip may end once vanilla's tracker says the new level is ready. */
+    public TravelScreen(LevelLoadTracker loadTracker, Reason reason) {
+        this(loadTracker, reason, loadTracker::isLevelReady);
+    }
+
+    TravelScreen(LevelLoadTracker loadTracker, Reason reason, BooleanSupplier levelReady) {
+        super(loadTracker, reason);
         this.levelReady = levelReady;
+    }
+
+    /** Vanilla hands an open loading screen the tracker of the next level change instead of replacing it. */
+    @Override
+    public void update(LevelLoadTracker loadTracker, Reason reason) {
+        super.update(loadTracker, reason);
+        this.levelReady = loadTracker::isLevelReady;
     }
 
     @Override
@@ -38,15 +51,15 @@ public class TravelScreen extends ReceivingLevelScreen {
     void finish() {
         if (finished) return;
         finished = true;
-        if (minecraft != null && minecraft.screen == this) onClose();
+        if (minecraft.gui.screen() == this) onClose();
     }
 
     @Override
-    public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+    public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
     }
 
     @Override
-    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         TravelOverlay.Trip trip = TravelOverlay.trip();
         if (trip == null) return;
         long now = Util.getMillis();
@@ -64,8 +77,8 @@ public class TravelScreen extends ReceivingLevelScreen {
         int tipH = lines.isEmpty() ? 0 : 20 + lines.size() * 10;
         int ph = 72 + (tipH > 0 ? tipH + 6 : 0);
         int px = (width - pw) / 2, py = (height - ph) / 2;
-        g.pose().pushPose();
-        g.pose().translate(0, (1 - Gfx.alpha) * 6, 0);
+        g.pose().pushMatrix();
+        g.pose().translate(0, (1 - Gfx.alpha) * 6);
         Gfx.panel(g, px, py, pw, ph, 8);
 
         float[] diamond = Gfx.ngon(px + 16, py + 12, 3.5f, 4, 0);
@@ -100,16 +113,16 @@ public class TravelScreen extends ReceivingLevelScreen {
             text(g, label, tx + 7, ty + 5, 0.75f, labelColor, false);
             int ly = ty + 15;
             for (FormattedCharSequence line : lines) {
-                if (Gfx.alpha >= 0.03f) g.drawString(font, line, tx + 7, ly, Gfx.fade(Theme.TEXT), false);
+                if (Gfx.alpha >= 0.03f) g.text(font, line, tx + 7, ly, Gfx.fade(Theme.TEXT), false);
                 ly += 10;
             }
         }
-        g.pose().popPose();
+        g.pose().popMatrix();
         Gfx.alpha = 1f;
     }
 
     /** Full-screen dark glass with scanlines, a soft centre glow and slowly turning holo rings. */
-    private void renderBackdrop(GuiGraphics g, float cx, float cy, float time) {
+    private void renderBackdrop(GuiGraphicsExtractor g, float cx, float cy, float time) {
         Gfx.vgrad(g, 0, 0, width, height, 0xFF0B1628, 0xFF03070E);
         float r = Math.max(width, height) * 0.55f;
         Gfx.ring(g, cx, cy, 0, r, 0, Mth.TWO_PI, Theme.withA(Theme.ACCENT, 0.09f), Theme.withA(Theme.ACCENT, 0f));
@@ -141,7 +154,7 @@ public class TravelScreen extends ReceivingLevelScreen {
         trip.progress = Math.max(trip.progress, trip.progress + (target - trip.progress) * Math.min(1f, dt * 6f));
     }
 
-    private void text(GuiGraphics g, Component text, float x, float y, float scale, int color, boolean shadow) {
+    private void text(GuiGraphicsExtractor g, Component text, float x, float y, float scale, int color, boolean shadow) {
         if (Gfx.alpha >= 0.03f) Gfx.text(g, font, text, x, y, scale, color, shadow);
     }
 }

@@ -14,7 +14,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /**
  * Client glue for the Frontier inventory: inside the Frontier (outside creative) the vanilla
@@ -32,7 +32,7 @@ public final class InventoryClient {
         if (player == null || next == null || next.getClass() != InventoryScreen.class || event.getCurrentScreen() != null) return;
         if (!Frontier.isIn(player) || player.isCreative() || player.isSpectator()) return;
         event.setCanceled(true);
-        PacketDistributor.sendToServer(new InventoryNetwork.OpenInventory());
+        ClientPacketDistributor.sendToServer(new InventoryNetwork.OpenInventory());
     }
 
     /** The avatar menu's Items tab: the Frontier inventory, or the creative inventory in creative mode. */
@@ -40,13 +40,13 @@ public final class InventoryClient {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
         if (mc.player.isCreative()) {
-            mc.setScreen(new InventoryScreen(mc.player));
+            mc.gui.setScreen(new InventoryScreen(mc.player));
         } else {
-            PacketDistributor.sendToServer(new InventoryNetwork.OpenInventory());
+            ClientPacketDistributor.sendToServer(new InventoryNetwork.OpenInventory());
         }
     }
 
-    @EventBusSubscriber(modid = SLFrontier.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+    @EventBusSubscriber(modid = SLFrontier.MODID, value = Dist.CLIENT)
     public static final class ModBusEvents {
         private ModBusEvents() {
         }

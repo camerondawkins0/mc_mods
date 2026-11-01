@@ -1,11 +1,13 @@
 package com.slfrontier.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.slfrontier.SLFrontier;
 import net.minecraft.client.KeyMapping;
 import org.lwjgl.glfw.GLFW;
 
 public final class KeyBindings {
-    public static final String CATEGORY = "key.categories.slfrontier";
+    /** Controls → Key Binds section; its name is the "key.category.slfrontier.main" translation. */
+    public static final KeyMapping.Category CATEGORY = new KeyMapping.Category(SLFrontier.id("main"));
 
     public static final KeyMapping[] SKILLS = {
             new KeyMapping("key.slfrontier.skill_1", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_Z, CATEGORY),

@@ -73,10 +73,13 @@ public final class ClientSetup {
         // Mods → Shangri-La Frontier → Config: NeoForge's generated screen for the client and server configs.
         ModList.get().getModContainerById(SLFrontier.MODID)
                 .ifPresent(mod -> mod.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new));
+        // The Frontier Compass needle is data now: its item model definition (assets/slfrontier/items) reads the
+        // minecraft:compass property with the lodestone target, which follows the stack's lodestone tracker.
     }
 
     @SubscribeEvent
     public static void registerKeys(RegisterKeyMappingsEvent event) {
+        event.registerCategory(KeyBindings.CATEGORY);
         for (var key : KeyBindings.SKILLS) event.register(key);
         event.register(KeyBindings.MENU);
         event.register(KeyBindings.MAP);

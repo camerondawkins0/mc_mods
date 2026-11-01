@@ -6,10 +6,12 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 
-/** Game-bus hooks for the overlays: ticking, world rendering and the travel screen. */
+/**
+ * Game-bus hooks for the overlays: ticking and the travel screen. The pointer and health bars
+ * are drawn in the world from {@code ClientEvents}' level render-state hooks.
+ */
 @EventBusSubscriber(modid = SLFrontier.MODID, value = Dist.CLIENT)
 public final class OverlayEvents {
     private OverlayEvents() {
@@ -20,17 +22,6 @@ public final class OverlayEvents {
         QuestPointer.tick();
         EnemyHealthBars.tick();
         HudNotice.tick();
-    }
-
-    @SubscribeEvent
-    public static void onRenderLevel(RenderLevelStageEvent event) {
-        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
-            float pt = event.getPartialTick().getGameTimeDeltaPartialTick(false);
-            QuestPointer.renderWorld(event.getCamera(), pt);
-            EnemyHealthBars.render(event.getCamera(), pt);
-        } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
-            QuestPointer.capture(event.getModelViewMatrix(), event.getProjectionMatrix(), event.getCamera());
-        }
     }
 
     @SubscribeEvent

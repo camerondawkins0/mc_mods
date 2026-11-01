@@ -9,7 +9,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
@@ -64,9 +64,9 @@ public final class HudNotice {
         wasInFrontier = false;
     }
 
-    public static void render(GuiGraphics g, DeltaTracker delta) {
+    public static void render(GuiGraphicsExtractor g, DeltaTracker delta) {
         Minecraft mc = Minecraft.getInstance();
-        if (ticks <= 0 || title == null || mc.options.hideGui || mc.screen != null) return;
+        if (ticks <= 0 || title == null || mc.gui.hud.isHidden() || mc.gui.screen() != null) return;
         Font font = mc.font;
         float pt = delta.getGameTimeDeltaPartialTick(false);
         float in = Mth.clamp((LENGTH - ticks + pt) / 6f, 0f, 1f);

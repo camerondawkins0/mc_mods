@@ -3,15 +3,16 @@ package com.slfrontier.client.overlay;
 import com.slfrontier.SlfConfig;
 import com.slfrontier.network.OverlayNetwork;
 import com.slfrontier.world.Frontier;
-import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.ReceivingLevelScreen;
+import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.multiplayer.LevelLoadTracker;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.resources.language.I18n;
 import net.minecraft.core.BlockPos;
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.minecraft.util.Util;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import org.jetbrains.annotations.Nullable;
 
@@ -87,12 +88,13 @@ public final class TravelOverlay {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
         trip = new Trip(payload.kind(), payload.nameKey(), payload.dest().orElse(null));
-        mc.setScreen(new TravelScreen(() -> true, ReceivingLevelScreen.Reason.OTHER));
+        // No level change of its own: the trip ends on the destination check alone.
+        mc.gui.setScreen(new TravelScreen(new LevelLoadTracker(), LevelLoadingScreen.Reason.OTHER, () -> true));
     }
 
     /** True while the travel screen is up (HUD announcements wait for it). */
     public static boolean isActive() {
-        return trip != null && Minecraft.getInstance().screen instanceof TravelScreen;
+        return trip != null && Minecraft.getInstance().gui.screen() instanceof TravelScreen;
     }
 
     @Nullable
@@ -101,16 +103,16 @@ public final class TravelOverlay {
     }
 
     /** NeoForge's terrain-screen factory for dimension changes into the Frontier. */
-    static ReceivingLevelScreen create(BooleanSupplier levelReady, ReceivingLevelScreen.Reason reason) {
-        if (!SlfConfig.TRAVEL_SCREEN.get()) return new ReceivingLevelScreen(levelReady, reason);
+    static LevelLoadingScreen create(LevelLoadTracker loadTracker, LevelLoadingScreen.Reason reason) {
+        if (!SlfConfig.TRAVEL_SCREEN.get()) return new LevelLoadingScreen(loadTracker, reason);
         if (!isActive() || trip.age() > TIMEOUT_MS) trip = new Trip(OverlayNetwork.TRAVEL, "travel.slfrontier.frontier", null);
-        return new TravelScreen(levelReady, reason);
+        return new TravelScreen(loadTracker, reason);
     }
 
     /** Keeps vanilla's "Loading terrain" from replacing a running trip (respawning at a waypoint does this). */
     static void onScreenOpening(ScreenEvent.Opening event) {
-        if (event.getNewScreen() instanceof ReceivingLevelScreen screen && !(screen instanceof TravelScreen) && isActive()) {
-            event.setNewScreen(new TravelScreen(() -> true, ReceivingLevelScreen.Reason.OTHER));
+        if (event.getNewScreen() instanceof LevelLoadingScreen screen && !(screen instanceof TravelScreen) && isActive()) {
+            event.setNewScreen(new TravelScreen(new LevelLoadTracker(), LevelLoadingScreen.Reason.OTHER, () -> true));
         }
     }
 
@@ -158,12 +160,12 @@ public final class TravelOverlay {
         }
         t.chunksLoaded = true;
         if (++t.settled < SETTLE_TICKS) return false;
-        return level.isOutsideBuildHeight(pos.getY()) || mc.levelRenderer.isSectionCompiled(pos);
+        return level.isOutsideBuildHeight(pos.getY()) || mc.levelRenderer.isSectionCompiledAndVisible(pos);
     }
 
     private static int count(String prefix) {
         int n = 0;
-        while (I18n.exists(prefix + (n + 1))) n++;
+        while (Language.getInstance().has(prefix + (n + 1))) n++;
         return n;
     }
 

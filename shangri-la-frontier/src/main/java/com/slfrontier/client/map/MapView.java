@@ -1,10 +1,11 @@
 package com.slfrontier.client.map;
 
-import com.mojang.math.Axis;
 import com.slfrontier.client.ui.Gfx;
 import com.slfrontier.client.ui.Theme;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
 /**
@@ -62,7 +63,7 @@ public final class MapView {
     }
 
     /** Background, explored tiles and a faint coordinate grid. */
-    public void draw(GuiGraphics g) {
+    public void draw(GuiGraphicsExtractor g) {
         Gfx.vgrad(g, x0, y0, x1, y1, 0xF0081220, 0xF0050A14);
         g.enableScissor(x0, y0, x1, y1);
         // Unexplored hatching
@@ -70,27 +71,26 @@ public final class MapView {
         for (float d = -span; d < span; d += 6) {
             Gfx.line(g, x0 + d, y0, x0 + d + (y1 - y0), y1, 1f, 0x0C5FE0FF);
         }
-        g.pose().pushPose();
-        g.pose().translate(screenCX(), screenCY(), 0);
-        if (rotation != 0) g.pose().mulPose(Axis.ZP.rotation(rotation));
-        g.pose().scale(zoom, zoom, 1f);
+        g.pose().pushMatrix();
+        g.pose().translate(screenCX(), screenCY());
+        if (rotation != 0) g.pose().rotate(rotation);
+        g.pose().scale(zoom, zoom);
         double halfDiag = Math.hypot(x1 - x0, y1 - y0) / 2 / zoom + MapStore.TILE;
         int tx0 = Mth.floor((centerX - halfDiag) / MapStore.TILE), tx1 = Mth.floor((centerX + halfDiag) / MapStore.TILE);
         int tz0 = Mth.floor((centerZ - halfDiag) / MapStore.TILE), tz1 = Mth.floor((centerZ + halfDiag) / MapStore.TILE);
         // Integer origin so tile blits land on whole blocks; the fractional part is a translation.
         int ox = Mth.floor(centerX), oz = Mth.floor(centerZ);
-        g.pose().translate(-(float) (centerX - ox), -(float) (centerZ - oz), 0);
+        g.pose().translate(-(float) (centerX - ox), -(float) (centerZ - oz));
+        int tint = ARGB.white(Mth.clamp(Gfx.alpha, 0f, 1f));
         for (int tx = tx0; tx <= tx1; tx++) {
             for (int tz = tz0; tz <= tz1; tz++) {
-                ResourceLocation tex = MapTextures.get(tx, tz);
+                Identifier tex = MapTextures.get(tx, tz);
                 if (tex == null) continue;
                 int bx = tx * MapStore.TILE - ox, bz = tz * MapStore.TILE - oz;
-                g.setColor(1f, 1f, 1f, Mth.clamp(Gfx.alpha, 0f, 1f));
-                g.blit(tex, bx, bz, 0, 0, MapStore.TILE, MapStore.TILE, MapStore.TILE, MapStore.TILE);
-                g.setColor(1f, 1f, 1f, 1f);
+                g.blit(RenderPipelines.GUI_TEXTURED, tex, bx, bz, 0, 0, MapStore.TILE, MapStore.TILE, MapStore.TILE, MapStore.TILE, tint);
             }
         }
-        g.pose().popPose();
+        g.pose().popMatrix();
         // Grid every 256 blocks when zoomed out enough to need orientation.
         if (rotation == 0 && zoom <= 2f) {
             int step = zoom < 0.5f ? 512 : 256;
@@ -108,14 +108,14 @@ public final class MapView {
     }
 
     /** Draws a square icon centred on a screen point, optionally rotated (radians). */
-    public static void icon(GuiGraphics g, ResourceLocation tex, float sx, float sy, int size, float rot) {
-        g.pose().pushPose();
-        g.pose().translate(sx, sy, 0);
-        if (rot != 0) g.pose().mulPose(Axis.ZP.rotation(rot));
-        g.setColor(1f, 1f, 1f, Mth.clamp(Gfx.alpha, 0f, 1f));
-        g.blit(tex, -size / 2, -size / 2, size, size, 0f, 0f, 16, 16, 16, 16);
-        g.setColor(1f, 1f, 1f, 1f);
-        g.pose().popPose();
+    public static void icon(GuiGraphicsExtractor g, Identifier tex, float sx, float sy, int size, float rot) {
+        Gfx.flush(g);
+        g.pose().pushMatrix();
+        g.pose().translate(sx, sy);
+        if (rot != 0) g.pose().rotate(rot);
+        g.blit(RenderPipelines.GUI_TEXTURED, tex, -size / 2, -size / 2, 0f, 0f, size, size, 16, 16, 16, 16,
+                ARGB.white(Mth.clamp(Gfx.alpha, 0f, 1f)));
+        g.pose().popMatrix();
     }
 
     /** Clamps a screen point into the view (for off-screen objective arrows); returns {x, y, clamped?1:0}. */

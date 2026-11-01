@@ -1,25 +1,51 @@
 package com.slfrontier.client.ui;
 
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.navigation.ScreenRectangle;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.gui.render.TextureSetup;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.state.gui.GuiElementRenderState;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
-import org.joml.Matrix4f;
+import net.minecraft.world.entity.LivingEntity;
+import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix3x2f;
+import org.joml.Vector2f;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Immediate-mode drawing helpers for the Frontier UI: coloured polygons (chamfered panels,
  * gradients, pies, rings, lines), all drawn as GUI quads so they stay crisp at any GUI
  * scale. Colours are ARGB. {@link #alpha} fades everything drawn through here.
+ *
+ * <p>The GUI is extracted into a render state and drawn later, so quads are collected (already
+ * transformed by the current pose) and {@link #flush flushed} into one {@link Shape} element per
+ * primitive; the GUI renderer keeps elements in submission order where they overlap.
  */
 public final class Gfx {
     /** Global opacity multiplier, used for screen fade-ins. */
     public static float alpha = 1f;
+
+    // Quads queued since the last flush: screen-space x/y pairs and a colour per vertex.
+    private static float[] pendingXY = new float[512];
+    private static int[] pendingColors = new int[256];
+    private static int pending;
+    private static float minX, minY, maxX, maxY;
+    @Nullable
+    private static GuiGraphicsExtractor pendingGraphics;
+    @Nullable
+    private static ScreenRectangle pendingScissor;
+    private static final Vector2f TMP = new Vector2f();
 
     private Gfx() {
     }
@@ -42,46 +68,80 @@ public final class Gfx {
                 | ((int) (ag + (bg - ag) * t) << 8) | (int) (ab + (bb - ab) * t);
     }
 
-    private static VertexConsumer buf(GuiGraphics g) {
-        return g.bufferSource().getBuffer(RenderType.gui());
-    }
-
-    public static void quad(GuiGraphics g, float x1, float y1, int c1, float x2, float y2, int c2,
+    public static void quad(GuiGraphicsExtractor g, float x1, float y1, int c1, float x2, float y2, int c2,
                             float x3, float y3, int c3, float x4, float y4, int c4) {
-        Matrix4f m = g.pose().last().pose();
-        VertexConsumer v = buf(g);
-        v.addVertex(m, x1, y1, 0).setColor(fade(c1));
-        v.addVertex(m, x2, y2, 0).setColor(fade(c2));
-        v.addVertex(m, x3, y3, 0).setColor(fade(c3));
-        v.addVertex(m, x4, y4, 0).setColor(fade(c4));
+        ScreenRectangle scissor = g.peekScissorStack();
+        // A batch is drawn with one scissor: start a new one when it changes.
+        if (pending > 0 && (g != pendingGraphics || !Objects.equals(scissor, pendingScissor))) flush(pendingGraphics);
+        pendingGraphics = g;
+        pendingScissor = scissor;
+        Matrix3x2f m = g.pose();
+        vertex(m, x1, y1, fade(c1));
+        vertex(m, x2, y2, fade(c2));
+        vertex(m, x3, y3, fade(c3));
+        vertex(m, x4, y4, fade(c4));
     }
 
-    public static void tri(GuiGraphics g, float x1, float y1, int c1, float x2, float y2, int c2, float x3, float y3, int c3) {
+    private static void vertex(Matrix3x2f m, float x, float y, int color) {
+        if (pending == pendingColors.length) {
+            pendingColors = Arrays.copyOf(pendingColors, pending * 2);
+            pendingXY = Arrays.copyOf(pendingXY, pending * 4);
+        }
+        m.transformPosition(x, y, TMP);
+        if (pending == 0) {
+            minX = maxX = TMP.x;
+            minY = maxY = TMP.y;
+        } else {
+            minX = Math.min(minX, TMP.x);
+            maxX = Math.max(maxX, TMP.x);
+            minY = Math.min(minY, TMP.y);
+            maxY = Math.max(maxY, TMP.y);
+        }
+        pendingXY[pending * 2] = TMP.x;
+        pendingXY[pending * 2 + 1] = TMP.y;
+        pendingColors[pending] = color;
+        pending++;
+    }
+
+    public static void tri(GuiGraphicsExtractor g, float x1, float y1, int c1, float x2, float y2, int c2, float x3, float y3, int c3) {
         quad(g, x1, y1, c1, x2, y2, c2, x3, y3, c3, x3, y3, c3);
     }
 
-    /** Flushes queued quads so later text/items draw on top in submission order. */
-    public static void flush(GuiGraphics g) {
-        g.flush();
+    /** Submits the queued quads as one element, so later text/items draw on top in submission order. */
+    public static void flush(GuiGraphicsExtractor g) {
+        if (pending == 0 || pendingGraphics == null) {
+            pending = 0;
+            return;
+        }
+        int x0 = Mth.floor(minX), y0 = Mth.floor(minY);
+        ScreenRectangle box = new ScreenRectangle(x0, y0, Math.max(1, Mth.ceil(maxX) - x0), Math.max(1, Mth.ceil(maxY) - y0));
+        ScreenRectangle bounds = pendingScissor == null ? box : pendingScissor.intersection(box);
+        if (bounds != null) {
+            pendingGraphics.submitGuiElementRenderState(new Shape(Arrays.copyOf(pendingXY, pending * 2),
+                    Arrays.copyOf(pendingColors, pending), pendingScissor, bounds));
+        }
+        pending = 0;
+        pendingGraphics = null;
+        pendingScissor = null;
     }
 
-    public static void rect(GuiGraphics g, float x0, float y0, float x1, float y1, int color) {
+    public static void rect(GuiGraphicsExtractor g, float x0, float y0, float x1, float y1, int color) {
         quad(g, x0, y0, color, x0, y1, color, x1, y1, color, x1, y0, color);
         flush(g);
     }
 
-    public static void vgrad(GuiGraphics g, float x0, float y0, float x1, float y1, int top, int bottom) {
+    public static void vgrad(GuiGraphicsExtractor g, float x0, float y0, float x1, float y1, int top, int bottom) {
         quad(g, x0, y0, top, x0, y1, bottom, x1, y1, bottom, x1, y0, top);
         flush(g);
     }
 
-    public static void hgrad(GuiGraphics g, float x0, float y0, float x1, float y1, int left, int right) {
+    public static void hgrad(GuiGraphicsExtractor g, float x0, float y0, float x1, float y1, int left, int right) {
         quad(g, x0, y0, left, x0, y1, left, x1, y1, right, x1, y0, right);
         flush(g);
     }
 
     /** Convex polygon (counter-clockwise or clockwise), vertical gradient between y0..y1. */
-    public static void poly(GuiGraphics g, float[] xy, float y0, float y1, int top, int bottom) {
+    public static void poly(GuiGraphicsExtractor g, float[] xy, float y0, float y1, int top, int bottom) {
         int n = xy.length / 2;
         float cx = 0, cy = 0;
         for (int i = 0; i < n; i++) {
@@ -110,13 +170,13 @@ public final class Gfx {
                 x + w - br, y + h, x + bl, y + h, x, y + h - bl, x, y + tl};
     }
 
-    public static void chamfer(GuiGraphics g, float x, float y, float w, float h, float tl, float tr, float br, float bl,
+    public static void chamfer(GuiGraphicsExtractor g, float x, float y, float w, float h, float tl, float tr, float br, float bl,
                                int top, int bottom) {
         poly(g, chamferPoints(x, y, w, h, tl, tr, br, bl), y, y + h, top, bottom);
     }
 
     /** Outline of a closed polygon. */
-    public static void outline(GuiGraphics g, float[] xy, float width, int color) {
+    public static void outline(GuiGraphicsExtractor g, float[] xy, float width, int color) {
         int n = xy.length / 2;
         for (int i = 0; i < n; i++) {
             int j = (i + 1) % n;
@@ -125,12 +185,12 @@ public final class Gfx {
         flush(g);
     }
 
-    public static void line(GuiGraphics g, float x0, float y0, float x1, float y1, float width, int color) {
+    public static void line(GuiGraphicsExtractor g, float x0, float y0, float x1, float y1, float width, int color) {
         lineNoFlush(g, x0, y0, x1, y1, width, color);
         flush(g);
     }
 
-    private static void lineNoFlush(GuiGraphics g, float x0, float y0, float x1, float y1, float width, int color) {
+    private static void lineNoFlush(GuiGraphicsExtractor g, float x0, float y0, float x1, float y1, float width, int color) {
         float dx = x1 - x0, dy = y1 - y0;
         float len = Mth.sqrt(dx * dx + dy * dy);
         if (len < 1e-4f) return;
@@ -145,7 +205,7 @@ public final class Gfx {
     }
 
     /** A filled pie slice clockwise from 12 o'clock, {@code frac} of a full turn. */
-    public static void pie(GuiGraphics g, float cx, float cy, float r, float frac, int color) {
+    public static void pie(GuiGraphicsExtractor g, float cx, float cy, float r, float frac, int color) {
         if (frac <= 0) return;
         int steps = Math.max(3, (int) (48 * frac));
         float a0 = -Mth.HALF_PI;
@@ -158,7 +218,7 @@ public final class Gfx {
     }
 
     /** A ring band between radii r0 and r1, angles in radians (0 = east, clockwise on screen). */
-    public static void ring(GuiGraphics g, float cx, float cy, float r0, float r1, float a0, float a1, int inner, int outer) {
+    public static void ring(GuiGraphicsExtractor g, float cx, float cy, float r0, float r1, float a0, float a1, int inner, int outer) {
         int steps = Math.max(6, (int) (Math.abs(a1 - a0) / Mth.TWO_PI * 64));
         for (int i = 0; i < steps; i++) {
             float a = a0 + (a1 - a0) * i / steps;
@@ -183,11 +243,11 @@ public final class Gfx {
     // ---- Composite elements --------------------------------------------------------
 
     /** The standard Frontier window panel: drop shadow, gradient body, border and accent corners. */
-    public static void panel(GuiGraphics g, float x, float y, float w, float h, int cut) {
+    public static void panel(GuiGraphicsExtractor g, float x, float y, float w, float h, int cut) {
         panel(g, x, y, w, h, cut, Theme.PANEL_TOP, Theme.PANEL_BOTTOM, Theme.BORDER, Theme.ACCENT);
     }
 
-    public static void panel(GuiGraphics g, float x, float y, float w, float h, int cut, int top, int bottom, int border, int accent) {
+    public static void panel(GuiGraphicsExtractor g, float x, float y, float w, float h, int cut, int top, int bottom, int border, int accent) {
         float small = Math.max(1, cut / 3f);
         chamfer(g, x + 2, y + 3, w, h, cut, small, cut, small, 0x50000000, 0x70000000);
         chamfer(g, x, y, w, h, cut, small, cut, small, top, bottom);
@@ -209,20 +269,21 @@ public final class Gfx {
     }
 
     /** A flat inset box used for sub-sections. */
-    public static void inset(GuiGraphics g, float x, float y, float w, float h) {
+    public static void inset(GuiGraphicsExtractor g, float x, float y, float w, float h) {
         chamfer(g, x, y, w, h, 3, 0, 3, 0, Theme.INSET_TOP, Theme.INSET_BOTTOM);
         outline(g, chamferPoints(x, y, w, h, 3, 0, 3, 0), 1f, Theme.INSET_BORDER);
     }
 
     /** A section header: small caps label with an accent rule. */
-    public static void header(GuiGraphics g, Font font, Component text, int x, int y, int w) {
-        g.drawString(font, text, x, y, fade(Theme.ACCENT), false);
+    public static void header(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int w) {
+        flush(g);
+        g.text(font, text, x, y, fade(Theme.ACCENT), false);
         int tw = font.width(text) + 4;
         hgrad(g, x + tw, y + 4, x + w, y + 5, Theme.withA(Theme.ACCENT, 0.7f), Theme.withA(Theme.ACCENT, 0f));
     }
 
     /** A progress bar with a gradient fill, a highlight line and optional segment ticks. */
-    public static void bar(GuiGraphics g, float x, float y, float w, float h, float frac, int c0, int c1, int back, int segments) {
+    public static void bar(GuiGraphicsExtractor g, float x, float y, float w, float h, float frac, int c0, int c1, int back, int segments) {
         frac = Mth.clamp(frac, 0f, 1f);
         chamfer(g, x, y, w, h, 0, 0, Math.min(h, 3), 0, back, back);
         if (frac > 0) {
@@ -238,26 +299,62 @@ public final class Gfx {
         }
     }
 
-    public static void icon(GuiGraphics g, ResourceLocation tex, int x, int y, int size, int texSize) {
-        g.setColor(1f, 1f, 1f, Mth.clamp(alpha, 0f, 1f));
-        g.blit(tex, x, y, size, size, 0f, 0f, texSize, texSize, texSize, texSize);
-        g.setColor(1f, 1f, 1f, 1f);
+    public static void icon(GuiGraphicsExtractor g, Identifier tex, int x, int y, int size, int texSize) {
+        flush(g);
+        g.blit(RenderPipelines.GUI_TEXTURED, tex, x, y, 0f, 0f, size, size, texSize, texSize, texSize, texSize,
+                ARGB.white(Mth.clamp(alpha, 0f, 1f)));
     }
 
-    public static void text(GuiGraphics g, Font font, Component text, float x, float y, float scale, int color, boolean shadow) {
-        g.pose().pushPose();
-        g.pose().translate(x, y, 0);
-        g.pose().scale(scale, scale, 1f);
-        g.drawString(font, text, 0, 0, fade(color), shadow);
-        g.pose().popPose();
+    /**
+     * A live, mouse-following model of an entity in a box. The preview is rendered off-screen and placed
+     * without the pose, so the box is moved to where the current pose (a sliding window) puts it.
+     */
+    public static void entity(GuiGraphicsExtractor g, int x0, int y0, int x1, int y1, int size, float offsetY, float mouseX, float mouseY,
+                              LivingEntity entity) {
+        flush(g);
+        Vector2f a = g.pose().transformPosition(x0, y0, new Vector2f());
+        Vector2f b = g.pose().transformPosition(x1, y1, new Vector2f());
+        InventoryScreen.extractEntityInInventoryFollowsMouse(g, Math.round(a.x), Math.round(a.y), Math.round(b.x), Math.round(b.y), size,
+                offsetY, mouseX, mouseY, entity);
     }
 
-    public static int wrapped(GuiGraphics g, Font font, Component text, int x, int y, int width, int color, int lineHeight) {
+    public static void text(GuiGraphicsExtractor g, Font font, Component text, float x, float y, float scale, int color, boolean shadow) {
+        flush(g);
+        g.pose().pushMatrix();
+        g.pose().translate(x, y);
+        g.pose().scale(scale, scale);
+        g.text(font, text, 0, 0, fade(color), shadow);
+        g.pose().popMatrix();
+    }
+
+    public static int wrapped(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int color, int lineHeight) {
+        flush(g);
         List<FormattedCharSequence> lines = font.split(text, width);
         for (FormattedCharSequence line : lines) {
-            g.drawString(font, line, x, y, fade(color), false);
+            g.text(font, line, x, y, fade(color), false);
             y += lineHeight;
         }
         return y;
+    }
+
+    /** A batch of coloured quads in screen space (the pose is already applied), drawn as one GUI element. */
+    private record Shape(float[] xy, int[] colors, @Nullable ScreenRectangle scissorArea, ScreenRectangle bounds)
+            implements GuiElementRenderState {
+        @Override
+        public void buildVertices(VertexConsumer consumer) {
+            for (int i = 0; i < colors.length; i++) {
+                consumer.addVertex(xy[i * 2], xy[i * 2 + 1], 0f).setColor(colors[i]);
+            }
+        }
+
+        @Override
+        public RenderPipeline pipeline() {
+            return RenderPipelines.GUI;
+        }
+
+        @Override
+        public TextureSetup textureSetup() {
+            return TextureSetup.noTexture();
+        }
     }
 }

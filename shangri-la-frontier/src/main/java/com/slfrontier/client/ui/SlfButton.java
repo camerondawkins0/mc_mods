@@ -1,11 +1,12 @@
 package com.slfrontier.client.ui;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Consumer;
@@ -17,7 +18,7 @@ public class SlfButton extends AbstractButton {
     private final Consumer<SlfButton> onPress;
     private final Style style;
     @Nullable
-    private ResourceLocation icon;
+    private Identifier icon;
     private int iconTexSize = 16;
     private boolean selected;
     private int accent = Theme.ACCENT;
@@ -28,7 +29,7 @@ public class SlfButton extends AbstractButton {
         this.onPress = onPress;
     }
 
-    public SlfButton icon(ResourceLocation icon, int texSize) {
+    public SlfButton icon(Identifier icon, int texSize) {
         this.icon = icon;
         this.iconTexSize = texSize;
         return this;
@@ -49,12 +50,12 @@ public class SlfButton extends AbstractButton {
     }
 
     @Override
-    public void onPress() {
+    public void onPress(InputWithModifiers input) {
         onPress.accept(this);
     }
 
     @Override
-    protected void renderWidget(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+    protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         var font = Minecraft.getInstance().font;
         boolean hover = isHoveredOrFocused() && active;
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();
@@ -90,8 +91,10 @@ public class SlfButton extends AbstractButton {
             Gfx.hgrad(g, x + w / 2f, y + 1, x + w - 2, y + 2, Theme.withA(accent, 0.8f), Theme.withA(accent, 0f));
         }
         int textColor = !active ? Theme.TEXT_FAINT : selected ? 0xFFFFFFFF : hover ? 0xFFFFFFFF : Theme.TEXT;
+        // The plain label: vanilla greys out inactive messages, the Frontier palette dims them itself.
+        Component label = message;
         int tx;
-        int textWidth = font.width(getMessage());
+        int textWidth = font.width(label);
         if (icon != null) {
             int is = Math.min(h - 4, 12);
             int total = is + (textWidth > 0 ? 4 + textWidth : 0);
@@ -101,7 +104,7 @@ public class SlfButton extends AbstractButton {
         } else {
             tx = x + (w - textWidth) / 2;
         }
-        g.drawString(font, getMessage(), tx, y + (h - 8) / 2, Gfx.fade(textColor), true);
+        g.text(font, label, tx, y + (h - 8) / 2, Gfx.fade(textColor), true);
     }
 
     @Override

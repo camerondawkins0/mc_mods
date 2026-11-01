@@ -7,7 +7,7 @@ import com.slfrontier.crafting.FrontierRecipes;
 import com.slfrontier.crafting.Station;
 import com.slfrontier.network.CraftingNetwork;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -26,7 +26,7 @@ import java.util.Map;
 @EventBusSubscriber(modid = SLFrontier.MODID, value = Dist.CLIENT)
 public final class CraftingClient {
     private static List<FrontierRecipe> recipes = List.of();
-    private static Map<ResourceLocation, FrontierRecipe> byId = Map.of();
+    private static Map<Identifier, FrontierRecipe> byId = Map.of();
 
     private CraftingClient() {
     }
@@ -34,11 +34,11 @@ public final class CraftingClient {
     public static void setRecipes(List<FrontierRecipe> list) {
         List<FrontierRecipe> sorted = new ArrayList<>(list);
         sorted.sort(FrontierRecipes.ORDER);
-        Map<ResourceLocation, FrontierRecipe> map = new LinkedHashMap<>();
+        Map<Identifier, FrontierRecipe> map = new LinkedHashMap<>();
         for (FrontierRecipe r : sorted) map.put(r.id(), r);
         recipes = List.copyOf(sorted);
         byId = map;
-        if (Minecraft.getInstance().screen instanceof CraftingScreen screen) screen.recipesChanged();
+        if (Minecraft.getInstance().gui.screen() instanceof CraftingScreen screen) screen.recipesChanged();
     }
 
     public static List<FrontierRecipe> recipes() {
@@ -46,17 +46,17 @@ public final class CraftingClient {
     }
 
     @Nullable
-    public static FrontierRecipe get(ResourceLocation id) {
+    public static FrontierRecipe get(Identifier id) {
         return byId.get(id);
     }
 
     public static void open(CraftingNetwork.OpenCrafting payload) {
-        Minecraft.getInstance().setScreen(new CraftingScreen(Station.byIndex(payload.station()), payload.npcEntity(), payload.npcId(),
+        Minecraft.getInstance().gui.setScreen(new CraftingScreen(Station.byIndex(payload.station()), payload.npcEntity(), payload.npcId(),
                 payload.pos()));
     }
 
     public static void status(CraftingNetwork.CraftStatus payload) {
-        if (Minecraft.getInstance().screen instanceof CraftingScreen screen) screen.onStatus(payload);
+        if (Minecraft.getInstance().gui.screen() instanceof CraftingScreen screen) screen.onStatus(payload);
     }
 
     @SubscribeEvent

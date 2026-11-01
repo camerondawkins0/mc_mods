@@ -33,7 +33,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderPlayerEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 @EventBusSubscriber(modid = SLFrontier.MODID, value = Dist.CLIENT)
 public final class ClientEvents {
@@ -58,10 +58,10 @@ public final class ClientEvents {
 
         MapStore.tick();
         while (KeyBindings.MENU.consumeClick()) {
-            if (mc.screen == null) mc.setScreen(new FrontierScreen());
+            if (mc.gui.screen() == null) mc.gui.setScreen(new FrontierScreen());
         }
         while (KeyBindings.MAP.consumeClick()) {
-            if (mc.screen == null) mc.setScreen(new MapScreen());
+            if (mc.gui.screen() == null) mc.gui.setScreen(new MapScreen());
         }
         while (KeyBindings.MINIMAP.consumeClick()) {
             SlfConfig.SHOW_MINIMAP.set(!SlfConfig.SHOW_MINIMAP.get());
@@ -69,9 +69,10 @@ public final class ClientEvents {
         }
         for (int i = 0; i < KeyBindings.SKILLS.length; i++) {
             while (KeyBindings.SKILLS[i].consumeClick()) {
-                var input = mc.player.input;
-                PacketDistributor.sendToServer(new ModNetwork.UseSkill(i, (byte) Math.signum(input.leftImpulse),
-                        (byte) Math.signum(input.forwardImpulse)));
+                // Move vector: x is the strafe (left) impulse, y the forward impulse.
+                var move = mc.player.input.getMoveVector();
+                ClientPacketDistributor.sendToServer(new ModNetwork.UseSkill(i, (byte) Math.signum(move.x),
+                        (byte) Math.signum(move.y)));
             }
         }
 
@@ -88,9 +89,9 @@ public final class ClientEvents {
         if (player.onGround()) airJumpSent = false;
         if (jumpDown && !jumpWasDown && !player.onGround() && !airJumpSent && data.hasSkill(Skill.DOUBLE_JUMP)
                 && !player.getAbilities().flying && !player.isInWater() && !player.isFallFlying()
-                && data.stamina() >= Skill.DOUBLE_JUMP.staminaCost && mc.screen == null) {
+                && data.stamina() >= Skill.DOUBLE_JUMP.staminaCost && mc.gui.screen() == null) {
             airJumpSent = true;
-            PacketDistributor.sendToServer(new ModNetwork.DoubleJump());
+            ClientPacketDistributor.sendToServer(new ModNetwork.DoubleJump());
         }
         jumpWasDown = jumpDown;
     }
@@ -136,11 +137,26 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onGuiLayer(RenderGuiLayerEvent.Pre event) {
         var name = event.getName();
+        boolean bar = name.equals(VanillaGuiLayers.CONTEXTUAL_INFO_BAR) || name.equals(VanillaGuiLayers.CONTEXTUAL_INFO_BAR_BACKGROUND);
         if ((name.equals(VanillaGuiLayers.PLAYER_HEALTH) || name.equals(VanillaGuiLayers.ARMOR_LEVEL)
-                || name.equals(VanillaGuiLayers.EXPERIENCE_BAR) || name.equals(VanillaGuiLayers.EXPERIENCE_LEVEL))
+                || name.equals(VanillaGuiLayers.EXPERIENCE_LEVEL) || bar && showsExperienceBar())
                 && FrontierHud.hideVanillaBars()) {
             event.setCanceled(true);
         }
+    }
+
+    /**
+     * The bar above the hotbar is shared by experience, the locator and a mount's jump charge; only the
+     * experience bar gives way to the Frontier HUD. Mirrors vanilla's choice in {@code Hud#nextContextualInfoState}.
+     */
+    private static boolean showsExperienceBar() {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || mc.gameMode == null || !mc.gameMode.hasExperience()) return false;
+        var mount = player.jumpableVehicle();
+        if (!player.connection.getWaypointManager().hasWaypoints()) return mount == null;
+        boolean jumping = mount != null && (player.getJumpRidingScale() > 0 || mount.getJumpCooldown() > 0);
+        return !jumping && player.experienceDisplayStartTick + 100 > player.tickCount;
     }
 
     @SubscribeEvent

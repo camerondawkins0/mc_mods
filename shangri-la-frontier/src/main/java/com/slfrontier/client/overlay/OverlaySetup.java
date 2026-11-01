@@ -10,7 +10,7 @@ import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
 /** Mod-bus registration for the overlays: HUD layers and the Frontier's loading screen. */
-@EventBusSubscriber(modid = SLFrontier.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+@EventBusSubscriber(modid = SLFrontier.MODID, value = Dist.CLIENT)
 public final class OverlaySetup {
     private OverlaySetup() {
     }

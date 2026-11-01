@@ -22,7 +22,7 @@ public final class ClientHooks {
     }
 
     public static void openDialogue(ModNetwork.OpenDialogue payload) {
-        Minecraft.getInstance().setScreen(new DialogueScreen(payload));
+        Minecraft.getInstance().gui.setScreen(new DialogueScreen(payload));
     }
 
     public static void playAnimation(ModNetwork.PlayAnimation payload) {

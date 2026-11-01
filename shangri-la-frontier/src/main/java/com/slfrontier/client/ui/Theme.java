@@ -3,7 +3,7 @@ package com.slfrontier.client.ui;
 import com.slfrontier.SLFrontier;
 import com.slfrontier.data.Stat;
 import com.slfrontier.skill.Skill;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /** Colours and textures shared by every Frontier screen and the HUD. */
 public final class Theme {
@@ -37,15 +37,15 @@ public final class Theme {
         return Gfx.withAlpha(argb, a);
     }
 
-    public static ResourceLocation skillIcon(Skill skill) {
+    public static Identifier skillIcon(Skill skill) {
         return SLFrontier.id("textures/gui/skill/" + skill.icon() + ".png");
     }
 
-    public static ResourceLocation statIcon(Stat stat) {
+    public static Identifier statIcon(Stat stat) {
         return SLFrontier.id("textures/gui/stat/" + stat.name().toLowerCase() + ".png");
     }
 
-    public static ResourceLocation icon(String name) {
+    public static Identifier icon(String name) {
         return SLFrontier.id("textures/gui/icon/" + name + ".png");
     }
 

@@ -19,12 +19,15 @@ import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.decoration.ArmorStand;
@@ -32,6 +35,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.levelgen.Heightmap;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -109,7 +113,7 @@ public final class ClientTestDriver {
             pendingShot = null;
             SLFrontier.LOGGER.info("Client test: shot {} anim={} fx={}", name,
                     mc.player == null ? -1 : ClientAnims.playing(mc.player.getId()), com.slfrontier.client.fx.FxRenderer.count());
-            Screenshot.grab(mc.gameDirectory, name + ".png", mc.getMainRenderTarget(),
+            Screenshot.grab(mc.gameDirectory, name + ".png", mc.gameRenderer.mainRenderTarget(), 1,
                     msg -> SLFrontier.LOGGER.info("Screenshot {}: {}", name, msg.getString()));
         }
     }
@@ -121,11 +125,11 @@ public final class ClientTestDriver {
     static {
         server(60, FrontierTravel::login);
         server(140, sp -> {
-            ServerLevel level = sp.serverLevel();
+            ServerLevel level = sp.level();
             // Bosses the server story test left behind would put their bars on every shot.
             level.getEntitiesOfClass(FrontierBoss.class, sp.getBoundingBox().inflate(256)).forEach(Entity::discard);
-            level.setDayTime(6000);
-            level.setWeatherParameters(6000, 0, false, false);
+            setDayTime(sp.level().getServer(), 6000);
+            sp.level().getServer().setWeatherParameters(6000, 0, false, false);
             Progression.grantExp(sp, 3000);
             var data = ModAttachments.get(sp);
             for (Skill s : Skill.values()) data.unlock(s);
@@ -137,7 +141,7 @@ public final class ClientTestDriver {
             sp.getAbilities().mayfly = true;
             sp.getAbilities().flying = true;
             sp.onUpdateAbilities();
-            sp.teleportTo(level, sp.getX(), sp.getY() + 1, sp.getZ(), 0f, 15f);
+            sp.teleportTo(level, sp.getX(), sp.getY() + 1, sp.getZ(), Set.of(), 0f, 15f, true);
         });
         cursor += 40;
         if (wants("creatures")) creatures();
@@ -202,10 +206,10 @@ public final class ClientTestDriver {
             server(10, sp -> {
                 clear();
                 sp.getAbilities().invulnerable = true;
-                ServerLevel level = sp.serverLevel();
-                FrontierBoss boss = types.get(k).get().create(level);
+                ServerLevel level = sp.level();
+                FrontierBoss boss = types.get(k).get().create(level, EntitySpawnReason.COMMAND);
                 if (boss == null) return;
-                boss.moveTo(sp.getX(), sp.getY() - 1, sp.getZ() + 11, 180f, 0f);
+                boss.snapTo(sp.getX(), sp.getY() - 1, sp.getZ() + 11, 180f, 0f);
                 boss.setPersistenceRequired();
                 level.addFreshEntity(boss);
                 spawned.add(boss);
@@ -224,14 +228,14 @@ public final class ClientTestDriver {
     /** Flyover shots of the hand-built towns and landmarks. */
     private static void world() {
         at(0, mc -> {
-            mc.options.hideGui = true;
+            setHudHidden(mc, true);
             mc.options.renderDistance().set(10);
         });
         for (Landmarks.Site site : List.of(Landmarks.Site.FIRSTIA, Landmarks.Site.GOBLIN_CAMP, Landmarks.Site.SERPENT_BRIDGE,
                 Landmarks.Site.SECONDIL, Landmarks.Site.THIRDREMA, Landmarks.Site.RABITUZA, Landmarks.Site.NIGHTSLAYER_DEN,
                 Landmarks.Site.WEZAEMON_TOMB)) {
             server(10, sp -> {
-                ServerLevel level = sp.serverLevel();
+                ServerLevel level = sp.level();
                 Landmarks.ensure(level, site);
                 BlockPos c = Landmarks.center(site);
                 Vec3i size = Landmarks.size(level, site);
@@ -245,10 +249,10 @@ public final class ClientTestDriver {
                 sp.getAbilities().mayfly = true;
                 sp.getAbilities().flying = true;
                 sp.onUpdateAbilities();
-                sp.teleportTo(level, x, y, z, yaw, pitch);
+                sp.teleportTo(level, x, y, z, Set.of(), yaw, pitch, true);
                 // The Frontier shares the overworld's clock and weather.
-                sp.server.overworld().setDayTime(5000);
-                sp.server.overworld().setWeatherParameters(12000, 0, false, false);
+                setDayTime(sp.level().getServer(), 5000);
+                sp.level().getServer().setWeatherParameters(12000, 0, false, false);
                 flyover = new int[]{c.getX(), c.getZ(), Math.max(size.getX(), size.getZ()) / 2};
             });
             at(300, mc -> stableTicks = 0);
@@ -258,14 +262,14 @@ public final class ClientTestDriver {
             at(0, mc -> flyover = null);
         }
         server(10, sp -> {
-            ServerLevel level = sp.serverLevel();
+            ServerLevel level = sp.level();
             BlockPos c = Landmarks.ensure(level, Landmarks.Site.FIRSTIA);
             sp.getAbilities().flying = false;
             sp.onUpdateAbilities();
-            sp.teleportTo(level, c.getX() + 0.5, c.getY() + 1, c.getZ() + 0.5, 0f, 0f);
+            sp.teleportTo(level, c.getX() + 0.5, c.getY() + 1, c.getZ() + 0.5, Set.of(), 0f, 0f, true);
         });
         at(120, mc -> {
-            mc.options.hideGui = false;
+            setHudHidden(mc, false);
             mc.options.renderDistance().set(6);
         });
     }
@@ -300,15 +304,15 @@ public final class ClientTestDriver {
     private static void weapons() {
         // Armor stands show the third-person transforms, dropped items the ground ones.
         server(0, sp -> {
-            ServerLevel level = sp.serverLevel();
+            ServerLevel level = sp.level();
             double width = 1.3 * (WEAPONS.size() - 1);
             for (int i = 0; i < WEAPONS.size(); i++) {
-                ArmorStand stand = EntityType.ARMOR_STAND.create(level);
+                ArmorStand stand = EntityTypes.ARMOR_STAND.create(level, EntitySpawnReason.COMMAND);
                 if (stand == null) continue;
                 stand.setShowArms(true);
                 stand.setNoBasePlate(true);
                 stand.setNoGravity(true);
-                stand.moveTo(sp.getX() - width / 2 + i * 1.3, sp.getY() - 1, sp.getZ() + 4.5, 180f, 0f);
+                stand.snapTo(sp.getX() - width / 2 + i * 1.3, sp.getY() - 1, sp.getZ() + 4.5, 180f, 0f);
                 stand.setYBodyRot(180f);
                 stand.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(WEAPONS.get(i).get()));
                 level.addFreshEntity(stand);
@@ -321,7 +325,7 @@ public final class ClientTestDriver {
                 level.addFreshEntity(drop);
                 spawned.add(drop);
             }
-            sp.teleportTo(level, sp.getX(), sp.getY(), sp.getZ(), 0f, 20f);
+            sp.teleportTo(level, sp.getX(), sp.getY(), sp.getZ(), Set.of(), 0f, 20f, true);
             for (int i = 0; i < WEAPONS.size(); i++) sp.getInventory().setItem(i, new ItemStack(WEAPONS.get(i).get()));
         });
         shot(100, "10_weapons_held");
@@ -331,7 +335,7 @@ public final class ClientTestDriver {
         server(5, sp -> {
             sp.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.TOMBGUARD_KATANA.get()));
             sp.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
-            sp.teleportTo(sp.serverLevel(), sp.getX(), sp.getY(), sp.getZ(), 0f, 0f);
+            sp.teleportTo(sp.level(), sp.getX(), sp.getY(), sp.getZ(), Set.of(), 0f, 0f, true);
         });
         shot(30, "12_first_person_katana");
         server(5, sp -> sp.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.TWIN_MOON.get())));
@@ -341,9 +345,9 @@ public final class ClientTestDriver {
             sp.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(ModItems.MOONBLADE_WANING.get()));
         });
         shot(30, "14_first_person_moonblades");
-        at(5, mc -> mc.setScreen(new InventoryScreen(mc.player)));
+        at(5, mc -> mc.gui.setScreen(new InventoryScreen(mc.player)));
         shot(30, "15_inventory_icons");
-        at(5, mc -> mc.setScreen(null));
+        at(5, mc -> mc.gui.setScreen(null));
         server(5, sp -> clear());
     }
 
@@ -358,7 +362,7 @@ public final class ClientTestDriver {
                 ItemStack ours = new ItemStack(ModItems.MERCENARY_TWIN_BLADES.get());
                 sp.setItemInHand(InteractionHand.MAIN_HAND, oursInMain ? ours : vanilla);
                 sp.setItemInHand(InteractionHand.OFF_HAND, oursInMain ? vanilla : ours);
-                sp.teleportTo(sp.serverLevel(), sp.getX(), sp.getY(), sp.getZ(), sp.getYRot(), 0f);
+                sp.teleportTo(sp.level(), sp.getX(), sp.getY(), sp.getZ(), Set.of(), sp.getYRot(), 0f, true);
             });
             for (int v = 0; v < views.length; v++) {
                 final CameraType cam = cams[v];
@@ -377,7 +381,7 @@ public final class ClientTestDriver {
             sp.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(ModItems.MERCENARY_TWIN_BLADES.get()));
             sp.getAbilities().flying = false;
             sp.onUpdateAbilities();
-            sp.teleportTo(sp.serverLevel(), sp.getX(), sp.getY(), sp.getZ(), 0f, 18f);
+            sp.teleportTo(sp.level(), sp.getX(), sp.getY(), sp.getZ(), Set.of(), 0f, 18f, true);
             lineUp(sp, List.of(ModEntities.GOBLIN), 0, 2.2);
             for (Entity e : spawned) {
                 if (e instanceof net.minecraft.world.entity.LivingEntity living) {
@@ -434,14 +438,14 @@ public final class ClientTestDriver {
     private static void skills() {
         server(0, sp -> {
             // Slow the game down so the (slow, software-rendered) client gets frames mid-animation.
-            sp.getServer().tickRateManager().setTickRate(4f);
+            sp.level().getServer().tickRateManager().setTickRate(4f);
             clear();
-            ServerLevel level = sp.serverLevel();
+            ServerLevel level = sp.level();
             sp.getAbilities().flying = false;
             sp.onUpdateAbilities();
             sp.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.MOONBLADE_WAXING.get()));
             sp.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(ModItems.MOONBLADE_WANING.get()));
-            sp.teleportTo(level, sp.getX(), sp.getY() - 1, sp.getZ(), 0f, 10f);
+            sp.teleportTo(level, sp.getX(), sp.getY() - 1, sp.getZ(), Set.of(), 0f, 10f, true);
             lineUp(sp, List.of(ModEntities.GOBLIN, ModEntities.GOBLIN, ModEntities.GOBLIN), 2.2, 4.5);
         });
         at(20, mc -> mc.options.setCameraType(CameraType.THIRD_PERSON_BACK));
@@ -455,7 +459,7 @@ public final class ClientTestDriver {
         for (int i = 0; i < list.length; i++) {
             Skill skill = list[i];
             server(25, sp -> {
-                sp.teleportTo(sp.serverLevel(), sp.getX(), sp.getY(), sp.getZ(), 0f, 10f);
+                sp.teleportTo(sp.level(), sp.getX(), sp.getY(), sp.getZ(), Set.of(), 0f, 10f, true);
                 useSkill(sp, skill);
             });
             int anim = anims[i];
@@ -484,7 +488,7 @@ public final class ClientTestDriver {
         shot(5, "29_first_person_pierce");
         server(20, sp -> {
             clear();
-            sp.getServer().tickRateManager().setTickRate(20f);
+            sp.level().getServer().tickRateManager().setTickRate(20f);
         });
     }
 
@@ -497,7 +501,7 @@ public final class ClientTestDriver {
             data.setSideProgress(com.slfrontier.quest.SideQuest.GOBLIN_CULL, 7);
             data.setTracked(com.slfrontier.quest.SideQuest.GOBLIN_CULL.id);
             data.setUses(Skill.TAP_STEP, 23);
-            ServerLevel level = sp.serverLevel();
+            ServerLevel level = sp.level();
             net.minecraft.core.BlockPos crystal = sp.blockPosition().offset(-3, -1, 3);
             level.setBlock(crystal, com.slfrontier.registry.ModBlocks.WAYPOINT_CRYSTAL.get().defaultBlockState(), 3);
             com.slfrontier.block.WaypointBlock.attune(level, crystal, sp);
@@ -505,21 +509,21 @@ public final class ClientTestDriver {
             sp.onUpdateAbilities();
             // From Firstia's spawn, look east across the plaza toward the Alchemy Table and the houses beyond.
             BlockPos home = Landmarks.where(level, Landmarks.Site.FIRSTIA);
-            sp.teleportTo(level, home.getX() + 0.5, home.getY() + 1, home.getZ() + 0.5, 270f, 5f);
+            sp.teleportTo(level, home.getX() + 0.5, home.getY() + 1, home.getZ() + 0.5, Set.of(), 270f, 5f, true);
             lineUp(sp, List.of(ModEntities.GOBLIN), 0, 3.5, 270f);
             com.slfrontier.world.MapSync.invalidate(sp);
         });
         shot(120, "16_hud");
         server(5, sp -> clear());
-        at(5, mc -> mc.setScreen(new FrontierScreen(FrontierScreen.Tab.STATUS)));
+        at(5, mc -> mc.gui.setScreen(new FrontierScreen(FrontierScreen.Tab.STATUS)));
         shot(30, "07_status_menu");
-        at(5, mc -> mc.setScreen(new FrontierScreen(FrontierScreen.Tab.SKILLS)));
+        at(5, mc -> mc.gui.setScreen(new FrontierScreen(FrontierScreen.Tab.SKILLS)));
         shot(30, "17_skills_menu");
-        at(5, mc -> mc.setScreen(new FrontierScreen(FrontierScreen.Tab.QUESTS)));
+        at(5, mc -> mc.gui.setScreen(new FrontierScreen(FrontierScreen.Tab.QUESTS)));
         shot(30, "18_quest_journal");
-        at(5, mc -> mc.setScreen(new com.slfrontier.client.screen.MapScreen()));
+        at(5, mc -> mc.gui.setScreen(new com.slfrontier.client.screen.MapScreen()));
         shot(40, "19_map");
-        at(5, mc -> mc.setScreen(null));
+        at(5, mc -> mc.gui.setScreen(null));
         server(5, sp -> {
             sp.getInventory().add(new ItemStack(com.slfrontier.registry.CraftingRegistry.HEALING_POTION.get(), 3));
             sp.getInventory().add(new ItemStack(net.minecraft.world.item.Items.IRON_INGOT, 6));
@@ -533,22 +537,22 @@ public final class ClientTestDriver {
             com.slfrontier.crafting.FrontierCrafting.open(sp, com.slfrontier.crafting.Station.FORGE, null);
         });
         shot(40, "21_crafting_forge");
-        at(5, mc -> mc.setScreen(null));
+        at(5, mc -> mc.gui.setScreen(null));
         at(5, mc -> com.slfrontier.client.overlay.TravelOverlay.begin(
                 new com.slfrontier.network.OverlayNetwork.TravelStart(0, "waypoint.slfrontier.fastera", java.util.Optional.empty())));
         shot(12, "22_travel_screen");
-        at(80, mc -> mc.setScreen(null));
+        at(80, mc -> mc.gui.setScreen(null));
         server(5, sp -> lineUp(sp, List.of(ModEntities.EMUL), 0, 2.5));
         at(30, mc -> {
             int id = spawned.isEmpty() ? mc.player.getId() : spawned.get(0).getId();
-            mc.setScreen(new DialogueScreen(new ModNetwork.OpenDialogue(id, "entity.slfrontier.emul",
+            mc.gui.setScreen(new DialogueScreen(new ModNetwork.OpenDialogue(id, "entity.slfrontier.emul",
                     List.of("dialogue.slfrontier.emul.invite.5"), List.of("dialogue.slfrontier.option.accept_invitation",
                     "dialogue.slfrontier.option.side_offer|@sidequest.slfrontier.lily_offering.title",
                     "dialogue.slfrontier.option.decline"))));
         });
         shot(50, "08_dialogue");
         at(10, mc -> {
-            mc.setScreen(null);
+            mc.gui.setScreen(null);
             mc.player.setXRot(10f);
         });
         server(0, sp -> clear());
@@ -562,21 +566,21 @@ public final class ClientTestDriver {
         clientTicks++;
         if (clientTicks % 200 == 0) {
             SLFrontier.LOGGER.info("Client test heartbeat: tick {}, screen {}, in world {}", clientTicks,
-                    mc.screen == null ? "none" : mc.screen.getClass().getName(), mc.player != null);
+                    mc.gui.screen() == null ? "none" : mc.gui.screen().getClass().getName(), mc.player != null);
         }
         // Vanilla warns once about worlds with datapack dimensions; accept it.
-        if (mc.screen instanceof net.minecraft.client.gui.screens.BackupConfirmScreen screen && clientTicks % 20 == 0) {
+        if (mc.gui.screen() instanceof net.minecraft.client.gui.screens.BackupConfirmScreen screen && clientTicks % 20 == 0) {
             String skip = net.minecraft.network.chat.Component.translatable("selectWorld.backupJoinSkipButton").getString();
             for (var child : screen.children()) {
                 if (child instanceof net.minecraft.client.gui.components.Button button && button.getMessage().getString().equals(skip)) {
                     SLFrontier.LOGGER.info("Client test: accepting experimental-settings warning");
-                    button.onPress();
+                    button.onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER, 0, 0));
                     break;
                 }
             }
         }
         if (mc.player == null && clientTicks == 4000) {
-            Screenshot.grab(mc.gameDirectory, "00_never_joined_world.png", mc.getMainRenderTarget(), msg -> {
+            Screenshot.grab(mc.gameDirectory, "00_never_joined_world.png", mc.gameRenderer.mainRenderTarget(), 1, msg -> {
             });
         }
         if (mc.player == null && clientTicks == 4040) {
@@ -612,17 +616,17 @@ public final class ClientTestDriver {
     /** Lines mobs up {@code distance} in front of a player looking toward {@code yaw}, facing back at them. */
     private static void lineUp(ServerPlayer sp, List<? extends Supplier<? extends EntityType<? extends Mob>>> types,
                                double spacing, double distance, float yaw) {
-        ServerLevel level = sp.serverLevel();
+        ServerLevel level = sp.level();
         double width = spacing * (types.size() - 1);
         double rad = Math.toRadians(yaw);
         double fx = -Math.sin(rad), fz = Math.cos(rad), sx = Math.cos(rad), sz = Math.sin(rad);
         for (int i = 0; i < types.size(); i++) {
-            Mob mob = types.get(i).get().create(level);
+            Mob mob = types.get(i).get().create(level, EntitySpawnReason.COMMAND);
             if (mob == null) continue;
             double offset = -width / 2 + i * spacing;
             double x = sp.getX() + sx * offset + fx * distance;
             double z = sp.getZ() + sz * offset + fz * distance;
-            mob.moveTo(x, sp.getY() - 1, z, yaw + 180f, 0f);
+            mob.snapTo(x, sp.getY() - 1, z, yaw + 180f, 0f);
             mob.setYHeadRot(yaw + 180f);
             mob.setYBodyRot(yaw + 180f);
             mob.setNoAi(true);
@@ -635,5 +639,15 @@ public final class ClientTestDriver {
     private static void clear() {
         for (Entity m : spawned) m.discard();
         spawned.clear();
+    }
+
+    /** Sets the time of day on the overworld's clock, which the Frontier runs on too. */
+    private static void setDayTime(MinecraftServer server, long time) {
+        server.overworld().dimensionTypeRegistration().value().defaultClock()
+                .ifPresent(clock -> server.clockManager().setTotalTicks(clock, time));
+    }
+
+    private static void setHudHidden(Minecraft mc, boolean hidden) {
+        if (mc.gui.hud.isHidden() != hidden) mc.gui.hud.toggle();
     }
 }
