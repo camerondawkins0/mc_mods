@@ -1,5 +1,6 @@
 package com.slfrontier.client;
 
+import com.slfrontier.SLFrontier;
 import com.slfrontier.client.anim.PlayerAnim;
 import com.slfrontier.client.anim.SkillAnims;
 import com.slfrontier.client.fx.Impact;
@@ -7,7 +8,9 @@ import com.slfrontier.item.FrontierWeapon;
 import com.slfrontier.skill.PlayerAnims;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.util.Mth;
+import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import org.jetbrains.annotations.Nullable;
@@ -18,8 +21,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Plays keyframed {@link PlayerAnim}s on players. Skill animations are started by the
  * server (PlayAnimation packets); swings with Frontier weapons are replaced by slashes
- * driven by the vanilla swing timer. The HumanoidModel mixin bends limbs through
- * {@link #apply}; whole-body motion is applied to the pose stack in {@link ClientEvents}.
+ * driven by the vanilla swing timer. Each frame {@link #extract} puts what is playing into the
+ * player's render state; the HumanoidModel mixin bends limbs from it through {@link #apply} and
+ * whole-body motion is applied to the pose stack in {@link ClientEvents}.
  */
 public final class ClientAnims {
     private record Active(int anim, float start, int duration) {
@@ -28,6 +32,10 @@ public final class ClientAnims {
     /** What is playing on an entity this frame, and how strongly. */
     public record Sample(PlayerAnim anim, float t, float weight) {
     }
+
+    /** The animation sample and whole-body transform carried on a player's render state. */
+    public static final ContextKey<Sample> SAMPLE = new ContextKey<>(SLFrontier.id("player_anim"));
+    public static final ContextKey<PlayerAnim.Root> ROOT = new ContextKey<>(SLFrontier.id("player_anim_root"));
 
     private static final Map<Integer, Active> ACTIVE = new ConcurrentHashMap<>();
     private static final Map<Integer, Float> LAST_SWING = new ConcurrentHashMap<>();
@@ -109,19 +117,26 @@ public final class ClientAnims {
         return new Sample(def, attack, def.weight(elapsed));
     }
 
+    /** Render state modifier for players: samples what is playing on them for this frame's model and pose. */
+    public static void extract(LivingEntity entity, EntityRenderState state) {
+        Sample s = sample(entity, state.partialTick);
+        if (s == null || s.weight() <= 0) return;
+        state.setRenderData(SAMPLE, s);
+        PlayerAnim.Root root = root(s);
+        if (root != PlayerAnim.Root.NONE) state.setRenderData(ROOT, root);
+    }
+
     /** Whole-body transform for the renderer, already scaled by the blend weight. */
-    public static PlayerAnim.Root root(LivingEntity entity, float partialTick) {
-        Sample s = sample(entity, partialTick);
-        if (s == null || s.weight() <= 0) return PlayerAnim.Root.NONE;
+    private static PlayerAnim.Root root(Sample s) {
         PlayerAnim.Root r = s.anim().root(s.t());
+        if (r.equals(PlayerAnim.Root.NONE)) return PlayerAnim.Root.NONE;
         float w = s.weight();
         return new PlayerAnim.Root(r.yaw() * w, r.pitch() * w, r.roll() * w, r.dy() * w, r.dz() * w);
     }
 
-    public static void apply(HumanoidModel<?> model, LivingEntity entity, float ageInTicks) {
-        float partial = ageInTicks - (float) Math.floor(ageInTicks);
-        Sample s = sample(entity, partial);
-        if (s == null || s.weight() <= 0) return;
+    public static void apply(HumanoidModel<?> model, EntityRenderState state) {
+        Sample s = state.getRenderData(SAMPLE);
+        if (s == null) return;
         float w = s.weight();
         set(model.head, s, PlayerAnim.Part.HEAD, w);
         set(model.body, s, PlayerAnim.Part.BODY, w);

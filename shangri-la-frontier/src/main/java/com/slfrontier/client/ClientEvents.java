@@ -7,11 +7,14 @@ import com.slfrontier.client.anim.PlayerAnim;
 import com.slfrontier.client.fx.CameraShake;
 import com.slfrontier.client.fx.DamageNumbers;
 import com.slfrontier.client.fx.FxRenderer;
+import com.slfrontier.client.overlay.EnemyHealthBars;
+import com.slfrontier.client.overlay.QuestPointer;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.neoforged.neoforge.client.event.ExtractLevelRenderStateEvent;
 import net.neoforged.neoforge.client.event.RenderFrameEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import net.neoforged.neoforge.client.event.ViewportEvent;
 import com.slfrontier.client.map.MapStore;
-import net.minecraft.util.Mth;
 import com.slfrontier.client.screen.FrontierScreen;
 import com.slfrontier.client.screen.MapScreen;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
@@ -97,22 +100,28 @@ public final class ClientEvents {
         if (ClientTestDriver.ENABLED) ClientTestDriver.onFrame();
     }
 
+    /** World overlays snapshot what they draw while the level's render state is extracted... */
     @SubscribeEvent
-    public static void onRenderLevel(RenderLevelStageEvent event) {
-        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
-            float pt = event.getPartialTick().getGameTimeDeltaPartialTick(false);
-            FxRenderer.render(event.getCamera(), pt);
-            DamageNumbers.render(event.getCamera(), pt);
-        }
+    public static void onExtractLevel(ExtractLevelRenderStateEvent event) {
+        float pt = event.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        var state = event.getRenderState();
+        FxRenderer.extract(state, event.getCamera(), pt);
+        DamageNumbers.extract(state, event.getCamera(), pt);
+        QuestPointer.extract(state, event.getCamera(), pt);
+        EnemyHealthBars.extract(state, event.getCamera(), pt);
     }
 
-    /** Heavy hits punch the field of view in for a moment (scaled by the FOV Effects slider). */
+    /** ...and submit it with the level's geometry, to draw after translucent terrain and particles. */
     @SubscribeEvent
-    public static void onFov(ViewportEvent.ComputeFov event) {
-        if (!event.usedConfiguredFov()) return;
-        float punch = com.slfrontier.client.fx.Impact.fovPunchAt((float) event.getPartialTick());
-        if (punch > 0) event.setFOV(event.getFOV() * (1 - punch));
+    public static void onSubmitGeometry(SubmitCustomGeometryEvent event) {
+        var state = event.getLevelRenderState();
+        FxRenderer.submit(state, event.getSubmitNodeCollector(), event.getPoseStack());
+        DamageNumbers.submit(state, event.getSubmitNodeCollector(), event.getPoseStack());
+        QuestPointer.submit(state, event.getSubmitNodeCollector(), event.getPoseStack());
+        EnemyHealthBars.submit(state, event.getSubmitNodeCollector(), event.getPoseStack());
     }
+
+    // The FOV punch of heavy hits lives in CameraMixin: ComputeFov also fires for the hand's FOV now.
 
     @SubscribeEvent
     public static void onCameraAngles(ViewportEvent.ComputeCameraAngles event) {
@@ -157,15 +166,14 @@ public final class ClientEvents {
     }
 
     @SubscribeEvent
-    public static void onRenderPlayerPre(RenderPlayerEvent.Pre event) {
-        var player = event.getEntity();
-        float pt = event.getPartialTick();
-        PlayerAnim.Root root = ClientAnims.root(player, pt);
-        if (root == PlayerAnim.Root.NONE) return;
+    public static void onRenderPlayerPre(RenderPlayerEvent.Pre<?> event) {
+        AvatarRenderState state = event.getRenderState();
+        PlayerAnim.Root root = state.getRenderData(ClientAnims.ROOT);
+        if (root == null) return;
         var pose = event.getPoseStack();
         pose.pushPose();
         // Work in the body's frame so "lean forward" means forward for wherever the player faces.
-        float bodyYaw = Mth.rotLerp(pt, player.yBodyRotO, player.yBodyRot);
+        float bodyYaw = state.bodyRot;
         pose.translate(0, 0.9 + root.dy(), 0);
         pose.mulPose(Axis.YP.rotationDegrees(-bodyYaw));
         pose.translate(0, 0, root.dz());
@@ -174,15 +182,12 @@ public final class ClientEvents {
         pose.mulPose(Axis.ZP.rotationDegrees(root.roll()));
         pose.mulPose(Axis.YP.rotationDegrees(bodyYaw));
         pose.translate(0, -0.9, 0);
-        spinPushed.add(player.getId());
     }
 
     @SubscribeEvent
-    public static void onRenderPlayerPost(RenderPlayerEvent.Post event) {
-        if (spinPushed.remove(event.getEntity().getId())) {
+    public static void onRenderPlayerPost(RenderPlayerEvent.Post<?> event) {
+        if (event.getRenderState().getRenderData(ClientAnims.ROOT) != null) {
             event.getPoseStack().popPose();
         }
     }
-
-    private static final java.util.Set<Integer> spinPushed = new java.util.HashSet<>();
 }

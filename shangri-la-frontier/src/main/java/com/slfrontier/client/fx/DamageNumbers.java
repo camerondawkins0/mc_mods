@@ -1,16 +1,20 @@
 package com.slfrontier.client.fx;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.slfrontier.SLFrontier;
 import com.slfrontier.SlfConfig;
 import com.slfrontier.network.ModNetwork;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Quaternionf;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +26,11 @@ public final class DamageNumbers {
     private record Number(Vec3 pos, float amount, int flags, float start, float drift) {
     }
 
+    /** This frame's numbers and view, taken while the level's render state is extracted. */
+    private record Frame(List<Number> numbers, float time, Vec3 cam, Quaternionf rotation) {
+    }
+
+    private static final ContextKey<Frame> FRAME = new ContextKey<>(SLFrontier.id("damage_numbers"));
     private static final List<Number> NUMBERS = new ArrayList<>();
     private static float clock;
 
@@ -34,7 +43,7 @@ public final class DamageNumbers {
         if (level == null) return;
         Entity e = level.getEntity(entityId);
         if (e == null) return;
-        float drift = (float) (level.random.nextGaussian() * 0.25);
+        float drift = (float) (level.getRandom().nextGaussian() * 0.25);
         NUMBERS.add(new Number(e.position().add(0, e.getBbHeight() + 0.25, 0), amount, flags, clock, drift));
         if ((flags & ModNetwork.Hit.CRIT) != 0 && SlfConfig.CAMERA_SHAKE.get()) CameraShake.add(0.6f, 5);
     }
@@ -48,15 +57,18 @@ public final class DamageNumbers {
         NUMBERS.clear();
     }
 
-    public static void render(Camera camera, float partialTick) {
+    public static void extract(LevelRenderState state, Camera camera, float partialTick) {
         if (NUMBERS.isEmpty()) return;
-        Minecraft mc = Minecraft.getInstance();
-        Font font = mc.font;
-        Vec3 cam = camera.getPosition();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        PoseStack pose = new PoseStack();
-        for (Number n : NUMBERS) {
-            float age = clock + partialTick - n.start;
+        state.setRenderData(FRAME, new Frame(List.copyOf(NUMBERS), clock + partialTick, camera.position(), new Quaternionf(camera.rotation())));
+    }
+
+    public static void submit(LevelRenderState state, SubmitNodeCollector collector, PoseStack pose) {
+        Frame frame = state.getRenderData(FRAME);
+        if (frame == null) return;
+        Font font = Minecraft.getInstance().font;
+        Vec3 cam = frame.cam;
+        for (Number n : frame.numbers) {
+            float age = frame.time - n.start;
             float t = age / LIFE;
             boolean crit = (n.flags & ModNetwork.Hit.CRIT) != 0;
             boolean weak = (n.flags & ModNetwork.Hit.WEAK) != 0;
@@ -70,18 +82,16 @@ public final class DamageNumbers {
             Component label = Component.literal(crit ? text + "!" : text);
             pose.pushPose();
             pose.translate(n.pos.x - cam.x + n.drift * t, n.pos.y - cam.y + rise, n.pos.z - cam.z);
-            pose.mulPose(camera.rotation());
+            pose.mulPose(frame.rotation);
             pose.scale(scale, -scale, scale);
             float x = -font.width(label) / 2f;
-            font.drawInBatch(label, x, 0, (alpha << 24) | color, true, pose.last().pose(), buffers, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+            WorldLayer.text(collector, pose, x, 0, label, true, Font.DisplayMode.SEE_THROUGH, (alpha << 24) | color, 0);
             if (weak || crit) {
                 Component tag = Component.translatable(crit ? "hud.slfrontier.crit" : "hud.slfrontier.weak_point");
                 pose.scale(0.55f, 0.55f, 0.55f);
-                font.drawInBatch(tag, -font.width(tag) / 2f, -11, (alpha << 24) | color, true, pose.last().pose(), buffers,
-                        Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+                WorldLayer.text(collector, pose, -font.width(tag) / 2f, -11, tag, true, Font.DisplayMode.SEE_THROUGH, (alpha << 24) | color, 0);
             }
             pose.popPose();
         }
-        buffers.endBatch();
     }
 }
