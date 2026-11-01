@@ -499,7 +499,7 @@ public class CraftingScreen extends Screen {
             } else if (hover) {
                 Gfx.chamfer(g, x0 + 2, y, lw - 4, ROW - 2, 3, 0, 3, 0, 0x30FFFFFF, 0x10FFFFFF);
             }
-            ItemStack stack = r.result();
+            ItemStack stack = r.resultStack();
             g.item(stack, x0 + 6, y + 3);
             g.itemDecorations(font, stack, x0 + 6, y + 3);
             boolean locked = lock != FrontierRecipe.Lock.NONE;
@@ -555,7 +555,7 @@ public class CraftingScreen extends Screen {
             return null;
         }
         ItemStack hovered = null;
-        ItemStack result = r.result();
+        ItemStack result = r.resultStack();
         FrontierRecipe.Lock lock = lock(r);
 
         // Result: big icon, name, category and smith chips.
@@ -633,7 +633,7 @@ public class CraftingScreen extends Screen {
         } else if (crafting != null) {
             FrontierRecipe c = CraftingClient.get(crafting);
             line = Component.translatable("gui.slfrontier.craft.progress." + station.id,
-                    c == null ? Component.empty() : c.result().getHoverName(), craftQty);
+                    c == null ? Component.empty() : c.resultStack().getHoverName(), craftQty);
             color = station.color;
         } else if (lock != FrontierRecipe.Lock.NONE) {
             line = lockText(r, lock);

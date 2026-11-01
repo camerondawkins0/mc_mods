@@ -55,7 +55,7 @@ jobs:
           mkdir -p mods
           cp ../shangri-la-frontier/build/libs/*.jar mods/
           echo "eula=true" > eula.txt
-          printf 'online-mode=false\nspawn-protection=0\nmax-tick-time=-1\nview-distance=4\nsimulation-distance=4\n' > server.properties
+          printf 'online-mode=false\nspawn-protection=0\nmax-tick-time=-1\nview-distance=4\nsimulation-distance=4\npause-when-empty-seconds=0\n' > server.properties
 
       - name: Boot server and exercise the Frontier dimension
         run: python3 tools/ci_boot_test.py ../server

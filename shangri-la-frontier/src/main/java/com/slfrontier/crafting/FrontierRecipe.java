@@ -20,6 +20,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.common.Tags;
 import org.jetbrains.annotations.Nullable;
@@ -34,10 +35,12 @@ import java.util.Locale;
  * counts, made at one {@link Station}, optionally only by one NPC smith, and gated by avatar
  * level and story progress.
  *
+ * @param result what one craft makes; a template, because item stacks can't be built until a data
+ *               reload has bound item components (see {@link #resultStack()})
  * @param npc   entity id path of the only NPC who can make it (e.g. "bilac"), or "" for anyone
  * @param time  crafting time in ticks for one craft
  */
-public record FrontierRecipe(Identifier id, Station station, String category, ItemStack result, List<Part> ingredients,
+public record FrontierRecipe(Identifier id, Station station, String category, ItemStackTemplate result, List<Part> ingredients,
                              int minLevel, @Nullable QuestStage requiresStage, String npc, int time) {
     /** Category order for tabs and sorting; recipes may use other names, which sort last. */
     public static final List<String> CATEGORIES = List.of("weapon", "armor", "consumable", "material", "gear");
@@ -84,14 +87,14 @@ public record FrontierRecipe(Identifier id, Station station, String category, It
         buf.writeIdentifier(r.id);
         buf.writeVarInt(r.station.ordinal());
         buf.writeUtf(r.category);
-        ItemStack.STREAM_CODEC.encode(buf, r.result);
+        ItemStackTemplate.STREAM_CODEC.encode(buf, r.result);
         Part.STREAM_CODEC.apply(ByteBufCodecs.list()).encode(buf, r.ingredients);
         buf.writeVarInt(r.minLevel);
         buf.writeUtf(r.requiresStage == null ? "" : r.requiresStage.name());
         buf.writeUtf(r.npc);
         buf.writeVarInt(r.time);
     }, buf -> new FrontierRecipe(buf.readIdentifier(), Station.byIndex(buf.readVarInt()), buf.readUtf(),
-            ItemStack.STREAM_CODEC.decode(buf), Part.STREAM_CODEC.apply(ByteBufCodecs.list()).decode(buf), buf.readVarInt(),
+            ItemStackTemplate.STREAM_CODEC.decode(buf), Part.STREAM_CODEC.apply(ByteBufCodecs.list()).decode(buf), buf.readVarInt(),
             QuestStage.byName(buf.readUtf()), buf.readUtf(), buf.readVarInt()));
 
     // ---- Loading -------------------------------------------------------------------
@@ -105,7 +108,7 @@ public record FrontierRecipe(Identifier id, Station station, String category, It
 
         JsonObject res = GsonHelper.getAsJsonObject(json, "result");
         Item resultItem = item(GsonHelper.getAsString(res, "item"));
-        ItemStack result = new ItemStack(resultItem, Math.max(1, GsonHelper.getAsInt(res, "count", 1)));
+        ItemStackTemplate result = new ItemStackTemplate(resultItem, Math.max(1, GsonHelper.getAsInt(res, "count", 1)));
 
         List<Part> parts = new ArrayList<>();
         JsonArray arr = GsonHelper.getAsJsonArray(json, "ingredients");
@@ -127,6 +130,11 @@ public record FrontierRecipe(Identifier id, Station station, String category, It
         }
         return new FrontierRecipe(id, station, category, result, List.copyOf(parts), Math.max(1, GsonHelper.getAsInt(json, "min_level", 1)),
                 stage, GsonHelper.getAsString(json, "npc", ""), Math.max(1, GsonHelper.getAsInt(json, "time", 40)));
+    }
+
+    /** A fresh stack of what one craft makes. */
+    public ItemStack resultStack() {
+        return result.create();
     }
 
     private static Item item(String id) {

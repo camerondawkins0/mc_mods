@@ -83,6 +83,9 @@ IGNORE_PATTERNS = [
         r"narrator",
         r"OpenGL",
         r"Failed to load (?:properties|eula)",
+        # Vanilla 26.2 on Linux: netty logs that kqueue (macOS/BSD) is unavailable, and log4j's
+        # debug-file appender trips over that class while formatting the stack trace.
+        r"kqueue|Appender DebugFile|Only supported on OSX/BSD",
     ]
 ]
 
@@ -151,6 +154,8 @@ def main():
     for needed in ["Self-test passed", "Story test passed"]:
         if needed not in command_output:
             problems.append(f"Missing expected output: {needed}")
+    if not re.search(r"Loaded [1-9]\d* Frontier recipes", "".join(lines)):
+        problems.append("No Frontier recipes were loaded")
     if problems:
         print("\n==== Problems found ====", file=sys.stderr)
         for p in problems[:200]:

@@ -234,17 +234,18 @@ public final class FrontierCrafting {
             return;
         }
         recipe.consume(player, qty);
-        int count = recipe.result().getCount() * qty;
+        ItemStack made = recipe.resultStack();
+        int count = made.getCount() * qty;
         for (int left = count; left > 0; ) {
-            ItemStack stack = recipe.result().copyWithCount(Math.min(left, recipe.result().getMaxStackSize()));
+            ItemStack stack = made.copyWithCount(Math.min(left, made.getMaxStackSize()));
             left -= stack.getCount();
             if (!player.getInventory().add(stack)) player.drop(stack, false);
         }
         player.containerMenu.broadcastChanges();
         doneFx(player, job.session);
-        String message = "message.slfrontier.craft.done|" + count + "|@" + recipe.result().getItem().getDescriptionId();
+        String message = "message.slfrontier.craft.done|" + count + "|@" + made.getItem().getDescriptionId();
         PacketDistributor.sendToPlayer(player, new CraftingNetwork.CraftStatus(CraftingNetwork.CraftStatus.DONE, recipe.id(), qty, 0, message));
-        player.sendOverlayMessage(Component.translatable("message.slfrontier.craft.done", count, recipe.result().getHoverName()));
+        player.sendOverlayMessage(Component.translatable("message.slfrontier.craft.done", count, made.getHoverName()));
     }
 
     private static void fail(ServerPlayer player, Identifier id, String message) {
