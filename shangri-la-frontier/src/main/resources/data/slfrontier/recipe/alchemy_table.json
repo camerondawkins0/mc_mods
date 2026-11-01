@@ -7,15 +7,9 @@
     "P P"
   ],
   "key": {
-    "B": {
-      "item": "minecraft:glass_bottle"
-    },
-    "H": {
-      "item": "slfrontier:frontier_herb"
-    },
-    "P": {
-      "tag": "minecraft:planks"
-    }
+    "B": "minecraft:glass_bottle",
+    "H": "slfrontier:frontier_herb",
+    "P": "#minecraft:planks"
   },
   "result": {
     "id": "slfrontier:alchemy_table",

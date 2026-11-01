@@ -2,35 +2,42 @@
   "has_precipitation": true,
   "temperature": 0.4,
   "downfall": 0.2,
-  "effects": {
-    "sky_color": 920088,
-    "fog_color": 1709096,
-    "water_color": 2763344,
-    "water_fog_color": 657940,
-    "grass_color": 4868666,
-    "mood_sound": {
-      "sound": "minecraft:ambient.cave",
-      "tick_delay": 6000,
-      "block_search_extent": 8,
-      "offset": 2.0
-    },
-    "foliage_color": 3815978,
-    "particle": {
-      "options": {
-        "type": "minecraft:ash"
+  "attributes": {
+    "minecraft:audio/ambient_sounds": {
+      "mood": {
+        "sound": "minecraft:ambient.cave",
+        "tick_delay": 6000,
+        "block_search_extent": 8,
+        "offset": 2.0
       },
-      "probability": 0.02
+      "additions": {
+        "sound": "minecraft:ambient.basalt_deltas.additions",
+        "tick_chance": 0.008
+      }
     },
-    "music": {
-      "sound": "minecraft:music.overworld.deep_dark",
-      "min_delay": 12000,
-      "max_delay": 24000,
-      "replace_current_music": false
+    "minecraft:audio/background_music": {
+      "default": {
+        "sound": "minecraft:music.overworld.deep_dark",
+        "min_delay": 12000,
+        "max_delay": 24000
+      }
     },
-    "additions_sound": {
-      "sound": "minecraft:ambient.basalt_deltas.additions",
-      "tick_chance": 0.008
-    }
+    "minecraft:visual/ambient_particles": [
+      {
+        "particle": {
+          "type": "minecraft:ash"
+        },
+        "probability": 0.02
+      }
+    ],
+    "minecraft:visual/fog_color": "#1a1428",
+    "minecraft:visual/sky_color": "#0e0a18",
+    "minecraft:visual/water_fog_color": "#0a0a14"
+  },
+  "effects": {
+    "water_color": "#2a2a50",
+    "grass_color": "#4a4a3a",
+    "foliage_color": "#3a3a2a"
   },
   "spawners": {
     "monster": [
@@ -50,13 +57,11 @@
     "water_creature": []
   },
   "spawn_costs": {},
-  "carvers": {
-    "air": [
-      "minecraft:cave",
-      "minecraft:cave_extra_underground",
-      "minecraft:canyon"
-    ]
-  },
+  "carvers": [
+    "minecraft:cave",
+    "minecraft:cave_extra_underground",
+    "minecraft:canyon"
+  ],
   "features": [
     [],
     [],

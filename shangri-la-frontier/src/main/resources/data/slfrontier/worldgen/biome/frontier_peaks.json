@@ -2,31 +2,29 @@
   "has_precipitation": true,
   "temperature": -0.2,
   "downfall": 0.5,
+  "attributes": {
+    "minecraft:audio/background_music": {
+      "default": {
+        "sound": "minecraft:music.overworld.jagged_peaks",
+        "min_delay": 12000,
+        "max_delay": 24000
+      }
+    },
+    "minecraft:visual/ambient_particles": [
+      {
+        "particle": {
+          "type": "minecraft:white_ash"
+        },
+        "probability": 0.01
+      }
+    ],
+    "minecraft:visual/fog_color": "#d8e4f4",
+    "minecraft:visual/sky_color": "#8ab4ff"
+  },
   "effects": {
-    "sky_color": 9090303,
-    "fog_color": 14214388,
-    "water_color": 4020182,
-    "water_fog_color": 329011,
-    "grass_color": 8434839,
-    "mood_sound": {
-      "sound": "minecraft:ambient.cave",
-      "tick_delay": 6000,
-      "block_search_extent": 8,
-      "offset": 2.0
-    },
-    "foliage_color": 6332795,
-    "particle": {
-      "options": {
-        "type": "minecraft:white_ash"
-      },
-      "probability": 0.01
-    },
-    "music": {
-      "sound": "minecraft:music.overworld.jagged_peaks",
-      "min_delay": 12000,
-      "max_delay": 24000,
-      "replace_current_music": false
-    }
+    "water_color": "#3d57d6",
+    "grass_color": "#80b497",
+    "foliage_color": "#60a17b"
   },
   "spawners": {
     "monster": [
@@ -53,13 +51,11 @@
     "water_creature": []
   },
   "spawn_costs": {},
-  "carvers": {
-    "air": [
-      "minecraft:cave",
-      "minecraft:cave_extra_underground",
-      "minecraft:canyon"
-    ]
-  },
+  "carvers": [
+    "minecraft:cave",
+    "minecraft:cave_extra_underground",
+    "minecraft:canyon"
+  ],
   "features": [
     [],
     [],

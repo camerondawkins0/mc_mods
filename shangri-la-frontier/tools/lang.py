@@ -256,7 +256,7 @@ OPTIONS = {
 
 MISC = {
     "itemGroup.slfrontier": "Shangri-La Frontier",
-    "key.categories.slfrontier": "Shangri-La Frontier",
+    "key.category.slfrontier.main": "Shangri-La Frontier",  # KeyMapping.Category slfrontier:main (1.21.9+)
     "key.slfrontier.skill_1": "Skill Slot 1",
     "key.slfrontier.skill_2": "Skill Slot 2",
     "key.slfrontier.skill_3": "Skill Slot 3",

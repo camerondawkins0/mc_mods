@@ -2,9 +2,10 @@
 
 Writes into src/main/resources:
   * data/slfrontier/frontier_recipe/*.json   the Frontier recipes (loaded by crafting/FrontierRecipes.java)
-  * the three station blocks: blockstates, block/item models, loot tables, their vanilla recipes
+  * the three station blocks: blockstates, block models, loot tables, their vanilla recipes
   * item models for the crafting materials and consumables, and the item tags recipes use
-  * Frontier Herb drops (global loot modifiers on grass in the Frontier and on Vorpal Bunnies)
+    (gen_data.py writes every item's client item definition)
+  * Frontier Herb drops (NeoForge global loot modifiers on grass in the Frontier and on Vorpal Bunnies)
 
 Recipe fields: station (forge / alchemy / workbench), category (weapon, armor, consumable,
 material, gear), result {item, count}, ingredients [{item | tag, count}], min_level (avatar
@@ -148,7 +149,7 @@ def gen_recipes():
 STATIONS = ["frontier_forge", "alchemy_table", "frontier_workbench"]
 FACING_Y = {"north": 0, "east": 90, "south": 180, "west": 270}
 ALL_FACES = ("north", "south", "east", "west", "up", "down")
-GLOW = {"block_light": 15, "sky_light": 15}
+GLOW = 15  # vanilla per-element light_emission: full brightness
 
 
 def faces(tex, cull=True, only=ALL_FACES, uv=None):
@@ -178,20 +179,21 @@ def gen_station_blocks():
         "north": {"texture": "#front", "cullface": "north"}, "south": {"texture": "#side", "cullface": "south"},
         "east": {"texture": "#side", "cullface": "east"}, "west": {"texture": "#side", "cullface": "west"},
         "up": {"texture": "#top", "cullface": "up"}, "down": {"texture": "#bottom", "cullface": "down"}}}
+    # (Models pick their render layer from their textures since 26.1: no render_type.)
     write(f"{m}/block/frontier_forge.json", {
-        "parent": "minecraft:block/block", "render_type": "minecraft:cutout",
+        "parent": "minecraft:block/block",
         "textures": {"front": ns("block/frontier_forge_front"), "side": ns("block/frontier_forge_side"),
                      "top": ns("block/frontier_forge_top"), "bottom": "minecraft:block/smooth_stone",
                      "glow": ns("block/frontier_forge_glow"), "glow_top": ns("block/frontier_forge_glow_top"),
                      "particle": ns("block/frontier_forge_side")},
         "elements": [body,
-                     {"from": [0, 0, 0], "to": [16, 16, 16], "shade": False, "neoforge_data": GLOW,
+                     {"from": [0, 0, 0], "to": [16, 16, 16], "shade": False, "light_emission": GLOW,
                       "faces": {"north": {"texture": "#glow", "cullface": "north"}, "up": {"texture": "#glow_top", "cullface": "up"}}}]})
 
     # Alchemy Table: a tabletop on four legs with a lower shelf, glowing flasks and a mortar on top.
     flask = ns("block/alchemy_flask")
     write(f"{m}/block/alchemy_table.json", {
-        "parent": "minecraft:block/block", "render_type": "minecraft:cutout",
+        "parent": "minecraft:block/block",
         "textures": {"top": ns("block/alchemy_table_top"), "side": ns("block/alchemy_table_side"),
                      "wood": "minecraft:block/dark_oak_planks", "flask": flask, "stone": "minecraft:block/polished_andesite",
                      "particle": ns("block/alchemy_table_side")},
@@ -206,11 +208,11 @@ def gen_station_blocks():
                 **{f: {"texture": "#wood", "uv": [0, 0, 12, 1]} for f in ("north", "south", "east", "west")}}},
             # Round purple flask, tall green vial, small amber bottle (glowing), a stone mortar.
             box([3, 13, 3], [7, 16, 7], "#flask", ("north", "south", "east", "west", "up"), [0, 0, 4, 3],
-                shade=False, neoforge_data=GLOW),
+                shade=False, light_emission=GLOW),
             box([4, 13, 10], [6, 16, 12], "#flask", ("north", "south", "east", "west", "up"), [4, 0, 6, 3],
-                shade=False, neoforge_data=GLOW),
+                shade=False, light_emission=GLOW),
             box([11, 13, 11], [13, 15, 13], "#flask", ("north", "south", "east", "west", "up"), [8, 0, 10, 2],
-                shade=False, neoforge_data=GLOW),
+                shade=False, light_emission=GLOW),
             box([9, 13, 3], [13, 14.5, 7], "#stone", ("north", "south", "east", "west", "up")),
         ]})
 
@@ -225,7 +227,10 @@ def gen_station_blocks():
         write(f"{bs}/{name}.json", {"variants": {
             f"facing={f}": ({"model": ns(f"block/{name}"), "y": y} if y else {"model": ns(f"block/{name}")})
             for f, y in FACING_Y.items()}})
-        write(f"{m}/item/{name}.json", {"parent": ns(f"block/{name}")})
+        # The item definition points straight at the block model, so no models/item wrapper.
+        item_model = f"{m}/item/{name}.json"
+        if os.path.exists(item_model):
+            os.remove(item_model)
         write(os.path.join(DATA, f"loot_table/blocks/{name}.json"), {
             "type": "minecraft:block",
             "pools": [{"rolls": 1.0, "bonus_rolls": 0.0, "entries": [{"type": "minecraft:item", "name": ns(name)}],
@@ -238,18 +243,17 @@ def gen_vanilla_recipes():
     write(f"{r}/frontier_workbench.json", {
         "type": "minecraft:crafting_shaped", "category": "misc",
         "pattern": [" I ", "PTP", "P P"],
-        "key": {"I": {"item": "minecraft:iron_ingot"}, "T": {"item": "minecraft:crafting_table"}, "P": {"tag": "minecraft:planks"}},
+        "key": {"I": "minecraft:iron_ingot", "T": "minecraft:crafting_table", "P": "#minecraft:planks"},
         "result": {"id": ns("frontier_workbench"), "count": 1}})
     write(f"{r}/frontier_forge.json", {
         "type": "minecraft:crafting_shaped", "category": "misc",
         "pattern": ["SIS", "SFS", "SSS"],
-        "key": {"S": {"tag": "minecraft:stone_crafting_materials"}, "I": {"item": "minecraft:iron_ingot"},
-                "F": {"item": "minecraft:furnace"}},
+        "key": {"S": "#minecraft:stone_crafting_materials", "I": "minecraft:iron_ingot", "F": "minecraft:furnace"},
         "result": {"id": ns("frontier_forge"), "count": 1}})
     write(f"{r}/alchemy_table.json", {
         "type": "minecraft:crafting_shaped", "category": "misc",
         "pattern": ["BHB", "PPP", "P P"],
-        "key": {"B": {"item": "minecraft:glass_bottle"}, "H": {"item": ns("frontier_herb")}, "P": {"tag": "minecraft:planks"}},
+        "key": {"B": "minecraft:glass_bottle", "H": ns("frontier_herb"), "P": "#minecraft:planks"},
         "result": {"id": ns("alchemy_table"), "count": 1}})
 
 
@@ -290,14 +294,20 @@ def gen_herb_drops():
         "type": "neoforge:add_table",
         "conditions": [
             {"condition": "minecraft:any_of", "terms": [{"condition": "neoforge:loot_table_id", "loot_table_id": g} for g in grass]},
-            {"condition": "minecraft:location_check", "predicate": {"dimension": ns("frontier")}}],
+            {"condition": "minecraft:location_check", "predicate": {"dimension": ns("the_frontier")}}],
         "table": ns("gameplay/frontier_herb_from_grass")})
     write(f"{lm}/frontier_herb_from_bunny.json", {
         "type": "neoforge:add_table",
         "conditions": [{"condition": "neoforge:loot_table_id", "loot_table_id": ns("entities/vorpal_bunny")}],
         "table": ns("gameplay/frontier_herb_from_bunny")})
-    write(os.path.join(RES, "data/neoforge/loot_modifiers/global_loot_modifiers.json"), {
-        "replace": False, "entries": [ns("frontier_herb_from_grass"), ns("frontier_herb_from_bunny")]})
+    # NeoForge 26.x loads every data/<ns>/loot_modifiers/*.json by itself; the old
+    # neoforge:global_loot_modifiers index would now be parsed as a (broken) modifier.
+    index = os.path.join(RES, "data/neoforge/loot_modifiers/global_loot_modifiers.json")
+    if os.path.exists(index):
+        os.remove(index)
+        for d in (os.path.dirname(index), os.path.dirname(os.path.dirname(index))):
+            if not os.listdir(d):
+                os.rmdir(d)
 
 
 def build():

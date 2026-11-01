@@ -2,35 +2,42 @@
   "has_precipitation": true,
   "temperature": 0.8,
   "downfall": 0.9,
-  "effects": {
-    "sky_color": 8030830,
-    "fog_color": 9345658,
-    "water_color": 5004858,
-    "water_fog_color": 2306074,
-    "grass_color": 6975554,
-    "mood_sound": {
-      "sound": "minecraft:ambient.cave",
-      "tick_delay": 6000,
-      "block_search_extent": 8,
-      "offset": 2.0
-    },
-    "foliage_color": 6975554,
-    "particle": {
-      "options": {
-        "type": "minecraft:mycelium"
+  "attributes": {
+    "minecraft:audio/ambient_sounds": {
+      "mood": {
+        "sound": "minecraft:ambient.cave",
+        "tick_delay": 6000,
+        "block_search_extent": 8,
+        "offset": 2.0
       },
-      "probability": 0.012
+      "additions": {
+        "sound": "minecraft:block.bubble_column.upwards_ambient",
+        "tick_chance": 0.002
+      }
     },
-    "music": {
-      "sound": "minecraft:music.overworld.swamp",
-      "min_delay": 12000,
-      "max_delay": 24000,
-      "replace_current_music": false
+    "minecraft:audio/background_music": {
+      "default": {
+        "sound": "minecraft:music.overworld.swamp",
+        "min_delay": 12000,
+        "max_delay": 24000
+      }
     },
-    "additions_sound": {
-      "sound": "minecraft:block.bubble_column.upwards_ambient",
-      "tick_chance": 0.002
-    }
+    "minecraft:visual/ambient_particles": [
+      {
+        "particle": {
+          "type": "minecraft:mycelium"
+        },
+        "probability": 0.012
+      }
+    ],
+    "minecraft:visual/fog_color": "#8e9a7a",
+    "minecraft:visual/sky_color": "#7a8a6e",
+    "minecraft:visual/water_fog_color": "#23301a"
+  },
+  "effects": {
+    "water_color": "#4c5e3a",
+    "grass_color": "#6a7042",
+    "foliage_color": "#6a7042"
   },
   "spawners": {
     "monster": [
@@ -69,13 +76,11 @@
     "water_creature": []
   },
   "spawn_costs": {},
-  "carvers": {
-    "air": [
-      "minecraft:cave",
-      "minecraft:cave_extra_underground",
-      "minecraft:canyon"
-    ]
-  },
+  "carvers": [
+    "minecraft:cave",
+    "minecraft:cave_extra_underground",
+    "minecraft:canyon"
+  ],
   "features": [
     [],
     [],

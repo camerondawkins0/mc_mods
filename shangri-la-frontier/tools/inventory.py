@@ -49,23 +49,57 @@ EXTRA = {
 }
 
 
-def mod_items():
-    """Every item id registered in ModItems.java, in registration order."""
-    with open(os.path.join(REGISTRY, "ModItems.java")) as f:
-        items_src = f.read()
-    with open(os.path.join(REGISTRY, "ModBlocks.java")) as f:
-        blocks = dict(re.findall(r'(\w+)\s*=\s*BLOCKS\.\w+\(\s*"(\w+)"', f.read()))
+# Registration calls the parser understands. Any DeferredRegister method whose first argument is the
+# id counts (ITEMS.register("id", ...), ITEMS.registerItem("id", ...), ITEMS.registerSimpleItem("id")...),
+# plus the material("id") / consumable("id", ...) / egg("id", ...) helpers and block items, written
+# either as registerSimpleBlockItem(ModBlocks.X) or registerSimpleBlockItem("id", ModBlocks.X).
+ITEM_CALLS = re.compile(r'\bITEMS\s*\.\s*register\w*\(\s*"(\w+)"'
+                        r'|\bregisterSimpleItem\(\s*"(\w+)"'
+                        r'|\b(?:material|consumable)\(\s*"(\w+)"'
+                        r'|\begg\(\s*"(\w+)"'
+                        r'|\bregisterSimpleBlockItem\(\s*(?:"(\w+)"\s*,\s*)?(?:\w+\s*\.\s*)?([A-Z_0-9]+)\b')
+EGG_CALLS = re.compile(r'\begg\(\s*"(\w+)"\s*,[^;]*?,\s*(0x[0-9A-Fa-f]+|\d+)\s*,\s*(0x[0-9A-Fa-f]+|\d+)\s*\)')
+
+
+def _source(name):
+    with open(os.path.join(REGISTRY, name)) as f:
+        # Drop comments so a commented-out registration doesn't count.
+        return re.sub(r"//[^\n]*|/\*.*?\*/", "", f.read(), flags=re.S)
+
+
+def mod_blocks():
+    """Field name -> block id for every block registered in ModBlocks.java and CraftingRegistry.java."""
+    src = _source("ModBlocks.java") + _source("CraftingRegistry.java")
+    return dict(re.findall(r'(\w+)\s*=\s*BLOCKS\s*\.\s*\w+\(\s*"(\w+)"', src))
+
+
+def mod_items(sources=("ModItems.java",)):
+    """Every item id registered in the given registry classes, in registration order.
+
+    The inventory categories only cover ModItems.java (crafting items are categorised in Java);
+    every_item() adds CraftingRegistry.java for checks that need the full list."""
+    items_src = "".join(_source(s) for s in sources)
+    blocks = mod_blocks()
     names = []
-    for m in re.finditer(r'ITEMS\.register\(\s*"(\w+)"|\bmaterial\(\s*"(\w+)"\s*\)|\begg\(\s*"(\w+)"'
-                         r'|registerSimpleBlockItem\(\s*ModBlocks\.(\w+)\s*\)', items_src):
-        item, material, egg, block = m.groups()
+    for m in ITEM_CALLS.finditer(items_src):
+        item, simple, material, egg, block_id, block_field = m.groups()
         if egg:
             names.append(f"{egg}_spawn_egg")
-        elif block:
-            names.append(blocks.get(block, block.lower()))
+        elif block_id or block_field:
+            names.append(block_id or blocks.get(block_field, block_field.lower()))
         else:
-            names.append(item or material)
+            names.append(item or simple or material)
     return list(dict.fromkeys(names))
+
+
+def every_item():
+    """Every item id the mod registers."""
+    return mod_items(("ModItems.java", "CraftingRegistry.java"))
+
+
+def spawn_egg_colours():
+    """Spawn egg item id -> (base colour, spot colour), from the egg("id", type, 0xBASE, 0xSPOTS) calls."""
+    return {f"{name}_spawn_egg": (int(bg, 0), int(fg, 0)) for name, bg, fg in EGG_CALLS.findall(_source("ModItems.java"))}
 
 
 def gen_tags():

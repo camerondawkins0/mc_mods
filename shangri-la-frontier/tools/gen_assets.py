@@ -4,7 +4,7 @@
 
 Outputs:
   * src/main/java/com/slfrontier/client/model/ModelDefs.java  (entity geometry, via tools/creatures.py)
-  * textures for entities, items, blocks, armor, effects, GUI icons and the logo
+  * textures for entities, items, spawn eggs, blocks, equipment (helmets), effects, GUI icons and the logo
 
 Everything is procedural pixel art so the whole mod can be rebuilt from source.
 Swap any PNG for hand-drawn art later; the generator only overwrites when re-run.
@@ -13,6 +13,7 @@ import hashlib
 import math
 import os
 import random
+import shutil
 import sys
 
 from PIL import Image
@@ -424,6 +425,43 @@ def generate_blocks():
     save(c.img, "textures/block/shadow_altar_top.png")
 
 
+def generate_spawn_egg():
+    """The spawn egg template: a grey shell (layer0) and grey spots (layer1). Since 1.21.5 there is no
+    tinted vanilla template, so models/item/spawn_egg.json uses these and every egg's item definition
+    tints them with its two colours from ModItems.java, which looks like the 1.21.1 eggs."""
+    cx, cy, ry = 7.5, 8.5, 6.6
+
+    def inside(x, y):
+        rx = 5.1 + 0.9 * (y - cy) / ry  # wider at the bottom
+        return ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1.0
+
+    shell = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    for x in range(16):
+        for y in range(16):
+            if not inside(x, y):
+                continue
+            edge = any(not inside(x + dx, y + dy) for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+            # Lit from the top left: bright there, a soft shade toward the bottom right.
+            v = 1.0 - 0.22 * max(0.0, ((x - 5.5) + (y - 5.0)) / 9.0)
+            if edge:
+                v = 0.5 if (x > cx or y > cy) else 0.6
+            g = int(255 * max(0.0, min(1.0, v)))
+            shell.putpixel((x, y), (g, g, g, 255))
+    for (x, y) in ((5, 4), (4, 5), (5, 5)):
+        shell.putpixel((x, y), (255, 255, 255, 255))
+    save(shell, "textures/item/spawn_egg.png")
+
+    spots = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    for (x, y, w, h) in ((7, 3, 2, 1), (4, 6, 3, 2), (9, 5, 2, 2), (11, 8, 2, 2), (6, 9, 3, 2), (3, 10, 2, 2),
+                         (9, 12, 3, 1), (5, 13, 2, 1)):
+        for i in range(w):
+            for j in range(h):
+                if inside(x + i, y + j):
+                    g = 235 if j == 0 else 195
+                    spots.putpixel((x + i, y + j), (g, g, g, 255))
+    save(spots, "textures/item/spawn_egg_overlay.png")
+
+
 def generate_effects():
     c = Canvas(18, "death_penalty")
     c.circle(9, 8, 6, "#D8D8E0", 4)
@@ -444,7 +482,11 @@ def generate_effects():
 
 
 def generate_armor():
-    # Armor layer textures use the 64x32 biped layout; we only paint the helmet.
+    # Equipment textures (assets/slfrontier/equipment/<id>.json, written by gen_data.py) use the 64x32
+    # humanoid layout; the helmets only paint the head (and the hat layer at u=32).
+    old = os.path.join(ASSETS, "textures/models/armor")  # 1.21.1's armor layer textures
+    if os.path.isdir(old):
+        shutil.rmtree(old)
     img = Image.new("RGBA", (64, 32), (0, 0, 0, 0))
     rnd = rng_for("bird")
     pal = {"blue": ("#3B7FD9", 10), "beak": ("#F2C230", 6), "eye": ("#FFFFFF", 0), "pupil": ("#101010", 0),
@@ -452,16 +494,14 @@ def generate_armor():
     paint_box(img, 0, 0, (8, 8, 8), "blue", [("front", 1, 2, 2, 2, "eye"), ("front", 5, 2, 2, 2, "eye"),
                                               ("front", 2, 3, 1, 1, "pupil"), ("front", 5, 3, 1, 1, "pupil"),
                                               ("front", 3, 4, 2, 3, "beak"), ("top", 0, 0, 8, 2, "dark")], pal, rnd)
-    save(img, "textures/models/armor/bird_mask_layer_1.png")
-    save(Image.new("RGBA", (64, 32), (0, 0, 0, 0)), "textures/models/armor/bird_mask_layer_2.png")
+    save(img, "textures/entity/equipment/humanoid/bird_mask.png")
     img = Image.new("RGBA", (64, 32), (0, 0, 0, 0))
     rnd = rng_for("horn")
     pal = {"shell": ("#2F4A6B", 12), "horn": ("#9FC3E8", 8), "visor": ("#16243A", 4)}
     paint_box(img, 0, 0, (8, 8, 8), "shell", [("front", 0, 3, 8, 2, "visor"), ("front", 3, 0, 2, 3, "horn"),
                                                ("top", 3, 0, 2, 8, "horn")], pal, rnd)
     paint_box(img, 32, 0, (8, 8, 8), "shell", [("front", 0, 2, 8, 6, None), ("top", 3, 2, 2, 4, "horn")], pal, rnd)
-    save(img, "textures/models/armor/battlehorn_layer_1.png")
-    save(Image.new("RGBA", (64, 32), (0, 0, 0, 0)), "textures/models/armor/battlehorn_layer_2.png")
+    save(img, "textures/entity/equipment/humanoid/battlehorn.png")
 
 
 def generate_logo():
@@ -495,6 +535,7 @@ def generate_logo():
 if __name__ == "__main__":
     creatures.build_all(MODELS, VARIANTS)
     generate_items()
+    generate_spawn_egg()
     generate_blocks()
     generate_effects()
     generate_armor()
