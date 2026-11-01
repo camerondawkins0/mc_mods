@@ -1,5 +1,8 @@
 package com.slfrontier.entity.boss;
 
+import com.slfrontier.entity.WolfVoice;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import com.slfrontier.entity.FrontierBoss;
 import com.slfrontier.entity.mob.ShadowWolfEntity;
 import com.slfrontier.fx.Fx;
@@ -20,7 +23,7 @@ import net.minecraft.world.BossEvent;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
@@ -40,7 +43,7 @@ import org.joml.Vector3f;
 public class LycagonShadowEntity extends FrontierBoss {
     public static final int BITE = 0, CLAW = 1, POUNCE = 2, HOWL = 3;
     private static final EntityDataAccessor<Boolean> SUBMERGED = SynchedEntityData.defineId(LycagonShadowEntity.class, EntityDataSerializers.BOOLEAN);
-    private static final DustParticleOptions AURA = new DustParticleOptions(new Vector3f(0.55f, 0.2f, 0.95f), 2.0f);
+    private static final DustParticleOptions AURA = new DustParticleOptions(0x8C33F2, 2.0f);
     private static final int PURPLE = 0xFFB070FF, PINK = 0xFFFF60E0;
 
     private boolean clone;
@@ -91,7 +94,8 @@ public class LycagonShadowEntity extends FrontierBoss {
 
     /** Dark nights (and storms) make the shadow faster. */
     private boolean darkNight() {
-        return level().isNight() && (level().getMoonBrightness() < 0.5f || level().isRaining());
+        return level().isDarkOutside() && (level() instanceof ServerLevel server && server.getMoonBrightness(blockPosition()) < 0.5f
+                || level().isRaining());
     }
 
     @Override
@@ -143,7 +147,7 @@ public class LycagonShadowEntity extends FrontierBoss {
             }
             case HOWL -> {
                 if (tick == 10) {
-                    playSound(SoundEvents.WOLF_HOWL, 4f, 0.5f);
+                    playSound(WolfVoice.HOWL, 4f, 0.5f);
                     Fx.ring(level(), position(), 10f, PURPLE, 20, 0.3f);
                     summonWolves();
                 }
@@ -171,7 +175,7 @@ public class LycagonShadowEntity extends FrontierBoss {
         setInvisible(false);
         server.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 0.5, getZ(), 40, 1.0, 0.2, 1.0, 0.02);
         Fx.ring(server, position(), 2.5f, PURPLE, 10, 0);
-        playSound(SoundEvents.WOLF_GROWL, 2f, 0.5f);
+        playSound(WolfVoice.GROWL, 2f, 0.5f);
         double d = distanceTo(target);
         int next = !summonedWolves && !clone && getHealth() < getMaxHealth() * 0.5f ? HOWL
                 : d > 5 ? POUNCE : random.nextBoolean() ? BITE : CLAW;
@@ -201,18 +205,18 @@ public class LycagonShadowEntity extends FrontierBoss {
         summonedWolves = true;
         if (!(level() instanceof ServerLevel server)) return;
         for (int i = 0; i < 3; i++) {
-            ShadowWolfEntity wolf = ModEntities.SHADOW_WOLF.get().create(server);
+            ShadowWolfEntity wolf = ModEntities.SHADOW_WOLF.get().create(server, EntitySpawnReason.EVENT);
             if (wolf == null) continue;
             double a = Mth.TWO_PI * i / 3;
-            wolf.moveTo(getX() + Math.cos(a) * 3, getY(), getZ() + Math.sin(a) * 3, getYRot(), 0);
-            wolf.finalizeSpawn(server, server.getCurrentDifficultyAt(blockPosition()), MobSpawnType.MOB_SUMMONED, null);
+            wolf.snapTo(getX() + Math.cos(a) * 3, getY(), getZ() + Math.sin(a) * 3, getYRot(), 0);
+            wolf.finalizeSpawn(server, server.getCurrentDifficultyAt(blockPosition()), EntitySpawnReason.MOB_SUMMONED, null);
             wolf.setTarget(getTarget());
             server.addFreshEntity(wolf);
         }
     }
 
     @Override
-    protected void customServerAiStep() {
+    protected void customServerAiStep(ServerLevel level) {
         if (lifetime > 0 && --lifetime == 0) {
             particles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 1, getZ(), 40, 1.0, 0.02);
             discard();
@@ -228,14 +232,14 @@ public class LycagonShadowEntity extends FrontierBoss {
             }
             return;
         }
-        super.customServerAiStep();
+        super.customServerAiStep(level);
         if (attack < 0 && tickCount % 20 == 0) submerge();
     }
 
     @Override
     public void tick() {
         super.tick();
-        if (level().isClientSide && !isInvisible()) {
+        if (level().isClientSide() && !isInvisible()) {
             for (int i = 0; i < 2; i++) {
                 level().addParticle(AURA, getX() + (random.nextDouble() - 0.5) * getBbWidth() * 1.8,
                         getY() + random.nextDouble() * getBbHeight(), getZ() + (random.nextDouble() - 0.5) * getBbWidth() * 1.8, 0, 0.03, 0);
@@ -244,9 +248,9 @@ public class LycagonShadowEntity extends FrontierBoss {
     }
 
     @Override
-    public boolean hurt(DamageSource source, float amount) {
+    public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
         if (isSubmerged() && !source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY)) return false;
-        return super.hurt(source, amount);
+        return super.hurtServer(level, source, amount);
     }
 
     @Override
@@ -261,38 +265,38 @@ public class LycagonShadowEntity extends FrontierBoss {
     }
 
     @Override
-    protected boolean shouldDropLoot() {
+    protected boolean shouldDropLoot(ServerLevel level) {
         return !clone;
     }
 
     @Override
-    public void addAdditionalSaveData(CompoundTag tag) {
+    public void addAdditionalSaveData(ValueOutput tag) {
         super.addAdditionalSaveData(tag);
         tag.putBoolean("Clone", clone);
         tag.putInt("Lifetime", lifetime);
     }
 
     @Override
-    public void readAdditionalSaveData(CompoundTag tag) {
+    public void readAdditionalSaveData(ValueInput tag) {
         super.readAdditionalSaveData(tag);
-        clone = tag.getBoolean("Clone");
-        lifetime = tag.getInt("Lifetime");
+        clone = tag.getBooleanOr("Clone", false);
+        lifetime = tag.getIntOr("Lifetime", 0);
         if (clone) bossEvent.setVisible(false);
     }
 
     @Override
     protected SoundEvent getAmbientSound() {
-        return isSubmerged() ? null : SoundEvents.WOLF_GROWL;
+        return isSubmerged() ? null : WolfVoice.GROWL;
     }
 
     @Override
     protected SoundEvent getHurtSound(DamageSource source) {
-        return SoundEvents.WOLF_HURT;
+        return WolfVoice.HURT;
     }
 
     @Override
     protected SoundEvent getDeathSound() {
-        return SoundEvents.WOLF_DEATH;
+        return WolfVoice.DEATH;
     }
 
     @Override

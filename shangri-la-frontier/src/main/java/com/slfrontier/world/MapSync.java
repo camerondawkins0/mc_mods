@@ -50,7 +50,7 @@ public final class MapSync {
             }
             return;
         }
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
         PlayerData data = ModAttachments.get(player);
         discoverTowns(player, level, data);
 

@@ -1,5 +1,7 @@
 package com.slfrontier.entity.npc;
 
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import com.slfrontier.quest.Story;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -78,9 +80,9 @@ public class FrontierNpc extends PathfinderMob implements com.slfrontier.entity.
     @Override
     public void tick() {
         super.tick();
-        if (level().isClientSide) anims[0].startIfStopped(tickCount);
-        if (!level().isClientSide && home == null) home = blockPosition();
-        if (!level().isClientSide && home != null && wanders() && !home.closerToCenterThan(position(), 14) && tickCount % 40 == 0) {
+        if (level().isClientSide()) anims[0].startIfStopped(tickCount);
+        if (!level().isClientSide() && home == null) home = blockPosition();
+        if (!level().isClientSide() && home != null && wanders() && !home.closerToCenterThan(position(), 14) && tickCount % 40 == 0) {
             getNavigation().moveTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5, 0.6);
         }
         if (isGhost() && level() instanceof ServerLevel server && tickCount % 8 == 0) {
@@ -99,11 +101,11 @@ public class FrontierNpc extends PathfinderMob implements com.slfrontier.entity.
             getLookControl().setLookAt(player);
             Story.onTalk(serverPlayer, this);
         }
-        return InteractionResult.sidedSuccess(level().isClientSide);
+        return InteractionResult.SUCCESS;
     }
 
     @Override
-    public boolean isInvulnerableTo(DamageSource source) {
+    public boolean isInvulnerableTo(ServerLevel level, DamageSource source) {
         return !source.is(DamageTypeTags.BYPASSES_INVULNERABILITY);
     }
 
@@ -122,14 +124,14 @@ public class FrontierNpc extends PathfinderMob implements com.slfrontier.entity.
     }
 
     @Override
-    public void addAdditionalSaveData(CompoundTag tag) {
+    public void addAdditionalSaveData(ValueOutput tag) {
         super.addAdditionalSaveData(tag);
-        if (home != null) tag.put("Home", NbtUtils.writeBlockPos(home));
+        if (home != null) tag.store("Home", BlockPos.CODEC, home);
     }
 
     @Override
-    public void readAdditionalSaveData(CompoundTag tag) {
+    public void readAdditionalSaveData(ValueInput tag) {
         super.readAdditionalSaveData(tag);
-        NbtUtils.readBlockPos(tag, "Home").ifPresent(pos -> home = pos);
+        tag.read("Home", BlockPos.CODEC).ifPresent(pos -> home = pos);
     }
 }

@@ -1,5 +1,6 @@
 package com.slfrontier.entity.boss;
 
+import net.minecraft.server.level.ServerLevel;
 import com.slfrontier.entity.FrontierBoss;
 import com.slfrontier.fx.Fx;
 import net.minecraft.core.particles.BlockParticleOption;
@@ -117,7 +118,7 @@ public class MudDiggerEntity extends FrontierBoss {
                     entityData.set(BURROWED, false);
                     setInvisible(false);
                     setDeltaMovement(0, 0.6, 0);
-                    hasImpulse = true;
+                    needsSync = true;
                     for (LivingEntity e : level().getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(3, 1, 3), this::isEnemy)) {
                         e.setDeltaMovement(e.getDeltaMovement().add(0, 0.9, 0));
                         e.hurtMarked = true;
@@ -133,8 +134,8 @@ public class MudDiggerEntity extends FrontierBoss {
                 if (tick == 1) {
                     quaked = true;
                     for (net.minecraft.server.level.ServerPlayer p : playersNear(24)) {
-                        p.displayClientMessage(net.minecraft.network.chat.Component.translatable("message.slfrontier.mud_digger.quake")
-                                .withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD), true);
+                        p.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.slfrontier.mud_digger.quake")
+                                .withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD));
                     }
                 }
                 if (tick == 8) {
@@ -147,7 +148,7 @@ public class MudDiggerEntity extends FrontierBoss {
                     particles(mud, getX(), getY() + 0.2, getZ(), 60, 6, 0.2);
                     playSound(SoundEvents.ROOTED_DIRT_BREAK, 3f, 0.3f);
                     for (LivingEntity e : enemiesNear(16)) {
-                        if (e.onGround()) e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 30, 5), this);
+                        if (e.onGround()) e.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 30, 5), this);
                     }
                 }
                 if (tick == 52 && target != null) {
@@ -159,7 +160,7 @@ public class MudDiggerEntity extends FrontierBoss {
                     entityData.set(BURROWED, false);
                     setInvisible(false);
                     setDeltaMovement(0, 0.9, 0);
-                    hasImpulse = true;
+                    needsSync = true;
                     for (LivingEntity e : level().getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(3, 1, 3), this::isEnemy)) {
                         e.setDeltaMovement(e.getDeltaMovement().add(0, 1.2, 0));
                         e.hurtMarked = true;
@@ -176,9 +177,9 @@ public class MudDiggerEntity extends FrontierBoss {
     }
 
     @Override
-    public boolean hurt(DamageSource source, float amount) {
+    public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
         if (isBurrowed() && !source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY)) return false;
-        return super.hurt(source, amount);
+        return super.hurtServer(level, source, amount);
     }
 
     @Override

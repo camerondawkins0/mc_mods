@@ -12,7 +12,7 @@ import com.slfrontier.world.Frontier;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -27,15 +27,15 @@ import net.minecraft.world.item.ItemStack;
 
 /** Experience, level-ups and turning stat points into real attribute bonuses. */
 public final class Progression {
-    private static final ResourceLocation VIT_ID = SLFrontier.id("stat_vit");
-    private static final ResourceLocation STR_ID = SLFrontier.id("stat_str");
-    private static final ResourceLocation AGI_ID = SLFrontier.id("stat_agi");
-    private static final ResourceLocation AGI_JUMP_ID = SLFrontier.id("stat_agi_jump");
+    private static final Identifier VIT_ID = SLFrontier.id("stat_vit");
+    private static final Identifier STR_ID = SLFrontier.id("stat_str");
+    private static final Identifier AGI_ID = SLFrontier.id("stat_agi");
+    private static final Identifier AGI_JUMP_ID = SLFrontier.id("stat_agi_jump");
     /** Jump strength per AGI point, and the cap: 1.25 blocks base, at most ~1.85 (never a 2-block wall). */
     private static final double JUMP_PER_AGI = 0.0015, JUMP_CAP = 0.10;
-    private static final ResourceLocation DEX_ID = SLFrontier.id("stat_dex");
-    private static final ResourceLocation LUC_ID = SLFrontier.id("stat_luc");
-    private static final ResourceLocation MASK_ID = SLFrontier.id("bird_mask_agility");
+    private static final Identifier DEX_ID = SLFrontier.id("stat_dex");
+    private static final Identifier LUC_ID = SLFrontier.id("stat_luc");
+    private static final Identifier MASK_ID = SLFrontier.id("bird_mask_agility");
 
     private Progression() {
     }
@@ -158,7 +158,7 @@ public final class Progression {
         data.setStamina(data.stamina());
     }
 
-    private static void set(Player player, Holder<Attribute> attribute, ResourceLocation id, double amount,
+    private static void set(Player player, Holder<Attribute> attribute, Identifier id, double amount,
                             AttributeModifier.Operation op) {
         AttributeInstance instance = player.getAttribute(attribute);
         if (instance == null) return;

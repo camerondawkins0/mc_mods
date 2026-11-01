@@ -1,5 +1,6 @@
 package com.slfrontier.entity.mob;
 
+import net.minecraft.server.level.ServerLevel;
 import com.slfrontier.entity.FrontierMonster;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvent;
@@ -46,7 +47,7 @@ public class EmpireBeeEntity extends FrontierMonster {
         FlyingPathNavigation nav = new FlyingPathNavigation(this, level);
         nav.setCanOpenDoors(false);
         nav.setCanFloat(true);
-        nav.setCanPassDoors(true);
+        nav.getNodeEvaluator().setCanPassDoors(true);
         return nav;
     }
 
@@ -60,8 +61,8 @@ public class EmpireBeeEntity extends FrontierMonster {
     }
 
     @Override
-    public boolean doHurtTarget(Entity target) {
-        boolean hit = super.doHurtTarget(target);
+    public boolean doHurtTarget(ServerLevel level, Entity target) {
+        boolean hit = super.doHurtTarget(level, target);
         if (hit && target instanceof LivingEntity living) {
             living.addEffect(new MobEffectInstance(MobEffects.POISON, 80, 0), this);
         }
@@ -69,7 +70,7 @@ public class EmpireBeeEntity extends FrontierMonster {
     }
 
     @Override
-    public boolean causeFallDamage(float distance, float multiplier, DamageSource source) {
+    public boolean causeFallDamage(double distance, float multiplier, DamageSource source) {
         return false;
     }
 

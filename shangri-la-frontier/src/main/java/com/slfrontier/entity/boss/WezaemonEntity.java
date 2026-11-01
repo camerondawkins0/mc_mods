@@ -1,5 +1,8 @@
 package com.slfrontier.entity.boss;
 
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import com.slfrontier.entity.FrontierBoss;
 import com.slfrontier.fx.Fx;
 import com.slfrontier.quest.Story;
@@ -45,7 +48,7 @@ import org.joml.Vector3f;
 public class WezaemonEntity extends FrontierBoss {
     public static final int IAI = 0, TRIPLE = 1, SKY_CLEAR = 2, STAGGER = 3, TACHIKAZE = 4, RAISHO = 5, TENSEI = 6;
     private static final EntityDataAccessor<Boolean> DISARMED = SynchedEntityData.defineId(WezaemonEntity.class, EntityDataSerializers.BOOLEAN);
-    private static final DustParticleOptions SKY = new DustParticleOptions(new Vector3f(0.55f, 0.85f, 1f), 1.6f);
+    private static final DustParticleOptions SKY = new DustParticleOptions(0x8CD9FF, 1.6f);
     private static final int CYAN = 0xFF8FE8FF, WHITE = 0xFFEFFAFF, THUNDER = 0xFFFFF07A, GRAVE = 0xFF6A9CFF;
 
     private int disarmTicks;
@@ -92,7 +95,7 @@ public class WezaemonEntity extends FrontierBoss {
         startAttack(STAGGER);
         playSound(SoundEvents.ANVIL_LAND, 2f, 0.5f);
         Fx.flash(level(), position().add(0, 2, 0), 3f, WHITE, 10, 0.6f);
-        by.serverLevel().getServer().getPlayerList().broadcastSystemMessage(
+        by.level().getServer().getPlayerList().broadcastSystemMessage(
                 Component.translatable("message.slfrontier.wezaemon.parried", by.getDisplayName()).withStyle(ChatFormatting.AQUA), false);
     }
 
@@ -140,7 +143,7 @@ public class WezaemonEntity extends FrontierBoss {
                     Vec3 d = aim.subtract(position());
                     dashDir = new Vec3(d.x, 0, d.z).normalize();
                     setDeltaMovement(dashDir.x * 1.8, 0.05, dashDir.z * 1.8);
-                    hasImpulse = true;
+                    needsSync = true;
                     playSound(SoundEvents.PLAYER_ATTACK_SWEEP, 2f, 1.5f);
                     Fx.arcAt(level(), chest(), Fx.yawTo(position(), aim), 3.2f, 8, 200, WHITE, 8);
                 }
@@ -162,7 +165,7 @@ public class WezaemonEntity extends FrontierBoss {
                 if (tick % 6 == 0 && tick < 30) ring(SKY, 7, 40, 0.15);
                 if (tick == 2) {
                     for (ServerPlayer p : playersNear(20)) {
-                        p.displayClientMessage(Component.translatable("message.slfrontier.wezaemon.sky_clear").withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD), true);
+                        p.sendOverlayMessage(Component.translatable("message.slfrontier.wezaemon.sky_clear").withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD));
                     }
                 }
                 if (tick == 32) {
@@ -217,7 +220,7 @@ public class WezaemonEntity extends FrontierBoss {
                     Fx.coneAt(level(), position(), Fx.yawTo(position(), aim), 18, 40, GRAVE, 39);
                     Fx.telegraph(level(), position(), 4f, GRAVE, 39);
                     for (ServerPlayer p : playersNear(24)) {
-                        p.displayClientMessage(Component.translatable("message.slfrontier.wezaemon.tensei").withStyle(ChatFormatting.BLUE, ChatFormatting.BOLD), true);
+                        p.sendOverlayMessage(Component.translatable("message.slfrontier.wezaemon.tensei").withStyle(ChatFormatting.BLUE, ChatFormatting.BOLD));
                     }
                 }
                 if (tick == 4) Fx.pillar(level(), position(), 1.2f, 14f, GRAVE, 36);
@@ -243,10 +246,10 @@ public class WezaemonEntity extends FrontierBoss {
     /** Phase two: Kirin, the tactical horse-mech, answers its master's call. */
     private void summonKirin(ServerLevel server) {
         kirinSummoned = true;
-        KirinEntity kirin = ModEntities.KIRIN.get().create(server);
+        KirinEntity kirin = ModEntities.KIRIN.get().create(server, EntitySpawnReason.EVENT);
         if (kirin == null) return;
         Vec3 at = position().add(getLookAngle().multiply(-3, 0, -3));
-        kirin.moveTo(at.x, getY(), at.z, getYRot(), 0);
+        kirin.snapTo(at.x, getY(), at.z, getYRot(), 0);
         kirin.setMaster(this);
         kirin.setTarget(getTarget());
         server.addFreshEntity(kirin);
@@ -254,13 +257,13 @@ public class WezaemonEntity extends FrontierBoss {
         Fx.ring(server, kirin.position(), 5f, CYAN, 16, 0.5f);
         playSound(SoundEvents.IRON_GOLEM_REPAIR, 2f, 0.6f);
         for (ServerPlayer p : playersNear(32)) {
-            p.displayClientMessage(Component.translatable("message.slfrontier.wezaemon.kirin").withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD), true);
+            p.sendOverlayMessage(Component.translatable("message.slfrontier.wezaemon.kirin").withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD));
         }
     }
 
     @Override
-    protected void customServerAiStep() {
-        super.customServerAiStep();
+    protected void customServerAiStep(ServerLevel level) {
+        super.customServerAiStep(level);
         if (!(level() instanceof ServerLevel server)) return;
         if (tenseiCooldown > 0) tenseiCooldown--;
         if (!kirinSummoned && phase() >= 2 && getTarget() != null) summonKirin(server);
@@ -279,28 +282,28 @@ public class WezaemonEntity extends FrontierBoss {
             } else {
                 ring(ParticleTypes.SOUL_FIRE_FLAME, 5, 24, 0.3);
                 for (ServerPlayer p : playersNear(5)) {
-                    if (!p.isCreative()) p.hurt(damageSources().indirectMagic(this, this), 3f);
+                    if (!p.isCreative()) p.hurtOrSimulate(damageSources().indirectMagic(this, this), 3f);
                 }
             }
         }
     }
 
     @Override
-    public boolean hurt(DamageSource source, float amount) {
+    public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
         if (isDisarmed()) amount *= 1.5f;
-        return super.hurt(source, amount);
+        return super.hurtServer(level, source, amount);
     }
 
     @Override
-    public void addAdditionalSaveData(CompoundTag tag) {
+    public void addAdditionalSaveData(ValueOutput tag) {
         super.addAdditionalSaveData(tag);
         tag.putBoolean("KirinSummoned", kirinSummoned);
     }
 
     @Override
-    public void readAdditionalSaveData(CompoundTag tag) {
+    public void readAdditionalSaveData(ValueInput tag) {
         super.readAdditionalSaveData(tag);
-        kirinSummoned = tag.getBoolean("KirinSummoned");
+        kirinSummoned = tag.getBooleanOr("KirinSummoned", false);
     }
 
     @Override

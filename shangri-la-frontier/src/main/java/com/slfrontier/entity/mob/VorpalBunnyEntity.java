@@ -51,15 +51,15 @@ public class VorpalBunnyEntity extends FrontierMonster {
     }
 
     @Override
-    public boolean doHurtTarget(Entity target) {
+    public boolean doHurtTarget(ServerLevel level, Entity target) {
         // One in four strikes is a "vorpal" critical.
         boolean vorpal = random.nextInt(4) == 0;
         if (vorpal && level() instanceof ServerLevel server) {
             server.sendParticles(ParticleTypes.CRIT, target.getX(), target.getY(0.6), target.getZ(), 10, 0.3, 0.3, 0.3, 0.3);
             target.invulnerableTime = 0;
-            target.hurt(damageSources().mobAttack(this), 6f);
+            target.hurtOrSimulate(damageSources().mobAttack(this), 6f);
         }
-        return super.doHurtTarget(target);
+        return super.doHurtTarget(level, target);
     }
 
     @Override

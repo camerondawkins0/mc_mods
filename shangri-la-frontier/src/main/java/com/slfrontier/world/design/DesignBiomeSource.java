@@ -40,7 +40,7 @@ public class DesignBiomeSource extends BiomeSource {
             map = new HashMap<>();
             for (Holder<Biome> holder : biomes) {
                 Map<String, Holder<Biome>> target = map;
-                holder.unwrapKey().ifPresent(key -> target.put(key.location().getPath(), holder));
+                holder.unwrapKey().ifPresent(key -> target.put(key.identifier().getPath(), holder));
             }
             byName = map;
         }

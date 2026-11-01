@@ -12,7 +12,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -110,7 +110,7 @@ public final class FrontierCrafting {
 
     // ---- Requests --------------------------------------------------------------------
 
-    public static void request(ServerPlayer player, ResourceLocation id, int quantity) {
+    public static void request(ServerPlayer player, Identifier id, int quantity) {
         if (JOBS.containsKey(player.getUUID())) {
             fail(player, id, "message.slfrontier.craft.busy");
             return;
@@ -130,9 +130,9 @@ public final class FrontierCrafting {
         int total = recipe.batchTicks(qty);
         JOBS.put(player.getUUID(), new Job(session, recipe, qty, total));
         PacketDistributor.sendToPlayer(player, new CraftingNetwork.CraftStatus(CraftingNetwork.CraftStatus.STARTED, id, qty, total, ""));
-        Vec3 at = stationPos(player.serverLevel(), session, player);
+        Vec3 at = stationPos(player.level(), session, player);
         if (session.station() == Station.ALCHEMY) {
-            player.serverLevel().playSound(null, at.x, at.y, at.z, SoundEvents.BREWING_STAND_BREW, SoundSource.BLOCKS, 0.7f, 1.1f);
+            player.level().playSound(null, at.x, at.y, at.z, SoundEvents.BREWING_STAND_BREW, SoundSource.BLOCKS, 0.7f, 1.1f);
         }
     }
 
@@ -242,12 +242,12 @@ public final class FrontierCrafting {
         }
         player.containerMenu.broadcastChanges();
         doneFx(player, job.session);
-        String message = "message.slfrontier.craft.done|" + count + "|@" + recipe.result().getDescriptionId();
+        String message = "message.slfrontier.craft.done|" + count + "|@" + recipe.result().getItem().getDescriptionId();
         PacketDistributor.sendToPlayer(player, new CraftingNetwork.CraftStatus(CraftingNetwork.CraftStatus.DONE, recipe.id(), qty, 0, message));
-        player.displayClientMessage(Component.translatable("message.slfrontier.craft.done", count, recipe.result().getHoverName()), true);
+        player.sendOverlayMessage(Component.translatable("message.slfrontier.craft.done", count, recipe.result().getHoverName()));
     }
 
-    private static void fail(ServerPlayer player, ResourceLocation id, String message) {
+    private static void fail(ServerPlayer player, Identifier id, String message) {
         PacketDistributor.sendToPlayer(player, new CraftingNetwork.CraftStatus(CraftingNetwork.CraftStatus.FAILED, id, 0, 0, message));
     }
 
@@ -263,9 +263,9 @@ public final class FrontierCrafting {
     }
 
     private static void workFx(ServerPlayer player, Job job) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
         Vec3 at = stationPos(level, job.session, player);
-        var rnd = level.random;
+        var rnd = level.getRandom();
         switch (job.session.station()) {
             case FORGE -> {
                 if (job.elapsed % 8 == 4) {
@@ -295,7 +295,7 @@ public final class FrontierCrafting {
     }
 
     private static void doneFx(ServerPlayer player, Session session) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
         Vec3 at = stationPos(level, session, player);
         switch (session.station()) {
             case FORGE -> {
@@ -315,7 +315,9 @@ public final class FrontierCrafting {
                 particles(level, ParticleTypes.CRIT, at, 10, 0.3, 0.2);
             }
         }
-        player.playNotifySound(SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.6f, 1.3f);
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSoundPacket(
+                net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.wrapAsHolder(SoundEvents.EXPERIENCE_ORB_PICKUP), SoundSource.PLAYERS,
+                player.getX(), player.getY(), player.getZ(), 0.6f, 1.3f, player.getRandom().nextLong()));
     }
 
     private static void sound(ServerLevel level, Vec3 at, SoundEvent sound, float volume, float pitch) {

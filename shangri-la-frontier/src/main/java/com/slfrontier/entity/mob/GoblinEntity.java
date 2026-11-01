@@ -1,5 +1,6 @@
 package com.slfrontier.entity.mob;
 
+import net.minecraft.world.entity.EntitySpawnReason;
 import com.slfrontier.entity.FrontierMonster;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.DifficultyInstance;
@@ -55,7 +56,7 @@ public class GoblinEntity extends FrontierMonster {
     @Override
     public net.minecraft.world.entity.SpawnGroupData finalizeSpawn(net.minecraft.world.level.ServerLevelAccessor level,
                                                                    DifficultyInstance difficulty,
-                                                                   net.minecraft.world.entity.MobSpawnType reason,
+                                                                   net.minecraft.world.entity.EntitySpawnReason reason,
                                                                    net.minecraft.world.entity.SpawnGroupData data) {
         populateDefaultEquipmentSlots(level.getRandom(), difficulty);
         return super.finalizeSpawn(level, difficulty, reason, data);

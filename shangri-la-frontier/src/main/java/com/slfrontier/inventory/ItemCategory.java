@@ -4,18 +4,16 @@ import com.slfrontier.SLFrontier;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.tags.TagKey;
-import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.AxeItem;
-import net.minecraft.world.item.ElytraItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.MaceItem;
 import net.minecraft.world.item.PotionItem;
 import net.minecraft.world.item.ProjectileWeaponItem;
 import net.minecraft.world.item.ShieldItem;
-import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.TridentItem;
-import net.minecraft.world.item.UseAnim;
+import net.minecraft.world.item.ItemUseAnimation;
+import net.minecraft.world.item.equipment.Equippable;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -62,12 +60,13 @@ public enum ItemCategory {
             if (stack.is(c.tag)) return c;
         }
         Item item = stack.getItem();
-        if (item instanceof SwordItem || item instanceof AxeItem || item instanceof TridentItem || item instanceof MaceItem
+        if (stack.has(DataComponents.WEAPON) || item instanceof AxeItem || item instanceof TridentItem || item instanceof MaceItem
                 || item instanceof ProjectileWeaponItem) {
             return WEAPONS;
         }
-        if (item instanceof ArmorItem || item instanceof ElytraItem || item instanceof ShieldItem) return ARMOR;
-        if (stack.has(DataComponents.FOOD) || item instanceof PotionItem || stack.getUseAnimation() == UseAnim.DRINK) {
+        Equippable equippable = stack.get(DataComponents.EQUIPPABLE);
+        if (equippable != null && equippable.slot().isArmor() || stack.has(DataComponents.GLIDER) || item instanceof ShieldItem) return ARMOR;
+        if (stack.has(DataComponents.FOOD) || item instanceof PotionItem || stack.getUseAnimation() == ItemUseAnimation.DRINK) {
             return CONSUMABLES;
         }
         return MATERIALS;

@@ -13,7 +13,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.world.entity.player.Inventory;
@@ -37,7 +37,7 @@ import java.util.Locale;
  * @param npc   entity id path of the only NPC who can make it (e.g. "bilac"), or "" for anyone
  * @param time  crafting time in ticks for one craft
  */
-public record FrontierRecipe(ResourceLocation id, Station station, String category, ItemStack result, List<Part> ingredients,
+public record FrontierRecipe(Identifier id, Station station, String category, ItemStack result, List<Part> ingredients,
                              int minLevel, @Nullable QuestStage requiresStage, String npc, int time) {
     /** Category order for tabs and sorting; recipes may use other names, which sort last. */
     public static final List<String> CATEGORIES = List.of("weapon", "armor", "consumable", "material", "gear");
@@ -57,33 +57,31 @@ public record FrontierRecipe(ResourceLocation id, Station station, String catego
             if (item != null) return List.of(new ItemStack(item));
             List<ItemStack> out = new ArrayList<>();
             if (tag != null) {
-                BuiltInRegistries.ITEM.getTag(tag).ifPresent(set -> {
-                    for (Holder<Item> h : set) out.add(new ItemStack(h));
-                });
+                for (Holder<Item> h : BuiltInRegistries.ITEM.getTagOrEmpty(tag)) out.add(new ItemStack(h));
             }
             if (out.isEmpty()) out.add(new ItemStack(Items.BARRIER));
             return out;
         }
 
         public Component name() {
-            if (item != null) return item.getDescription();
+            if (item != null) return Component.translatable(item.getDescriptionId());
             return tag == null ? Component.empty() : Component.translatable(Tags.getTagTranslationKey(tag));
         }
 
         private static final StreamCodec<RegistryFriendlyByteBuf, Part> STREAM_CODEC = StreamCodec.of((buf, p) -> {
             buf.writeBoolean(p.tag != null);
-            buf.writeResourceLocation(p.tag != null ? p.tag.location() : BuiltInRegistries.ITEM.getKey(p.item));
+            buf.writeIdentifier(p.tag != null ? p.tag.location() : BuiltInRegistries.ITEM.getKey(p.item));
             buf.writeVarInt(p.count);
         }, buf -> {
             boolean isTag = buf.readBoolean();
-            ResourceLocation rl = buf.readResourceLocation();
+            Identifier rl = buf.readIdentifier();
             int count = buf.readVarInt();
-            return isTag ? new Part(null, TagKey.create(Registries.ITEM, rl), count) : new Part(BuiltInRegistries.ITEM.get(rl), null, count);
+            return isTag ? new Part(null, TagKey.create(Registries.ITEM, rl), count) : new Part(BuiltInRegistries.ITEM.getValue(rl), null, count);
         });
     }
 
     public static final StreamCodec<RegistryFriendlyByteBuf, FrontierRecipe> STREAM_CODEC = StreamCodec.of((buf, r) -> {
-        buf.writeResourceLocation(r.id);
+        buf.writeIdentifier(r.id);
         buf.writeVarInt(r.station.ordinal());
         buf.writeUtf(r.category);
         ItemStack.STREAM_CODEC.encode(buf, r.result);
@@ -92,15 +90,15 @@ public record FrontierRecipe(ResourceLocation id, Station station, String catego
         buf.writeUtf(r.requiresStage == null ? "" : r.requiresStage.name());
         buf.writeUtf(r.npc);
         buf.writeVarInt(r.time);
-    }, buf -> new FrontierRecipe(buf.readResourceLocation(), Station.byIndex(buf.readVarInt()), buf.readUtf(),
+    }, buf -> new FrontierRecipe(buf.readIdentifier(), Station.byIndex(buf.readVarInt()), buf.readUtf(),
             ItemStack.STREAM_CODEC.decode(buf), Part.STREAM_CODEC.apply(ByteBufCodecs.list()).decode(buf), buf.readVarInt(),
             QuestStage.byName(buf.readUtf()), buf.readUtf(), buf.readVarInt()));
 
     // ---- Loading -------------------------------------------------------------------
 
     /** Parses one recipe file. The file location is the id unless the JSON names one. */
-    public static FrontierRecipe fromJson(ResourceLocation fileId, JsonObject json) {
-        ResourceLocation id = json.has("id") ? ResourceLocation.parse(GsonHelper.getAsString(json, "id")) : fileId;
+    public static FrontierRecipe fromJson(Identifier fileId, JsonObject json) {
+        Identifier id = json.has("id") ? Identifier.parse(GsonHelper.getAsString(json, "id")) : fileId;
         Station station = Station.byId(GsonHelper.getAsString(json, "station"));
         if (station == null) throw new JsonParseException("unknown station " + json.get("station"));
         String category = GsonHelper.getAsString(json, "category", "gear").toLowerCase(Locale.ROOT);
@@ -115,7 +113,7 @@ public record FrontierRecipe(ResourceLocation id, Station station, String catego
             JsonObject o = GsonHelper.convertToJsonObject(el, "ingredient");
             int count = Math.max(1, GsonHelper.getAsInt(o, "count", 1));
             if (o.has("tag")) {
-                parts.add(new Part(null, TagKey.create(Registries.ITEM, ResourceLocation.parse(GsonHelper.getAsString(o, "tag"))), count));
+                parts.add(new Part(null, TagKey.create(Registries.ITEM, Identifier.parse(GsonHelper.getAsString(o, "tag"))), count));
             } else {
                 parts.add(new Part(item(GsonHelper.getAsString(o, "item")), null, count));
             }
@@ -132,7 +130,7 @@ public record FrontierRecipe(ResourceLocation id, Station station, String catego
     }
 
     private static Item item(String id) {
-        ResourceLocation rl = ResourceLocation.parse(id);
+        Identifier rl = Identifier.parse(id);
         return BuiltInRegistries.ITEM.getOptional(rl).filter(i -> i != Items.AIR)
                 .orElseThrow(() -> new JsonParseException("unknown item " + id));
     }
@@ -162,9 +160,8 @@ public record FrontierRecipe(ResourceLocation id, Station station, String catego
     /** Slots crafting may take from: the main inventory and the off hand, never worn armor. */
     private static List<ItemStack> sources(Player player) {
         Inventory inv = player.getInventory();
-        List<ItemStack> out = new ArrayList<>(inv.items.size() + inv.offhand.size());
-        out.addAll(inv.items);
-        out.addAll(inv.offhand);
+        List<ItemStack> out = new ArrayList<>(inv.getNonEquipmentItems());
+        out.add(inv.getItem(Inventory.SLOT_OFFHAND));
         return out;
     }
 

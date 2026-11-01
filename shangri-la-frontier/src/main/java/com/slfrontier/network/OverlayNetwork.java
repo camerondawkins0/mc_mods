@@ -68,7 +68,7 @@ public final class OverlayNetwork {
         }
         if (best != null) return best.nameKey();
         return level.getBiome(pos).unwrapKey()
-                .map(k -> "biome." + k.location().getNamespace() + "." + k.location().getPath())
+                .map(k -> "biome." + k.identifier().getNamespace() + "." + k.identifier().getPath())
                 .orElse("travel.slfrontier.frontier");
     }
 }

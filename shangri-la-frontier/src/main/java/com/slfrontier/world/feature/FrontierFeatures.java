@@ -72,7 +72,7 @@ public final class FrontierFeatures {
 
     private static void set(WorldGenLevel level, BlockPos origin, BlockPos pos, BlockState state) {
         if (Math.abs(pos.getX() - origin.getX()) > REACH || Math.abs(pos.getZ() - origin.getZ()) > REACH) return;
-        if (pos.getY() <= level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight()) return;
+        if (pos.getY() <= level.getMinY() || pos.getY() > level.getMaxY()) return;
         level.setBlock(pos, state, 2);
     }
 
@@ -259,7 +259,7 @@ public final class FrontierFeatures {
                     set(level, origin, p.set(x, py + v, z), circuit ? line : edge ? dark : slab);
                     if (random.nextFloat() < 0.12f) {
                         BlockPos side = p.immutable().relative(Direction.Plane.HORIZONTAL.getRandomDirection(random));
-                        Direction face = Direction.getNearest(p.getX() - side.getX(), 0, p.getZ() - side.getZ());
+                        Direction face = Direction.getApproximateNearest(p.getX() - side.getX(), 0, p.getZ() - side.getZ());
                         var prop = VineBlock.getPropertyForFace(face);
                         if (prop != null && level.isEmptyBlock(side)) {
                             for (int d = 0; d < 1 + random.nextInt(4) && level.isEmptyBlock(side.below(d)); d++) {

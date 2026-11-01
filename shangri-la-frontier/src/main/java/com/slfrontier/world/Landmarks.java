@@ -102,7 +102,7 @@ public final class Landmarks {
         StructurePlaceSettings settings = new StructurePlaceSettings().addProcessor(BlockIgnoreProcessor.STRUCTURE_BLOCK);
         for (StructureTemplate.StructureBlockInfo info : template.get().filterBlocks(design.origin(), settings, Blocks.STRUCTURE_BLOCK)) {
             CompoundTag nbt = info.nbt();
-            String name = nbt == null ? "" : nbt.getString("metadata");
+            String name = nbt == null ? "" : nbt.getStringOr("metadata", "");
             if (!name.isEmpty()) found.put(name, info.pos());
         }
         return found;

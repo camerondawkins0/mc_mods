@@ -1,5 +1,7 @@
 package com.slfrontier.entity;
 
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -60,7 +62,7 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
         this.frontierLevel = frontierLevel;
         this.frontierExp = frontierExp;
         this.xpReward = 100;
-        this.bossEvent = new ServerBossEvent(getDisplayName(), color, BossEvent.BossBarOverlay.NOTCHED_10);
+        this.bossEvent = new ServerBossEvent(getUUID(), getDisplayName(), color, BossEvent.BossBarOverlay.NOTCHED_10);
         this.bossEvent.setDarkenScreen(true);
         setPersistenceRequired();
     }
@@ -144,8 +146,8 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
     }
 
     @Override
-    protected void customServerAiStep() {
-        super.customServerAiStep();
+    protected void customServerAiStep(ServerLevel level) {
+        super.customServerAiStep(level);
         bossEvent.setProgress(getHealth() / getMaxHealth());
         if (stunTicks > 0) {
             stunTicks--;
@@ -186,7 +188,7 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
     // ---- Helpers for subclasses ----------------------------------------------------
 
     public void playAnim(int slot) {
-        if (!level().isClientSide) {
+        if (!level().isClientSide()) {
             level().broadcastEntityEvent(this, (byte) (ANIM_EVENT_BASE + slot));
         }
     }
@@ -203,7 +205,7 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
     @Override
     public void tick() {
         super.tick();
-        if (level().isClientSide) {
+        if (level().isClientSide()) {
             anims[0].startIfStopped(tickCount);
         } else if (tickCount % 10 == 0) {
             updateBossBarViewers();
@@ -271,9 +273,9 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
             if (minDot > -1 && dist > 0.5 && (to.x * look.x + to.z * look.z) / dist < minDot) continue;
             float dealt = adjustDamage(e, damage);
             if (dealt <= 0) continue;
-            if (e.hurt(damageSources().mobAttack(this), dealt)) {
+            if (e.hurtOrSimulate(damageSources().mobAttack(this), dealt)) {
                 hits++;
-                if (knockback > 0) e.knockback(knockback, -to.x, -to.z);
+                if (knockback > 0) e.knockback(knockback, -to.x, -to.z, e.damageSources().generic(), 0f);
                 onHitTarget(e);
             }
         }
@@ -317,8 +319,8 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
     private boolean strike(LivingEntity e, float damageScale, double dx, double dz, double knockback) {
         float damage = (float) getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE) * damageScale;
         float dealt = adjustDamage(e, damage);
-        if (dealt <= 0 || !e.hurt(damageSources().mobAttack(this), dealt)) return false;
-        if (knockback > 0 && (dx != 0 || dz != 0)) e.knockback(knockback, -dx, -dz);
+        if (dealt <= 0 || !e.hurtOrSimulate(damageSources().mobAttack(this), dealt)) return false;
+        if (knockback > 0 && (dx != 0 || dz != 0)) e.knockback(knockback, -dx, -dz, e.damageSources().generic(), 0f);
         onHitTarget(e);
         return true;
     }
@@ -361,7 +363,7 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
         Vec3 d = target.subtract(position());
         Vec3 dir = new Vec3(d.x, 0, d.z).normalize();
         setDeltaMovement(dir.x * speed, lift, dir.z * speed);
-        hasImpulse = true;
+        needsSync = true;
     }
 
     // ---- Boss boilerplate ----------------------------------------------------------
@@ -408,7 +410,7 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
     }
 
     @Override
-    public void readAdditionalSaveData(CompoundTag tag) {
+    public void readAdditionalSaveData(ValueInput tag) {
         super.readAdditionalSaveData(tag);
         if (hasCustomName()) bossEvent.setName(getDisplayName());
     }
@@ -418,30 +420,24 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
         return false;
     }
 
-    /** Story bosses stay on Peaceful (where they can't hurt anyone) so the story can't get stuck. */
     @Override
-    protected boolean shouldDespawnInPeaceful() {
+    public boolean causeFallDamage(double distance, float multiplier, DamageSource source) {
         return false;
     }
 
     @Override
-    public boolean causeFallDamage(float distance, float multiplier, DamageSource source) {
-        return false;
-    }
-
-    @Override
-    public boolean isInvulnerableTo(DamageSource source) {
+    public boolean isInvulnerableTo(ServerLevel level, DamageSource source) {
         return source.is(DamageTypes.IN_WALL) || source.is(DamageTypes.DROWN) || source.is(DamageTypes.CRAMMING)
-                || super.isInvulnerableTo(source);
+                || super.isInvulnerableTo(level, source);
     }
 
     @Override
-    public boolean canChangeDimensions(Level from, Level to) {
+    public boolean canTeleport(Level from, Level to) {
         return false;
     }
 
     @Override
-    public boolean doHurtTarget(Entity target) {
-        return super.doHurtTarget(target);
+    public boolean doHurtTarget(ServerLevel level, Entity target) {
+        return super.doHurtTarget(level, target);
     }
 }

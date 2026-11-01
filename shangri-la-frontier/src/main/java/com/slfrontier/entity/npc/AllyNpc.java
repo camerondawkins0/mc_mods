@@ -63,7 +63,7 @@ public class AllyNpc extends FrontierNpc {
         server.broadcastEntityEvent(this, (byte) (ANIM_EVENT_BASE + (big ? 2 : 1)));
         float damage = isPencilgon() ? (big ? 9f : 6f) : (big ? 8f : 5f);
         target.invulnerableTime = 0;
-        target.hurt(damageSources().mobAttack(this), damage);
+        target.hurtOrSimulate(damageSources().mobAttack(this), damage);
         Vec3 at = target.position().add(0, target.getBbHeight() * 0.5, 0);
         if (isPencilgon()) {
             if (big) Fx.arc(this, 3.5f, 0, 360, 0xFFFFD86A, 10);

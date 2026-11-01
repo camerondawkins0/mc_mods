@@ -65,12 +65,12 @@ public class WaypointBlock extends Block {
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (level instanceof ServerLevel server && player instanceof ServerPlayer sp) {
             if (!Frontier.isFrontier(level)) {
-                sp.displayClientMessage(Component.translatable("message.slfrontier.waypoint.wrong_world").withStyle(ChatFormatting.GRAY), true);
+                sp.sendOverlayMessage(Component.translatable("message.slfrontier.waypoint.wrong_world").withStyle(ChatFormatting.GRAY));
                 return InteractionResult.SUCCESS;
             }
             attune(server, pos, sp);
         }
-        return InteractionResult.sidedSuccess(level.isClientSide);
+        return InteractionResult.SUCCESS;
     }
 
     public static void attune(ServerLevel level, BlockPos pos, ServerPlayer player) {
@@ -90,8 +90,8 @@ public class WaypointBlock extends Block {
         } else {
             level.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 1f, 1.4f);
         }
-        player.displayClientMessage(Component.translatable("message.slfrontier.waypoint_attuned",
-                Component.translatable(wp.nameKey())).withStyle(ChatFormatting.AQUA), true);
+        player.sendOverlayMessage(Component.translatable("message.slfrontier.waypoint_attuned",
+                Component.translatable(wp.nameKey())).withStyle(ChatFormatting.AQUA));
         MapSync.invalidate(player);
         ModNetwork.sync(player);
     }
@@ -103,16 +103,14 @@ public class WaypointBlock extends Block {
             if (level.structureManager().getStructureWithPieceAt(pos, tag).isValid()) return "waypoint.slfrontier." + s;
         }
         Holder<Biome> biome = level.getBiome(pos);
-        return biome.unwrapKey().map(k -> "biome." + k.location().getNamespace() + "." + k.location().getPath())
+        return biome.unwrapKey().map(k -> "biome." + k.identifier().getNamespace() + "." + k.identifier().getPath())
                 .orElse("block.slfrontier.waypoint_crystal");
     }
 
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean moved) {
-        if (!state.is(newState.getBlock()) && level instanceof ServerLevel server) {
-            Waypoints.get(server).remove(Waypoints.crystalId(pos));
-        }
-        super.onRemove(state, level, pos, newState, moved);
+    protected void affectNeighborsAfterRemoval(BlockState state, ServerLevel level, BlockPos pos, boolean movedByPiston) {
+        Waypoints.get(level).remove(Waypoints.crystalId(pos));
+        super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
     }
 
     @Override

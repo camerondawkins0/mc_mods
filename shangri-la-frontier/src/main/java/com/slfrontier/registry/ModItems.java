@@ -15,10 +15,10 @@ import com.slfrontier.item.VorpalBellItem;
 import com.slfrontier.skill.Skill;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Rarity;
-import net.neoforged.neoforge.common.DeferredSpawnEggItem;
+import net.minecraft.world.item.SpawnEggItem;
+import net.minecraft.world.item.equipment.ArmorType;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
@@ -32,22 +32,22 @@ public final class ModItems {
     public static final List<DeferredItem<? extends Item>> SPAWN_EGGS = new ArrayList<>();
 
     // ---- Key items ----------------------------------------------------------------
-    public static final DeferredItem<Item> FULLDIVE_HEADSET = ITEMS.register("fulldive_headset",
-            () -> new FullDiveHeadsetItem(new Item.Properties().stacksTo(1).rarity(Rarity.RARE)));
-    public static final DeferredItem<Item> FRONTIER_COMPASS = ITEMS.register("frontier_compass",
-            () -> new FrontierCompassItem(new Item.Properties().stacksTo(1)));
-    public static final DeferredItem<Item> HOLY_WATER = ITEMS.register("holy_water",
-            () -> new HolyWaterItem(new Item.Properties().stacksTo(16)));
-    public static final DeferredItem<Item> REBIRTH_TEARJEWEL = ITEMS.register("rebirth_tearjewel",
-            () -> new TooltipItem(new Item.Properties().stacksTo(4).rarity(Rarity.EPIC), true));
-    public static final DeferredItem<Item> VORPAL_SOUL_COLLAR = ITEMS.register("vorpal_soul_collar",
-            () -> new TooltipItem(new Item.Properties().stacksTo(1).rarity(Rarity.RARE)));
-    public static final DeferredItem<Item> SEITEN_SKILLBOOK = ITEMS.register("seiten_skillbook",
-            () -> new SkillBookItem(Skill.SKY_CLEAR, new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
-    public static final DeferredItem<Item> VORPAL_BELL = ITEMS.register("vorpal_bell",
-            () -> new VorpalBellItem(new Item.Properties().stacksTo(1).rarity(Rarity.UNCOMMON)));
-    public static final DeferredItem<Item> REALLOCATION_TONIC = ITEMS.register("reallocation_tonic",
-            () -> new ReallocationTonicItem(new Item.Properties().stacksTo(16)));
+    public static final DeferredItem<Item> FULLDIVE_HEADSET = ITEMS.registerItem("fulldive_headset",
+            FullDiveHeadsetItem::new, p -> p.stacksTo(1).rarity(Rarity.RARE));
+    public static final DeferredItem<Item> FRONTIER_COMPASS = ITEMS.registerItem("frontier_compass",
+            FrontierCompassItem::new, p -> p.stacksTo(1));
+    public static final DeferredItem<Item> HOLY_WATER = ITEMS.registerItem("holy_water",
+            HolyWaterItem::new, p -> p.stacksTo(16));
+    public static final DeferredItem<Item> REBIRTH_TEARJEWEL = ITEMS.registerItem("rebirth_tearjewel",
+            p -> new TooltipItem(p, true), p -> p.stacksTo(4).rarity(Rarity.EPIC));
+    public static final DeferredItem<Item> VORPAL_SOUL_COLLAR = ITEMS.registerItem("vorpal_soul_collar",
+            TooltipItem::new, p -> p.stacksTo(1).rarity(Rarity.RARE));
+    public static final DeferredItem<Item> SEITEN_SKILLBOOK = ITEMS.registerItem("seiten_skillbook",
+            p -> new SkillBookItem(Skill.SKY_CLEAR, p), p -> p.stacksTo(1).rarity(Rarity.EPIC));
+    public static final DeferredItem<Item> VORPAL_BELL = ITEMS.registerItem("vorpal_bell",
+            VorpalBellItem::new, p -> p.stacksTo(1).rarity(Rarity.UNCOMMON));
+    public static final DeferredItem<Item> REALLOCATION_TONIC = ITEMS.registerItem("reallocation_tonic",
+            ReallocationTonicItem::new, p -> p.stacksTo(16));
 
     // ---- Materials ----------------------------------------------------------------
     public static final DeferredItem<Item> GRAY_ORE_CHUNK = material("gray_ore_chunk");
@@ -57,38 +57,36 @@ public final class ModItems {
     public static final DeferredItem<Item> MUD_DIGGER_FIN = material("mud_digger_fin");
     public static final DeferredItem<Item> PRISMATIC_SHARD = material("prismatic_shard");
     public static final DeferredItem<Item> NIGHTSLAYER_FUR = material("nightslayer_fur");
-    public static final DeferredItem<Item> LYCAGON_FANG = ITEMS.register("lycagon_fang",
-            () -> new TooltipItem(new Item.Properties().rarity(Rarity.EPIC), true));
+    public static final DeferredItem<Item> LYCAGON_FANG = ITEMS.registerItem("lycagon_fang",
+            p -> new TooltipItem(p, true), p -> p.rarity(Rarity.EPIC));
     public static final DeferredItem<Item> TOMBGUARD_FRAGMENT = material("tombguard_fragment");
     public static final DeferredItem<Item> GOBLIN_TOOTH = material("goblin_tooth");
 
     // ---- Weapons ------------------------------------------------------------------
-    public static final DeferredItem<Item> MERCENARY_TWIN_BLADES = ITEMS.register("mercenary_twin_blades",
-            () -> new TwinBladeItem(ModTiers.MERCENARY, 2, -2.0f, 0f, "lore.slfrontier.mercenary_twin_blades", new Item.Properties()));
-    public static final DeferredItem<Item> MARSH_DAGGER = ITEMS.register("marsh_dagger",
-            () -> new TwinBladeItem(ModTiers.MARSH, 2, -1.8f, 0.03f, "lore.slfrontier.marsh_dagger", new Item.Properties()));
-    public static final DeferredItem<Item> DUCUSRAM = ITEMS.register("ducusram",
-            () -> new TwinBladeItem(ModTiers.MARSH, 4, -2.0f, 0.05f, "lore.slfrontier.ducusram", new Item.Properties().rarity(Rarity.UNCOMMON)));
-    public static final DeferredItem<Item> VORPAL_CHOPPERS = ITEMS.register("vorpal_choppers",
-            () -> new TwinBladeItem(ModTiers.VORPAL, 3, -1.6f, 0.12f, "lore.slfrontier.vorpal_choppers", new Item.Properties().rarity(Rarity.UNCOMMON)));
-    public static final DeferredItem<Item> EMPIRE_BEE_TWINBLADES = ITEMS.register("empire_bee_twinblades",
-            () -> new TwinBladeItem(ModTiers.BEE, 4, -1.6f, 0.06f, "lore.slfrontier.empire_bee_twinblades", new Item.Properties().rarity(Rarity.RARE)));
-    public static final DeferredItem<Item> MOONBLADE_WAXING = ITEMS.register("moonblade_waxing",
-            () -> new MoonbladeItem(ModTiers.MOON, 4, -1.8f, true, new Item.Properties().rarity(Rarity.EPIC)));
-    public static final DeferredItem<Item> MOONBLADE_WANING = ITEMS.register("moonblade_waning",
-            () -> new MoonbladeItem(ModTiers.MOON, 4, -1.8f, false, new Item.Properties().rarity(Rarity.EPIC)));
-    public static final DeferredItem<Item> TWIN_MOON = ITEMS.register("twin_moon",
-            () -> new TwinMoonItem(ModTiers.MOON, 10, -2.9f, new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
-    public static final DeferredItem<Item> TOMBGUARD_KATANA = ITEMS.register("tombguard_katana",
-            () -> new KatanaItem(ModTiers.TOMBGUARD, 6, -2.3f, new Item.Properties().rarity(Rarity.EPIC)));
+    public static final DeferredItem<Item> MERCENARY_TWIN_BLADES = ITEMS.registerItem("mercenary_twin_blades",
+            p -> new TwinBladeItem(ModTiers.MERCENARY, 2, -2.0f, 0f, "lore.slfrontier.mercenary_twin_blades", p));
+    public static final DeferredItem<Item> MARSH_DAGGER = ITEMS.registerItem("marsh_dagger",
+            p -> new TwinBladeItem(ModTiers.MARSH, 2, -1.8f, 0.03f, "lore.slfrontier.marsh_dagger", p));
+    public static final DeferredItem<Item> DUCUSRAM = ITEMS.registerItem("ducusram",
+            p -> new TwinBladeItem(ModTiers.MARSH, 4, -2.0f, 0.05f, "lore.slfrontier.ducusram", p), p -> p.rarity(Rarity.UNCOMMON));
+    public static final DeferredItem<Item> VORPAL_CHOPPERS = ITEMS.registerItem("vorpal_choppers",
+            p -> new TwinBladeItem(ModTiers.VORPAL, 3, -1.6f, 0.12f, "lore.slfrontier.vorpal_choppers", p), p -> p.rarity(Rarity.UNCOMMON));
+    public static final DeferredItem<Item> EMPIRE_BEE_TWINBLADES = ITEMS.registerItem("empire_bee_twinblades",
+            p -> new TwinBladeItem(ModTiers.BEE, 4, -1.6f, 0.06f, "lore.slfrontier.empire_bee_twinblades", p), p -> p.rarity(Rarity.RARE));
+    public static final DeferredItem<Item> MOONBLADE_WAXING = ITEMS.registerItem("moonblade_waxing",
+            p -> new MoonbladeItem(ModTiers.MOON, 4, -1.8f, true, p), p -> p.rarity(Rarity.EPIC));
+    public static final DeferredItem<Item> MOONBLADE_WANING = ITEMS.registerItem("moonblade_waning",
+            p -> new MoonbladeItem(ModTiers.MOON, 4, -1.8f, false, p), p -> p.rarity(Rarity.EPIC));
+    public static final DeferredItem<Item> TWIN_MOON = ITEMS.registerItem("twin_moon",
+            p -> new TwinMoonItem(ModTiers.MOON, 10, -2.9f, p), p -> p.stacksTo(1).rarity(Rarity.EPIC));
+    public static final DeferredItem<Item> TOMBGUARD_KATANA = ITEMS.registerItem("tombguard_katana",
+            p -> new KatanaItem(ModTiers.TOMBGUARD, 6, -2.3f, p), p -> p.rarity(Rarity.EPIC));
 
     // ---- Armor --------------------------------------------------------------------
-    public static final DeferredItem<Item> BIRD_MASK = ITEMS.register("bird_mask",
-            () -> new ArmorItem(ModArmorMaterials.BIRD_MASK, ArmorItem.Type.HELMET,
-                    new Item.Properties().durability(ArmorItem.Type.HELMET.getDurability(12))));
-    public static final DeferredItem<Item> BATTLEHORN_HELM = ITEMS.register("battlehorn_helm",
-            () -> new ArmorItem(ModArmorMaterials.BATTLEHORN, ArmorItem.Type.HELMET,
-                    new Item.Properties().durability(ArmorItem.Type.HELMET.getDurability(30)).rarity(Rarity.UNCOMMON)));
+    public static final DeferredItem<Item> BIRD_MASK = ITEMS.registerItem("bird_mask",
+            Item::new, p -> p.humanoidArmor(ModArmorMaterials.BIRD_MASK, ArmorType.HELMET));
+    public static final DeferredItem<Item> BATTLEHORN_HELM = ITEMS.registerItem("battlehorn_helm",
+            Item::new, p -> p.humanoidArmor(ModArmorMaterials.BATTLEHORN, ArmorType.HELMET).rarity(Rarity.UNCOMMON));
 
     // ---- Block items --------------------------------------------------------------
     public static final DeferredItem<?> GRAY_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.GRAY_ORE);
@@ -129,10 +127,11 @@ public final class ModItems {
     }
 
     private static DeferredItem<Item> material(String name) {
-        return ITEMS.register(name, () -> new TooltipItem(new Item.Properties()));
+        return ITEMS.registerItem(name, TooltipItem::new);
     }
 
+    /** The two colours are read by tools/gen_assets.py to tint the egg's item model. */
     private static <T extends Mob> void egg(String name, Supplier<EntityType<T>> type, int bg, int fg) {
-        SPAWN_EGGS.add(ITEMS.register(name + "_spawn_egg", () -> new DeferredSpawnEggItem(type, bg, fg, new Item.Properties())));
+        SPAWN_EGGS.add(ITEMS.registerItem(name + "_spawn_egg", SpawnEggItem::new, p -> p.spawnEgg(type.get())));
     }
 }

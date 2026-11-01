@@ -10,7 +10,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
@@ -59,13 +59,13 @@ public final class CraftingNetwork {
      * Progress of the player's craft. {@code message} is a translation key with arguments
      * ({@code key|arg|@argKey}) or empty.
      */
-    public record CraftStatus(int state, ResourceLocation recipe, int quantity, int ticks, String message)
+    public record CraftStatus(int state, Identifier recipe, int quantity, int ticks, String message)
             implements CustomPacketPayload {
         public static final int STARTED = 0, DONE = 1, FAILED = 2, CANCELLED = 3;
         public static final Type<CraftStatus> TYPE = new Type<>(SLFrontier.id("craft_status"));
         public static final StreamCodec<ByteBuf, CraftStatus> CODEC = StreamCodec.composite(
                 ByteBufCodecs.VAR_INT, CraftStatus::state,
-                ResourceLocation.STREAM_CODEC, CraftStatus::recipe,
+                Identifier.STREAM_CODEC, CraftStatus::recipe,
                 ByteBufCodecs.VAR_INT, CraftStatus::quantity,
                 ByteBufCodecs.VAR_INT, CraftStatus::ticks,
                 ByteBufCodecs.STRING_UTF8, CraftStatus::message,
@@ -80,10 +80,10 @@ public final class CraftingNetwork {
     // ---- Client -> server ----------------------------------------------------------
 
     /** Asks to craft a recipe {@code quantity} times at the station the player has open. */
-    public record Craft(ResourceLocation recipe, int quantity) implements CustomPacketPayload {
+    public record Craft(Identifier recipe, int quantity) implements CustomPacketPayload {
         public static final Type<Craft> TYPE = new Type<>(SLFrontier.id("craft"));
         public static final StreamCodec<ByteBuf, Craft> CODEC = StreamCodec.composite(
-                ResourceLocation.STREAM_CODEC, Craft::recipe,
+                Identifier.STREAM_CODEC, Craft::recipe,
                 ByteBufCodecs.VAR_INT, Craft::quantity,
                 Craft::new);
 

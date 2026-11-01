@@ -1,5 +1,8 @@
 package com.slfrontier.entity.boss;
 
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import com.slfrontier.entity.FrontierBoss;
 import com.slfrontier.fx.Fx;
 import net.minecraft.core.particles.ParticleTypes;
@@ -164,9 +167,9 @@ public class KirinEntity extends FrontierBoss {
                 }
                 if (tick == 30 && level() instanceof ServerLevel server) {
                     for (Vec3 m : marks) {
-                        LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(server);
+                        LightningBolt bolt = net.minecraft.world.entity.EntityTypes.LIGHTNING_BOLT.create(server, EntitySpawnReason.EVENT);
                         if (bolt != null) {
-                            bolt.moveTo(m.x, m.y, m.z);
+                            bolt.snapTo(m.x, m.y, m.z);
                             bolt.setVisualOnly(true);
                             server.addFreshEntity(bolt);
                         }
@@ -180,8 +183,8 @@ public class KirinEntity extends FrontierBoss {
     }
 
     @Override
-    protected void customServerAiStep() {
-        super.customServerAiStep();
+    protected void customServerAiStep(ServerLevel level) {
+        super.customServerAiStep(level);
         if (!(level() instanceof ServerLevel server) || tickCount % 20 != 0) return;
         if (master == null) return;  // spawned on its own (spawn egg, command)
         Entity m = server.getEntity(master);
@@ -197,20 +200,20 @@ public class KirinEntity extends FrontierBoss {
     }
 
     @Override
-    public boolean isAlliedTo(Entity other) {
+    protected boolean considersEntityAsAlly(Entity other) {
         return other instanceof WezaemonEntity || super.isAlliedTo(other);
     }
 
     @Override
-    public void addAdditionalSaveData(CompoundTag tag) {
+    public void addAdditionalSaveData(ValueOutput tag) {
         super.addAdditionalSaveData(tag);
-        if (master != null) tag.putUUID("Master", master);
+        if (master != null) tag.store("Master", net.minecraft.core.UUIDUtil.CODEC, master);
     }
 
     @Override
-    public void readAdditionalSaveData(CompoundTag tag) {
+    public void readAdditionalSaveData(ValueInput tag) {
         super.readAdditionalSaveData(tag);
-        if (tag.hasUUID("Master")) master = tag.getUUID("Master");
+        tag.read("Master", net.minecraft.core.UUIDUtil.CODEC).ifPresent(id -> master = id);
     }
 
     @Override

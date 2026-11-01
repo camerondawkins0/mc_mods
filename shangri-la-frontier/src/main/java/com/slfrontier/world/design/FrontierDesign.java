@@ -6,7 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.slfrontier.SLFrontier;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.ChunkPos;
 import org.jetbrains.annotations.Nullable;
@@ -34,14 +34,14 @@ public final class FrontierDesign {
     private static final int ROAD_CELL = 32;
 
     /** A template placed at a fixed spot; {@code top} is the y of the ground block around it. */
-    public record Site(String id, ResourceLocation template, BlockPos origin, int sizeX, int sizeZ, int top, boolean town) {
+    public record Site(String id, Identifier template, BlockPos origin, int sizeX, int sizeZ, int top, boolean town) {
         public BlockPos center() {
             return new BlockPos(origin.getX() + sizeX / 2, top + 1, origin.getZ() + sizeZ / 2);
         }
 
         /** The chunk the structure starts in (its centre); vanilla limits pieces to 8 chunks from it. */
         public ChunkPos startChunk() {
-            return new ChunkPos(center());
+            return ChunkPos.containing(center());
         }
 
         public boolean contains(int x, int z, int margin) {
@@ -121,7 +121,7 @@ public final class FrontierDesign {
         }
         for (JsonElement e : readJson("sites.json").getAsJsonArray()) {
             JsonObject o = e.getAsJsonObject();
-            Site site = new Site(o.get("id").getAsString(), ResourceLocation.parse(o.get("template").getAsString()),
+            Site site = new Site(o.get("id").getAsString(), Identifier.parse(o.get("template").getAsString()),
                     new BlockPos(o.get("x").getAsInt(), o.get("y").getAsInt(), o.get("z").getAsInt()),
                     o.get("size_x").getAsInt(), o.get("size_z").getAsInt(), o.get("top").getAsInt(), o.get("town").getAsBoolean());
             sites.put(site.id(), site);
@@ -143,7 +143,7 @@ public final class FrontierDesign {
                     float side = ((int) (travelled / 48) % 2 == 0) ? 1 : -1;
                     float nx = -(s.bz() - s.az()) / len * side, nz = (s.bx() - s.ax()) / len * side;
                     Lamp lamp = new Lamp(Mth.floor(s.bx() + nx * (half + 1.5f)), Mth.floor(s.bz() + nz * (half + 1.5f)));
-                    lampIndex.computeIfAbsent(ChunkPos.asLong(lamp.x() >> 4, lamp.z() >> 4), k -> new ArrayList<>()).add(lamp);
+                    lampIndex.computeIfAbsent(ChunkPos.pack(lamp.x() >> 4, lamp.z() >> 4), k -> new ArrayList<>()).add(lamp);
                 }
                 travelled += len;
             }
@@ -159,7 +159,7 @@ public final class FrontierDesign {
         int cz1 = Math.floorDiv((int) Math.max(s.az(), s.bz()) + pad, ROAD_CELL);
         for (int cx = cx0; cx <= cx1; cx++) {
             for (int cz = cz0; cz <= cz1; cz++) {
-                roadIndex.computeIfAbsent(ChunkPos.asLong(cx, cz), k -> new ArrayList<>()).add(s);
+                roadIndex.computeIfAbsent(ChunkPos.pack(cx, cz), k -> new ArrayList<>()).add(s);
             }
         }
     }
@@ -240,10 +240,10 @@ public final class FrontierDesign {
 
     /** Road pieces that pass within reach of the 32x32 cell holding (x, z). */
     public List<Segment> roadsNear(int x, int z) {
-        return roadIndex.getOrDefault(ChunkPos.asLong(Math.floorDiv(x, ROAD_CELL), Math.floorDiv(z, ROAD_CELL)), List.of());
+        return roadIndex.getOrDefault(ChunkPos.pack(Math.floorDiv(x, ROAD_CELL), Math.floorDiv(z, ROAD_CELL)), List.of());
     }
 
     public List<Lamp> lampsIn(ChunkPos chunk) {
-        return lampIndex.getOrDefault(chunk.toLong(), List.of());
+        return lampIndex.getOrDefault(chunk.pack(), List.of());
     }
 }

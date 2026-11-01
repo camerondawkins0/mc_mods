@@ -15,15 +15,15 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.control.FlyingMoveControl;
 import net.minecraft.world.entity.ai.navigation.FlyingPathNavigation;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.monster.Monster;
-import net.minecraft.world.entity.projectile.AbstractArrow;
-import net.minecraft.world.entity.projectile.Arrow;
+import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
+import net.minecraft.world.entity.projectile.arrow.Arrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
@@ -92,7 +92,7 @@ public class EmpireBeeQueenEntity extends FrontierBoss {
                 if (tick == 10 && target != null) {
                     Vec3 d = target.getEyePosition().subtract(position()).normalize();
                     setDeltaMovement(d.scale(1.3));
-                    hasImpulse = true;
+                    needsSync = true;
                     playSound(SoundEvents.BEE_LOOP_AGGRESSIVE, 2f, 0.6f);
                 }
                 if (tick >= 12 && tick <= 22 && hitAround(2.4, 1.0f, -1, 0.5) > 0) {
@@ -104,10 +104,10 @@ public class EmpireBeeQueenEntity extends FrontierBoss {
                 if (tick == 4) Fx.ring(level(), position(), 4f, HONEY, 14, 0);
                 if (tick == 15 && level() instanceof ServerLevel server) {
                     for (int i = 0; i < 3; i++) {
-                        EmpireBeeEntity bee = ModEntities.EMPIRE_BEE.get().create(server);
+                        EmpireBeeEntity bee = ModEntities.EMPIRE_BEE.get().create(server, EntitySpawnReason.EVENT);
                         if (bee == null) continue;
-                        bee.moveTo(getX() + random.nextGaussian(), getY() + 0.5, getZ() + random.nextGaussian(), getYRot(), 0);
-                        bee.finalizeSpawn(server, server.getCurrentDifficultyAt(blockPosition()), MobSpawnType.MOB_SUMMONED, null);
+                        bee.snapTo(getX() + random.nextGaussian(), getY() + 0.5, getZ() + random.nextGaussian(), getYRot(), 0);
+                        bee.finalizeSpawn(server, server.getCurrentDifficultyAt(blockPosition()), EntitySpawnReason.MOB_SUMMONED, null);
                         bee.setTarget(target);
                         server.addFreshEntity(bee);
                     }
@@ -137,7 +137,7 @@ public class EmpireBeeQueenEntity extends FrontierBoss {
     public void aiStep() {
         super.aiStep();
         // Hover: gently fight gravity so she floats at the target's head height.
-        if (!level().isClientSide) {
+        if (!level().isClientSide()) {
             Vec3 m = getDeltaMovement();
             LivingEntity target = getTarget();
             double wantY = target != null ? target.getY() + 2.5 : getY();

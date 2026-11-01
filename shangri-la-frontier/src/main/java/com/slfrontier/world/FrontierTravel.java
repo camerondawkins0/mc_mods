@@ -10,7 +10,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -27,7 +27,7 @@ public final class FrontierTravel {
     }
 
     public static void login(ServerPlayer player) {
-        MinecraftServer server = player.getServer();
+        MinecraftServer server = player.level().getServer();
         if (server == null) return;
         ServerLevel frontier = server.getLevel(Frontier.LEVEL);
         if (frontier == null) {
@@ -35,7 +35,7 @@ public final class FrontierTravel {
             return;
         }
         PlayerData data = ModAttachments.get(player);
-        data.setReturnPoint(player.level().dimension().location().toString(), player.getX(), player.getY(), player.getZ());
+        data.setReturnPoint(player.level().dimension().identifier().toString(), player.getX(), player.getY(), player.getZ());
         if (data.migrateToDesignedMap()) {
             player.sendSystemMessage(Component.translatable("message.slfrontier.new_map").withStyle(ChatFormatting.AQUA));
         }
@@ -43,7 +43,7 @@ public final class FrontierTravel {
         // Like any MMO, you log back in where you logged out.
         BlockPos target = data.hasFrontierPos() ? BlockPos.of(data.frontierPos()) : spawn;
         OverlayNetwork.travel(player, OverlayNetwork.LOGIN, OverlayNetwork.placeName(frontier, target), target);
-        player.teleportTo(frontier, target.getX() + 0.5, target.getY(), target.getZ() + 0.5, player.getYRot(), player.getXRot());
+        player.teleportTo(frontier, target.getX() + 0.5, target.getY(), target.getZ() + 0.5, java.util.Set.of(), player.getYRot(), player.getXRot(), true);
         frontier.playSound(null, target, SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 1f, 1.6f);
         ModNetwork.announce(player, "announce.slfrontier.login", "announce.slfrontier.login.sub", 0x7FE7FF);
         if (data.stage() == QuestStage.NOT_STARTED) {
@@ -52,19 +52,19 @@ public final class FrontierTravel {
     }
 
     public static void logout(ServerPlayer player) {
-        MinecraftServer server = player.getServer();
+        MinecraftServer server = player.level().getServer();
         if (server == null) return;
         PlayerData data = ModAttachments.get(player);
         data.setFrontierPos(player.blockPosition().asLong());
         ServerLevel dest = null;
         if (data.hasReturn()) {
-            ResourceLocation id = ResourceLocation.tryParse(data.returnDim());
+            Identifier id = Identifier.tryParse(data.returnDim());
             if (id != null) dest = server.getLevel(ResourceKey.create(Registries.DIMENSION, id));
         }
         double x, y, z;
         if (dest == null || dest.dimension() == Frontier.LEVEL) {
             dest = server.overworld();
-            BlockPos spawn = dest.getSharedSpawnPos();
+            BlockPos spawn = dest.getRespawnData().pos();
             x = spawn.getX() + 0.5;
             y = spawn.getY();
             z = spawn.getZ() + 0.5;
@@ -73,7 +73,7 @@ public final class FrontierTravel {
             y = data.returnY();
             z = data.returnZ();
         }
-        player.teleportTo(dest, x, y, z, player.getYRot(), player.getXRot());
+        player.teleportTo(dest, x, y, z, java.util.Set.of(), player.getYRot(), player.getXRot(), true);
         ModNetwork.announce(player, "announce.slfrontier.logout", "announce.slfrontier.logout.sub", 0xAAAAAA);
     }
 
@@ -82,7 +82,7 @@ public final class FrontierTravel {
         if (frontier == null) return;
         BlockPos spawn = ensureFastera(frontier);
         OverlayNetwork.travel(player, OverlayNetwork.TRAVEL, Landmarks.Site.FIRSTIA.nameKey(), spawn);
-        player.teleportTo(frontier, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, player.getYRot(), player.getXRot());
+        player.teleportTo(frontier, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, java.util.Set.of(), player.getYRot(), player.getXRot(), true);
     }
 
     public static void toWaypoint(ServerPlayer player, Waypoints.Waypoint wp) {
@@ -90,7 +90,7 @@ public final class FrontierTravel {
         if (frontier == null) return;
         BlockPos pos = FastTravel.arrival(frontier, wp);
         OverlayNetwork.travel(player, OverlayNetwork.TRAVEL, wp.nameKey(), pos);
-        player.teleportTo(frontier, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, player.getYRot(), player.getXRot());
+        player.teleportTo(frontier, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, java.util.Set.of(), player.getYRot(), player.getXRot(), true);
     }
 
     public static void toRabituza(ServerPlayer player) {
@@ -98,14 +98,14 @@ public final class FrontierTravel {
         if (frontier == null) return;
         BlockPos pos = ensureRabituza(frontier);
         OverlayNetwork.travel(player, OverlayNetwork.TRAVEL, Landmarks.Site.RABITUZA.nameKey(), pos);
-        player.teleportTo(frontier, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, player.getYRot(), player.getXRot());
+        player.teleportTo(frontier, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, java.util.Set.of(), player.getYRot(), player.getXRot(), true);
         frontier.playSound(null, pos, SoundEvents.RABBIT_JUMP, SoundSource.PLAYERS, 1f, 0.8f);
-        player.displayClientMessage(Component.translatable("message.slfrontier.arrive_rabituza").withStyle(ChatFormatting.LIGHT_PURPLE), true);
+        player.sendOverlayMessage(Component.translatable("message.slfrontier.arrive_rabituza").withStyle(ChatFormatting.LIGHT_PURPLE));
     }
 
     @Nullable
     private static ServerLevel frontierLevel(ServerPlayer player) {
-        MinecraftServer server = player.getServer();
+        MinecraftServer server = player.level().getServer();
         return server == null ? null : server.getLevel(Frontier.LEVEL);
     }
 
@@ -124,7 +124,7 @@ public final class FrontierTravel {
         if (frontier == null) return;
         BlockPos pos = Landmarks.ensure(frontier, site);
         OverlayNetwork.travel(player, OverlayNetwork.TRAVEL, site.nameKey(), pos);
-        player.teleportTo(frontier, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, player.getYRot(), player.getXRot());
+        player.teleportTo(frontier, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, java.util.Set.of(), player.getYRot(), player.getXRot(), true);
     }
 
     /** Towns are fast-travel waypoints; also fills them in for worlds made before waypoints existed. */

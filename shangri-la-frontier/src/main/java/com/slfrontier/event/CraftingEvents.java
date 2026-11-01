@@ -7,7 +7,7 @@ import com.slfrontier.network.CraftingNetwork;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.AddReloadListenerEvent;
+import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -20,8 +20,8 @@ public final class CraftingEvents {
     }
 
     @SubscribeEvent
-    public static void addReloadListeners(AddReloadListenerEvent event) {
-        event.addListener(FrontierRecipes.INSTANCE);
+    public static void addReloadListeners(AddServerReloadListenersEvent event) {
+        event.addListener(com.slfrontier.SLFrontier.id("frontier_recipes"), FrontierRecipes.INSTANCE);
     }
 
     /** Fires for a joining player, and for everyone after {@code /reload}. */

@@ -1,5 +1,8 @@
 package com.slfrontier.entity.npc;
 
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import com.slfrontier.registry.ModAttachments;
 import com.slfrontier.registry.ModEntities;
 import com.slfrontier.world.Frontier;
@@ -29,7 +32,7 @@ import java.util.UUID;
  * whatever her partner is fighting.
  */
 public class EmulEntity extends FrontierNpc {
-    private static final DustParticleOptions MAGIC = new DustParticleOptions(new Vector3f(0.6f, 0.45f, 1f), 1.2f);
+    private static final DustParticleOptions MAGIC = new DustParticleOptions(0x9973FF, 1.2f);
 
     @Nullable
     private UUID owner;
@@ -61,13 +64,13 @@ public class EmulEntity extends FrontierNpc {
 
     /** Calls Emul to the player, replacing any copy that's still wandering around. */
     public static void summonFor(ServerPlayer player) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
         EmulEntity emul = findCompanion(player, 128);
         if (emul == null) {
-            emul = ModEntities.EMUL.get().create(level);
+            emul = ModEntities.EMUL.get().create(level, EntitySpawnReason.EVENT);
             if (emul == null) return;
             emul.setOwner(player.getUUID());
-            emul.moveTo(player.getX() + 1, player.getY(), player.getZ() + 1, player.getYRot(), 0);
+            emul.snapTo(player.getX() + 1, player.getY(), player.getZ() + 1, player.getYRot(), 0);
             level.addFreshEntity(emul);
         } else {
             emul.teleportTo(player.getX() + 1, player.getY(), player.getZ() + 1);
@@ -85,7 +88,7 @@ public class EmulEntity extends FrontierNpc {
     @Override
     public void tick() {
         super.tick();
-        if (level().isClientSide || owner == null) return;
+        if (level().isClientSide() || owner == null) return;
         ServerPlayer player = ownerPlayer();
         if (player == null || player.level() != level() || !ModAttachments.get(player).flag("emul_companion")) {
             // Partner logged out or left the Frontier: Emul goes home to Rabituza.
@@ -126,23 +129,23 @@ public class EmulEntity extends FrontierNpc {
         target.invulnerableTime = 0;
         ServerPlayer player = ownerPlayer();
         if (player != null) {
-            target.hurt(damageSources().indirectMagic(this, player), damage);
+            target.hurtOrSimulate(damageSources().indirectMagic(this, player), damage);
         } else {
-            target.hurt(damageSources().magic(), damage);
+            target.hurtOrSimulate(damageSources().magic(), damage);
         }
         server.playSound(null, getX(), getY(), getZ(), SoundEvents.EVOKER_CAST_SPELL, SoundSource.NEUTRAL, 0.8f, 1.6f);
     }
 
     @Override
-    public void addAdditionalSaveData(CompoundTag tag) {
+    public void addAdditionalSaveData(ValueOutput tag) {
         super.addAdditionalSaveData(tag);
-        if (owner != null) tag.putUUID("Owner", owner);
+        if (owner != null) tag.store("Owner", net.minecraft.core.UUIDUtil.CODEC, owner);
     }
 
     @Override
-    public void readAdditionalSaveData(CompoundTag tag) {
+    public void readAdditionalSaveData(ValueInput tag) {
         super.readAdditionalSaveData(tag);
-        owner = tag.hasUUID("Owner") ? tag.getUUID("Owner") : null;
+        owner = tag.read("Owner", net.minecraft.core.UUIDUtil.CODEC).orElse(null);
     }
 
     public boolean isPartnerOf(Player player) {

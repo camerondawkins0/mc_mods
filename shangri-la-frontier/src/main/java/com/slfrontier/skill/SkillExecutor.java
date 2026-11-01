@@ -36,11 +36,11 @@ import java.util.List;
 
 /** Server-side implementation of every active skill. */
 public final class SkillExecutor {
-    private static final DustParticleOptions MOON_WHITE = new DustParticleOptions(new Vector3f(0.95f, 0.95f, 1f), 1.4f);
-    private static final DustParticleOptions MOON_BLACK = new DustParticleOptions(new Vector3f(0.15f, 0.1f, 0.25f), 1.4f);
-    private static final DustParticleOptions VORPAL_RED = new DustParticleOptions(new Vector3f(0.9f, 0.15f, 0.2f), 1.2f);
-    private static final DustParticleOptions SKY_BLUE = new DustParticleOptions(new Vector3f(0.55f, 0.85f, 1f), 1.6f);
-    private static final DustParticleOptions STEP_GREEN = new DustParticleOptions(new Vector3f(0.45f, 1f, 0.4f), 1.1f);
+    private static final DustParticleOptions MOON_WHITE = new DustParticleOptions(0xF2F2FF, 1.4f);
+    private static final DustParticleOptions MOON_BLACK = new DustParticleOptions(0x261A40, 1.4f);
+    private static final DustParticleOptions VORPAL_RED = new DustParticleOptions(0xE62633, 1.2f);
+    private static final DustParticleOptions SKY_BLUE = new DustParticleOptions(0x8CD9FF, 1.6f);
+    private static final DustParticleOptions STEP_GREEN = new DustParticleOptions(0x73FF66, 1.1f);
 
     private SkillExecutor() {
     }
@@ -118,7 +118,7 @@ public final class SkillExecutor {
         power *= 1 + data.stat(Stat.AGI) * 0.005;
         push(player, dir.x * power, player.onGround() ? 0.2 : 0.05, dir.z * power);
         data.iframeTicks = iframes;
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
         // The legs glow green as the avatar glides (as in the anime).
         level.sendParticles(STEP_GREEN, player.getX(), player.getY() + 0.3, player.getZ(), 16, 0.25, 0.2, 0.25, 0);
         level.sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY() + 0.1, player.getZ(), 6, 0.3, 0.05, 0.3, 0.02);
@@ -139,7 +139,7 @@ public final class SkillExecutor {
         double up = 0.62 + data.stat(Stat.AGI) * 0.002;
         push(player, motion.x * 1.2, up, motion.z * 1.2);
         player.fallDistance = 0;
-        player.serverLevel().sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY(), player.getZ(), 12, 0.4, 0.05, 0.4, 0.01);
+        player.level().sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY(), player.getZ(), 12, 0.4, 0.05, 0.4, 0.01);
         // Green halo rings around the ankles, like the Boat Leap skills.
         Fx.ring(player.level(), player.position(), 0.9f, 0xE07FFF6A, 9, 0);
         Fx.ring(player.level(), player.position().add(0, 0.25, 0), 0.6f, 0xE0B0FFA0, 7, 0);
@@ -274,7 +274,7 @@ public final class SkillExecutor {
         }
         ring(player, 5, MOON_WHITE, 40, 0.3);
         ring(player, 4, MOON_BLACK, 32, 0.3);
-        player.serverLevel().sendParticles(ParticleTypes.EXPLOSION, player.getX(), player.getY() + 0.2, player.getZ(), 3, 1, 0.1, 1, 0);
+        player.level().sendParticles(ParticleTypes.EXPLOSION, player.getX(), player.getY() + 0.2, player.getZ(), 3, 1, 0.1, 1, 0);
         // The Twin Moon crashes down: a vertical crescent and a two-tone shockwave.
         Fx.arc(player, 2.4f, 90, 180, 0xFFEFF4FF, 10);
         Fx.ring(player.level(), player.position(), 5.5f, 0xFFEFF4FF, 16, 1.4f);
@@ -296,7 +296,7 @@ public final class SkillExecutor {
         Fx.arc(player, 5.8f, 4, 360, 0xFFFFFFFF, 12);
         Fx.ring(player.level(), player.position(), 7.5f, 0xE08FD8FF, 18, 1.0f);
         Fx.pillar(player.level(), player.position(), 1.2f, 18f, 0xC08FD8FF, 20);
-        player.serverLevel().setWeatherParameters(6000, 0, false, false);
+        player.level().getServer().setWeatherParameters(6000, 0, false, false);
         sound(player, SoundEvents.WARDEN_SONIC_BOOM, 0.6f, 1.6f);
         ModNetwork.animate(player, PlayerAnims.SKY_CLEAR, 16);
         return true;
@@ -322,10 +322,10 @@ public final class SkillExecutor {
         target.invulnerableTime = 0;
         HitFlags.mark(target, crit, weakPoints && isBehind(player, target));
         HitFlags.add(target, HitFlags.SKILL);
-        target.hurt(player.damageSources().playerAttack(player), damage);
+        target.hurtOrSimulate(player.damageSources().playerAttack(player), damage);
         if (crit) {
-            player.serverLevel().sendParticles(ParticleTypes.CRIT, target.getX(), target.getY(0.6), target.getZ(), 12, 0.3, 0.3, 0.3, 0.3);
-            player.serverLevel().sendParticles(VORPAL_RED, target.getX(), target.getY(0.6), target.getZ(), 8, 0.3, 0.3, 0.3, 0);
+            player.level().sendParticles(ParticleTypes.CRIT, target.getX(), target.getY(0.6), target.getZ(), 12, 0.3, 0.3, 0.3, 0.3);
+            player.level().sendParticles(VORPAL_RED, target.getX(), target.getY(0.6), target.getZ(), 8, 0.3, 0.3, 0.3, 0);
         }
     }
 
@@ -370,7 +370,7 @@ public final class SkillExecutor {
 
     private static void knockAway(Entity from, LivingEntity target, double strength) {
         Vec3 d = target.position().subtract(from.position());
-        target.knockback(strength, -d.x, -d.z);
+        target.knockback(strength, -d.x, -d.z, target.damageSources().generic(), 0f);
     }
 
     public static void push(ServerPlayer player, double x, double y, double z) {
@@ -389,14 +389,14 @@ public final class SkillExecutor {
         Vec3 start = player.getEyePosition().subtract(0, 0.4, 0);
         for (int i = 0; i < count; i++) {
             Vec3 p = start.add(dir.scale(length * i / count));
-            player.serverLevel().sendParticles(particle, p.x, p.y, p.z, 1, 0.05, 0.05, 0.05, 0);
+            player.level().sendParticles(particle, p.x, p.y, p.z, 1, 0.05, 0.05, 0.05, 0);
         }
     }
 
     private static void ring(ServerPlayer player, double radius, ParticleOptions particle, int count, double height) {
         for (int i = 0; i < count; i++) {
             double a = Math.PI * 2 * i / count;
-            player.serverLevel().sendParticles(particle, player.getX() + Math.cos(a) * radius,
+            player.level().sendParticles(particle, player.getX() + Math.cos(a) * radius,
                     player.getY() + height, player.getZ() + Math.sin(a) * radius, 1, 0, 0, 0, 0);
         }
     }
@@ -410,7 +410,7 @@ public final class SkillExecutor {
             double x = player.getX() + Math.cos(a) * r;
             double z = player.getZ() + Math.sin(a) * r;
             double y = player.getY() + 1.0 + Math.sin(i / 30.0 * Math.PI) * 0.6;
-            player.serverLevel().sendParticles(i % 2 == 0 ? first : second, x, y, z, 2, 0.05, 0.05, 0.05, 0);
+            player.level().sendParticles(i % 2 == 0 ? first : second, x, y, z, 2, 0.05, 0.05, 0.05, 0);
         }
     }
 
@@ -419,6 +419,6 @@ public final class SkillExecutor {
     }
 
     public static void actionbar(ServerPlayer player, Component message) {
-        player.displayClientMessage(message.copy().withStyle(ChatFormatting.YELLOW), true);
+        player.sendOverlayMessage(message.copy().withStyle(ChatFormatting.YELLOW));
     }
 }

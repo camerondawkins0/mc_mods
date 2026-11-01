@@ -1,5 +1,6 @@
 package com.slfrontier.block;
 
+import com.slfrontier.entity.WolfVoice;
 import com.slfrontier.entity.boss.LycagonEntity;
 import com.slfrontier.registry.ModEntities;
 import com.slfrontier.world.Frontier;
@@ -13,7 +14,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -36,25 +37,25 @@ public class NightslayerAltarBlock extends Block {
             return InteractionResult.SUCCESS;
         }
         if (!Frontier.isFrontier(level)) {
-            player.displayClientMessage(Component.translatable("message.slfrontier.altar.wrong_world").withStyle(ChatFormatting.GRAY), true);
+            player.sendOverlayMessage(Component.translatable("message.slfrontier.altar.wrong_world").withStyle(ChatFormatting.GRAY));
             return InteractionResult.CONSUME;
         }
-        if (!server.isNight()) {
-            player.displayClientMessage(Component.translatable("message.slfrontier.altar.day").withStyle(ChatFormatting.GRAY), true);
+        if (!server.isDarkOutside()) {
+            player.sendOverlayMessage(Component.translatable("message.slfrontier.altar.day").withStyle(ChatFormatting.GRAY));
             return InteractionResult.CONSUME;
         }
         if (!server.getEntitiesOfClass(LycagonEntity.class, new AABB(pos).inflate(64)).isEmpty()) {
-            player.displayClientMessage(Component.translatable("message.slfrontier.altar.already").withStyle(ChatFormatting.DARK_RED), true);
+            player.sendOverlayMessage(Component.translatable("message.slfrontier.altar.already").withStyle(ChatFormatting.DARK_RED));
             return InteractionResult.CONSUME;
         }
-        LycagonEntity lycagon = ModEntities.LYCAGON.get().create(server);
+        LycagonEntity lycagon = ModEntities.LYCAGON.get().create(server, EntitySpawnReason.EVENT);
         if (lycagon == null) return InteractionResult.FAIL;
-        lycagon.moveTo(pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 6.5, 180f, 0f);
-        lycagon.finalizeSpawn(server, server.getCurrentDifficultyAt(pos), MobSpawnType.EVENT, null);
+        lycagon.snapTo(pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 6.5, 180f, 0f);
+        lycagon.finalizeSpawn(server, server.getCurrentDifficultyAt(pos), EntitySpawnReason.EVENT, null);
         lycagon.configureFor(serverPlayer);
         lycagon.setTarget(player);
         server.addFreshEntity(lycagon);
-        server.playSound(null, pos, SoundEvents.WOLF_HOWL, SoundSource.HOSTILE, 4f, 0.5f);
+        server.playSound(null, pos, WolfVoice.HOWL, SoundSource.HOSTILE, 4f, 0.5f);
         server.sendParticles(ParticleTypes.LARGE_SMOKE, pos.getX() + 0.5, pos.getY() + 1.2, pos.getZ() + 6.5, 80, 1.5, 1.5, 1.5, 0.02);
         server.getServer().getPlayerList().broadcastSystemMessage(
                 Component.translatable("message.slfrontier.lycagon.appears").withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.BOLD), false);

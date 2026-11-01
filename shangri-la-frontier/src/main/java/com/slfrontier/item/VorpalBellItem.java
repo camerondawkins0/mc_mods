@@ -7,7 +7,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -19,27 +19,27 @@ public class VorpalBellItem extends TooltipItem {
     }
 
     @Override
-    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+    public InteractionResult use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (player instanceof ServerPlayer serverPlayer) {
             if (!ModAttachments.get(serverPlayer).flag("emul_companion")) {
-                player.displayClientMessage(Component.translatable("message.slfrontier.bell.silent").withStyle(ChatFormatting.GRAY), true);
-                return InteractionResultHolder.fail(stack);
+                player.sendOverlayMessage(Component.translatable("message.slfrontier.bell.silent").withStyle(ChatFormatting.GRAY));
+                return InteractionResult.FAIL;
             }
             if (!Frontier.isIn(player)) {
-                player.displayClientMessage(Component.translatable("message.slfrontier.outside_frontier").withStyle(ChatFormatting.GRAY), true);
-                return InteractionResultHolder.fail(stack);
+                player.sendOverlayMessage(Component.translatable("message.slfrontier.outside_frontier").withStyle(ChatFormatting.GRAY));
+                return InteractionResult.FAIL;
             }
             EmulEntity existing = EmulEntity.findCompanion(serverPlayer, 64);
             if (existing != null && player.isShiftKeyDown()) {
                 existing.discard();
-                player.displayClientMessage(Component.translatable("message.slfrontier.bell.dismiss").withStyle(ChatFormatting.LIGHT_PURPLE), true);
+                player.sendOverlayMessage(Component.translatable("message.slfrontier.bell.dismiss").withStyle(ChatFormatting.LIGHT_PURPLE));
             } else {
                 EmulEntity.summonFor(serverPlayer);
-                player.displayClientMessage(Component.translatable("message.slfrontier.bell.summon").withStyle(ChatFormatting.LIGHT_PURPLE), true);
+                player.sendOverlayMessage(Component.translatable("message.slfrontier.bell.summon").withStyle(ChatFormatting.LIGHT_PURPLE));
             }
-            player.getCooldowns().addCooldown(this, 40);
+            player.getCooldowns().addCooldown(stack, 40);
         }
-        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
+        return InteractionResult.SUCCESS;
     }
 }

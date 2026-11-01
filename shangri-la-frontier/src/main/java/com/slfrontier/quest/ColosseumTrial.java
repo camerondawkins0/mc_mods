@@ -17,7 +17,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -65,12 +65,12 @@ public final class ColosseumTrial {
 
     public static void start(ServerPlayer player) {
         if (ACTIVE.containsKey(player.getUUID()) || !Frontier.isIn(player)) return;
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
         BlockPos centre = Landmarks.marker(level, Landmarks.Site.RABITUZA, "arena");
         if (centre == null) centre = Landmarks.ensure(level, Landmarks.Site.RABITUZA);
         Trial trial = new Trial(player.getUUID(), centre);
         ACTIVE.put(player.getUUID(), trial);
-        player.teleportTo(level, centre.getX() + 0.5, centre.getY(), centre.getZ() + 6.5, 180f, 0f);
+        player.teleportTo(level, centre.getX() + 0.5, centre.getY(), centre.getZ() + 6.5, java.util.Set.of(), 180f, 0f, true);
         level.playSound(null, centre, SoundEvents.RAID_HORN.value(), SoundSource.HOSTILE, 2f, 1.2f);
         ModNetwork.announce(player, "announce.slfrontier.colosseum_start", "announce.slfrontier.colosseum_start.sub", 0xFFD34F);
     }
@@ -104,8 +104,8 @@ public final class ColosseumTrial {
                 return false;
             }
             if (trial.countdown == BREAK_SECONDS) {
-                player.displayClientMessage(Component.translatable("message.slfrontier.colosseum.round_clear", trial.round + 1)
-                        .withStyle(ChatFormatting.GOLD), true);
+                player.sendOverlayMessage(Component.translatable("message.slfrontier.colosseum.round_clear", trial.round + 1)
+                        .withStyle(ChatFormatting.GOLD));
             }
         }
         if (--trial.countdown > 0) return true;
@@ -119,13 +119,13 @@ public final class ColosseumTrial {
         List<Supplier<? extends EntityType<? extends Mob>>> round = ROUNDS.get(trial.round);
         boolean last = trial.round == ROUNDS.size() - 1;
         for (int i = 0; i < round.size(); i++) {
-            Mob mob = round.get(i).get().create(level);
+            Mob mob = round.get(i).get().create(level, EntitySpawnReason.EVENT);
             if (mob == null) continue;
             double a = Math.PI * 2 * i / round.size();
             double r = last ? 0 : 8;
-            mob.moveTo(trial.centre.getX() + 0.5 + Math.cos(a) * r, trial.centre.getY(), trial.centre.getZ() + 0.5 - 6 + Math.sin(a) * r,
+            mob.snapTo(trial.centre.getX() + 0.5 + Math.cos(a) * r, trial.centre.getY(), trial.centre.getZ() + 0.5 - 6 + Math.sin(a) * r,
                     0, 0);
-            mob.finalizeSpawn(level, level.getCurrentDifficultyAt(trial.centre), MobSpawnType.EVENT, null);
+            mob.finalizeSpawn(level, level.getCurrentDifficultyAt(trial.centre), EntitySpawnReason.EVENT, null);
             mob.setTarget(player);
             mob.setPersistenceRequired();
             level.addFreshEntity(mob);
@@ -135,8 +135,8 @@ public final class ColosseumTrial {
         level.playSound(null, trial.centre, SoundEvents.RAID_HORN.value(), SoundSource.HOSTILE, 1.5f, last ? 0.7f : 1.1f);
         ModNetwork.announce(player, last ? "announce.slfrontier.colosseum_final" : "announce.slfrontier.colosseum_round",
                 last ? "entity.slfrontier.woodmage" : "announce.slfrontier.colosseum_round.sub", 0xFFD34F);
-        player.displayClientMessage(Component.translatable("message.slfrontier.colosseum.round", trial.round + 1, ROUNDS.size())
-                .withStyle(ChatFormatting.YELLOW), true);
+        player.sendOverlayMessage(Component.translatable("message.slfrontier.colosseum.round", trial.round + 1, ROUNDS.size())
+                .withStyle(ChatFormatting.YELLOW));
     }
 
     private static void forfeit(ServerLevel level, Trial trial, ServerPlayer player) {

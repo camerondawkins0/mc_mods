@@ -148,7 +148,7 @@ public class WoodmageEntity extends FrontierBoss {
                     Vec3 pull = position().subtract(target.position()).normalize().scale(1.6);
                     target.setDeltaMovement(pull.x, 0.35, pull.z);
                     target.hurtMarked = true;
-                    target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 50, 3), this);
+                    target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 50, 3), this);
                     Fx.beam(level(), orb(), target.position().add(0, 1, 0), 0.25f, 0xFFB0B4BC, 10);
                     playSound(SoundEvents.CHAIN_PLACE, 2f, 0.5f);
                 }
@@ -159,16 +159,16 @@ public class WoodmageEntity extends FrontierBoss {
     }
 
     @Override
-    public boolean hurt(DamageSource source, float amount) {
+    public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
         boolean physical = !source.is(DamageTypeTags.WITCH_RESISTANT_TO) && !source.is(DamageTypeTags.IS_FIRE)
                 && !source.is(DamageTypeTags.BYPASSES_INVULNERABILITY);
         if (physical && !isCasting()) {
             amount *= 0.35f;
             if (source.getEntity() instanceof ServerPlayer player && warned.add(player.getUUID())) {
-                player.displayClientMessage(Component.translatable("message.slfrontier.woodmage.resists").withStyle(ChatFormatting.GOLD), false);
+                player.sendSystemMessage(Component.translatable("message.slfrontier.woodmage.resists").withStyle(ChatFormatting.GOLD));
             }
         }
-        return super.hurt(source, amount);
+        return super.hurtServer(level, source, amount);
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.slfrontier.command;
 
+import net.minecraft.world.entity.EntitySpawnReason;
 import com.mojang.authlib.GameProfile;
 import com.slfrontier.SLFrontier;
 import com.slfrontier.data.PlayerData;
@@ -61,7 +62,7 @@ public final class StoryTest {
         List<String> failures = new ArrayList<>();
         BlockPos spawn = FrontierTravel.ensureFastera(frontier);
         FakePlayer player = FakePlayerFactory.get(frontier, PROFILE);
-        player.moveTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, 0f, 0f);
+        player.snapTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, 0f, 0f);
         PlayerData data = ModAttachments.get(player);
 
         check(failures, "progression", () -> {
@@ -110,15 +111,15 @@ public final class StoryTest {
             data.setStat(Stat.AGI, agi);
             Progression.applyStats(player);
             // The serpent shrugs off its own venom.
-            RavenousSnakeEntity snake = ModEntities.RAVENOUS_SNAKE.get().create(frontier);
+            RavenousSnakeEntity snake = ModEntities.RAVENOUS_SNAKE.get().create(frontier, EntitySpawnReason.EVENT);
             if (snake == null || snake.canBeAffected(new net.minecraft.world.effect.MobEffectInstance(
                     net.minecraft.world.effect.MobEffects.POISON, 40))) {
                 throw new IllegalStateException("the snake is hurt by its own poison");
             }
             // A perfect parry stuns the attacker, and a stunned attacker can't land a hit.
-            var goblin = ModEntities.GOBLIN.get().create(frontier);
+            var goblin = ModEntities.GOBLIN.get().create(frontier, EntitySpawnReason.EVENT);
             if (goblin == null) throw new IllegalStateException("no goblin");
-            goblin.moveTo(player.getX() + 1.5, player.getY(), player.getZ(), 0f, 0f);
+            goblin.snapTo(player.getX() + 1.5, player.getY(), player.getZ(), 0f, 0f);
             // Tough enough to survive the test avatar's Repel Counter.
             java.util.Objects.requireNonNull(goblin.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH)).setBaseValue(1000);
             goblin.setHealth(1000);
@@ -147,10 +148,10 @@ public final class StoryTest {
                 check(failures, "dialogue " + stage + " / " + type.get().getDescriptionId(), () -> {
                     data.setStage(stage);
                     giveStoryItems(player);
-                    FrontierNpc npc = type.get().create(player.serverLevel());
+                    FrontierNpc npc = type.get().create(player.level(), EntitySpawnReason.EVENT);
                     if (npc == null) throw new IllegalStateException("could not create npc");
-                    npc.moveTo(player.getX() + 1, player.getY(), player.getZ(), 0f, 0f);
-                    player.serverLevel().addFreshEntity(npc);
+                    npc.snapTo(player.getX() + 1, player.getY(), player.getZ(), 0f, 0f);
+                    player.level().addFreshEntity(npc);
                     Story.onTalk(player, npc);
                     if (!listening) {
                         listening = true;
@@ -174,24 +175,24 @@ public final class StoryTest {
             data.setStage(QuestStage.NIGHTSLAYER_ENCOUNTER);
             Story.onMarkedByLycagon(player);
             if (!data.cursed()) throw new IllegalStateException("mark not applied");
-            LycagonEntity lycagon = ModEntities.LYCAGON.get().create(player.serverLevel());
+            LycagonEntity lycagon = ModEntities.LYCAGON.get().create(player.level(), EntitySpawnReason.EVENT);
             if (lycagon == null) throw new IllegalStateException("no lycagon");
-            lycagon.moveTo(player.getX(), player.getY(), player.getZ() + 4, 0f, 0f);
+            lycagon.snapTo(player.getX(), player.getY(), player.getZ() + 4, 0f, 0f);
             lycagon.configureFor(player);
             data.setStage(QuestStage.NIGHTSLAYER_FINAL);
-            Story.onLycagonSlain(player.serverLevel(), lycagon, player);
+            Story.onLycagonSlain(player.level(), lycagon, player);
             if (data.cursed() || data.stage() != QuestStage.COMPLETE) throw new IllegalStateException("final not completed");
         });
         check(failures, "wezaemon story hooks", () -> {
             data.setStage(QuestStage.TOMBGUARD);
-            WezaemonEntity wez = ModEntities.WEZAEMON.get().create(player.serverLevel());
+            WezaemonEntity wez = ModEntities.WEZAEMON.get().create(player.level(), EntitySpawnReason.EVENT);
             if (wez == null) throw new IllegalStateException("no wezaemon");
-            wez.moveTo(player.getX(), player.getY(), player.getZ() + 4, 0f, 0f);
-            Story.onWezaemonSlain(player.serverLevel(), wez, player);
+            wez.snapTo(player.getX(), player.getY(), player.getZ() + 4, 0f, 0f);
+            Story.onWezaemonSlain(player.level(), wez, player);
             if (data.stage() != QuestStage.LYCAGON_SHADOW) throw new IllegalStateException("tombguard not cleared");
         });
         check(failures, "new chapter hooks", () -> {
-            ServerLevel level = player.serverLevel();
+            ServerLevel level = player.level();
             data.setStage(QuestStage.RAVENOUS_SNAKE);
             Story.onRavenousSnakeSlain(level, player, player);
             expect(data, QuestStage.REACH_SECONDIL);
@@ -207,11 +208,11 @@ public final class StoryTest {
             if (!data.flag("contusion")) throw new IllegalStateException("contusion not set");
         });
         check(failures, "landmarks", () -> {
-            var structures = frontier.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
+            var structures = frontier.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
             for (Landmarks.Site site : Landmarks.Site.values()) {
                 BlockPos at = Landmarks.ensure(frontier, site);
                 SLFrontier.LOGGER.info("Story test: {} is at {}", site.id, at);
-                var structure = structures.get(SLFrontier.id(site.id));
+                var structure = structures.getValue(SLFrontier.id(site.id));
                 BlockPos center = Landmarks.center(site);
                 frontier.getChunk(center);
                 if (structure == null || !frontier.structureManager().getStructureWithPieceAt(center, structure).isValid()) {
@@ -225,7 +226,7 @@ public final class StoryTest {
             BlockPos bridge = Landmarks.built(frontier, Landmarks.Site.SERPENT_BRIDGE);
             if (bridge == null) throw new IllegalStateException("bridge not built");
             data.setStage(QuestStage.RAVENOUS_SNAKE);
-            player.moveTo(bridge.getX() + 0.5, bridge.getY(), bridge.getZ() + 0.5);
+            player.snapTo(bridge.getX() + 0.5, bridge.getY(), bridge.getZ() + 0.5);
             Story.tickPlayer(player);
             // A fake player doesn't keep chunks loaded, so the new entity isn't listed until the next tick;
             // check the serpent itself.
@@ -234,7 +235,7 @@ public final class StoryTest {
                 throw new IllegalStateException("the snake did not appear (bridge " + bridge + ", player " + player.blockPosition() + ")");
             }
             snake.discard();
-            player.moveTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+            player.snapTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
         });
         // Every boss runs its whole moveset once against the test player.
         List<Supplier<? extends EntityType<? extends FrontierBoss>>> bosses = List.of(ModEntities.LYCAGON, ModEntities.WEZAEMON,
@@ -244,9 +245,9 @@ public final class StoryTest {
         player.getAbilities().invulnerable = true;
         for (var type : bosses) {
             check(failures, "moveset " + type.get().getDescriptionId(), () -> {
-                FrontierBoss boss = type.get().create(frontier);
+                FrontierBoss boss = type.get().create(frontier, EntitySpawnReason.EVENT);
                 if (boss == null) throw new IllegalStateException("could not create boss");
-                boss.moveTo(player.getX() + 3, player.getY(), player.getZ() + 3, 0f, 0f);
+                boss.snapTo(player.getX() + 3, player.getY(), player.getZ() + 3, 0f, 0f);
                 frontier.addFreshEntity(boss);
                 boss.setTarget(player);
                 boss.exerciseAttacks(player, 7);

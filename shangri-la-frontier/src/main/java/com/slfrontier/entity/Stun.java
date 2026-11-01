@@ -31,7 +31,7 @@ public final class Stun {
         if (!(target.level() instanceof ServerLevel level) || !target.isAlive()) return;
         UNTIL.merge(target, level.getGameTime() + ticks, Math::max);
         target.setDeltaMovement(0, Math.min(0, target.getDeltaMovement().y), 0);
-        target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, ticks, 9, false, false, false));
+        target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, ticks, 9, false, false, false));
         if (target instanceof Mob mob) {
             mob.getNavigation().stop();
             mob.stopUsingItem();

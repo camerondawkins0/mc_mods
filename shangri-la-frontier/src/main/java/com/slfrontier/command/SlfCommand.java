@@ -43,11 +43,11 @@ public final class SlfCommand {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("slf")
                 .then(Commands.literal("status").executes(ctx -> status(ctx, ctx.getSource().getPlayerOrException())))
-                .then(Commands.literal("level").requires(s -> s.hasPermission(2))
+                .then(Commands.literal("level").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .then(Commands.argument("player", EntityArgument.player())
                                 .then(Commands.argument("level", IntegerArgumentType.integer(1, PlayerData.MAX_LEVEL))
                                         .executes(ctx -> setLevel(EntityArgument.getPlayer(ctx, "player"), IntegerArgumentType.getInteger(ctx, "level"))))))
-                .then(Commands.literal("exp").requires(s -> s.hasPermission(2))
+                .then(Commands.literal("exp").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .then(Commands.argument("player", EntityArgument.player())
                                 .then(Commands.argument("amount", IntegerArgumentType.integer(1))
                                         .executes(ctx -> {
@@ -55,13 +55,13 @@ public final class SlfCommand {
                                             Progression.grantExp(p, IntegerArgumentType.getInteger(ctx, "amount"));
                                             return 1;
                                         }))))
-                .then(Commands.literal("quest").requires(s -> s.hasPermission(2))
+                .then(Commands.literal("quest").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .then(Commands.argument("player", EntityArgument.player())
                                 .then(Commands.argument("stage", StringArgumentType.word())
                                         .suggests((ctx, b) -> SharedSuggestionProvider.suggest(
                                                 Arrays.stream(QuestStage.values()).map(s -> s.name().toLowerCase()), b))
                                         .executes(SlfCommand::setQuest))))
-                .then(Commands.literal("skill").requires(s -> s.hasPermission(2))
+                .then(Commands.literal("skill").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .then(Commands.argument("player", EntityArgument.player())
                                 .then(Commands.argument("skill", StringArgumentType.word())
                                         .suggests((ctx, b) -> SharedSuggestionProvider.suggest(
@@ -74,24 +74,24 @@ public final class SlfCommand {
                                             Progression.announceSkill(p, skill);
                                             return 1;
                                         }))))
-                .then(Commands.literal("curse").requires(s -> s.hasPermission(2))
+                .then(Commands.literal("curse").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .then(Commands.argument("player", EntityArgument.player())
                                 .then(Commands.argument("cursed", BoolArgumentType.bool())
                                         .executes(ctx -> {
                                             ModAttachments.get(EntityArgument.getPlayer(ctx, "player")).setCursed(BoolArgumentType.getBool(ctx, "cursed"));
                                             return 1;
                                         }))))
-                .then(Commands.literal("login").requires(s -> s.hasPermission(2))
+                .then(Commands.literal("login").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .executes(ctx -> {
                             FrontierTravel.login(ctx.getSource().getPlayerOrException());
                             return 1;
                         }))
-                .then(Commands.literal("logout").requires(s -> s.hasPermission(2))
+                .then(Commands.literal("logout").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .executes(ctx -> {
                             FrontierTravel.logout(ctx.getSource().getPlayerOrException());
                             return 1;
                         }))
-                .then(Commands.literal("debug").requires(s -> s.hasPermission(2))
+                .then(Commands.literal("debug").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .then(Commands.literal("selftest").executes(SlfCommand::selfTest))
                         .then(Commands.literal("storytest").executes(SlfCommand::storyTest))));
     }

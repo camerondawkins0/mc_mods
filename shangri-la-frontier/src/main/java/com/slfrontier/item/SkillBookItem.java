@@ -8,7 +8,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -23,7 +23,7 @@ public class SkillBookItem extends TooltipItem {
     }
 
     @Override
-    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+    public InteractionResult use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (player instanceof ServerPlayer serverPlayer) {
             if (ModAttachments.get(serverPlayer).unlock(skill)) {
@@ -31,10 +31,10 @@ public class SkillBookItem extends TooltipItem {
                 ModNetwork.announce(serverPlayer, "announce.slfrontier.skill_learned", skill.nameKey(), 0x8FD8FF);
                 stack.consume(1, player);
             } else {
-                player.displayClientMessage(Component.translatable("message.slfrontier.skill_known").withStyle(ChatFormatting.GRAY), true);
-                return InteractionResultHolder.fail(stack);
+                player.sendOverlayMessage(Component.translatable("message.slfrontier.skill_known").withStyle(ChatFormatting.GRAY));
+                return InteractionResult.FAIL;
             }
         }
-        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
+        return InteractionResult.SUCCESS;
     }
 }

@@ -27,13 +27,13 @@ public final class FastTravel {
     public static Component refusal(ServerPlayer player, String id) {
         if (!Frontier.isIn(player)) return Component.translatable("message.slfrontier.travel.outside");
         if (!SlfConfig.FAST_TRAVEL.get()) return Component.translatable("message.slfrontier.travel.disabled");
-        Waypoints.Waypoint wp = Waypoints.get(player.serverLevel()).byId(id);
+        Waypoints.Waypoint wp = Waypoints.get(player.level()).byId(id);
         if (wp == null) return Component.translatable("message.slfrontier.travel.unknown");
         PlayerData data = ModAttachments.get(player);
         if (SlfConfig.FAST_TRAVEL_NEEDS_ATTUNEMENT.get() && !data.knowsWaypoint(id)) {
             return Component.translatable("message.slfrontier.travel.not_attuned");
         }
-        long now = player.serverLevel().getGameTime();
+        long now = player.level().getGameTime();
         if (now < data.fastTravelReadyAt() && !player.isCreative()) {
             return Component.translatable("message.slfrontier.travel.cooldown", (data.fastTravelReadyAt() - now + 19) / 20);
         }
@@ -45,24 +45,24 @@ public final class FastTravel {
 
     public static boolean inCombat(ServerPlayer player) {
         if (player.getLastHurtByMob() != null) return true;
-        return !player.serverLevel().getEntitiesOfClass(FrontierBoss.class, player.getBoundingBox().inflate(40),
+        return !player.level().getEntitiesOfClass(FrontierBoss.class, player.getBoundingBox().inflate(40),
                 b -> b.getTarget() == player).isEmpty();
     }
 
     public static void request(ServerPlayer player, String id) {
         Component refusal = refusal(player, id);
         if (refusal != null) {
-            player.displayClientMessage(refusal.copy().withStyle(ChatFormatting.RED), true);
+            player.sendOverlayMessage(refusal.copy().withStyle(ChatFormatting.RED));
             return;
         }
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
         Waypoints.Waypoint wp = Waypoints.get(level).byId(id);
         if (wp == null) return;
         BlockPos dest = arrival(level, wp);
         OverlayNetwork.travel(player, OverlayNetwork.TRAVEL, wp.nameKey(), dest);
         level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1, player.getZ(), 60, 0.4, 0.9, 0.4, 0.05);
         level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.8f, 1.5f);
-        player.teleportTo(level, dest.getX() + 0.5, dest.getY(), dest.getZ() + 0.5, player.getYRot(), player.getXRot());
+        player.teleportTo(level, dest.getX() + 0.5, dest.getY(), dest.getZ() + 0.5, java.util.Set.of(), player.getYRot(), player.getXRot(), true);
         player.resetFallDistance();
         level.sendParticles(ParticleTypes.END_ROD, dest.getX() + 0.5, dest.getY() + 1, dest.getZ() + 0.5, 50, 0.4, 1.0, 0.4, 0.06);
         level.playSound(null, dest, SoundEvents.BEACON_POWER_SELECT, SoundSource.PLAYERS, 1f, 1.6f);

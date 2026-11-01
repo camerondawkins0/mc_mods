@@ -8,7 +8,7 @@ import com.slfrontier.registry.ModEffects;
 import com.slfrontier.registry.ModEntities;
 import com.slfrontier.registry.ModItems;
 import com.slfrontier.registry.ModArmorMaterials;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -33,7 +33,6 @@ public class SLFrontier {
         container.registerConfig(ModConfig.Type.SERVER, SlfConfig.SERVER_SPEC);
         ModBlocks.BLOCKS.register(modBus);
         ModItems.ITEMS.register(modBus);
-        ModArmorMaterials.ARMOR_MATERIALS.register(modBus);
         ModEntities.ENTITIES.register(modBus);
         ModEffects.EFFECTS.register(modBus);
         ModAttachments.ATTACHMENTS.register(modBus);
@@ -51,7 +50,7 @@ public class SLFrontier {
         LOGGER.info("Connecting to Shangri-La Frontier...");
     }
 
-    public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MODID, path);
+    public static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(MODID, path);
     }
 }

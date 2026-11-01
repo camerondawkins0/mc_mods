@@ -74,7 +74,7 @@ public class CraftingStationBlock extends HorizontalDirectionalBlock {
         if (player instanceof ServerPlayer sp) {
             FrontierCrafting.openAt(sp, station, pos);
         }
-        return InteractionResult.sidedSuccess(level.isClientSide);
+        return InteractionResult.SUCCESS;
     }
 
     @Override

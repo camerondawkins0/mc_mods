@@ -23,49 +23,49 @@ public final class ModBlocks {
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(SLFrontier.MODID);
 
     /** The ore the Secondil weapon shop asked Sunraku to bring from the Diremarsh Waste. */
-    public static final DeferredBlock<Block> GRAY_ORE = BLOCKS.register("gray_ore",
-            () -> new DropExperienceBlock(UniformInt.of(1, 3),
-                    BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_ORE).mapColor(MapColor.COLOR_GRAY)));
+    public static final DeferredBlock<Block> GRAY_ORE = BLOCKS.registerBlock("gray_ore",
+            p -> new DropExperienceBlock(UniformInt.of(1, 3), p),
+            () -> BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_ORE).mapColor(MapColor.COLOR_GRAY));
 
     /** Red spider lilies bloom in the Hidden Garden where Setsuna waits. */
-    public static final DeferredBlock<Block> RED_SPIDER_LILY = BLOCKS.register("red_spider_lily",
-            () -> new FlowerBlock(MobEffects.WITHER, 4f,
-                    BlockBehaviour.Properties.ofFullCopy(Blocks.POPPY).mapColor(MapColor.COLOR_RED)));
+    public static final DeferredBlock<Block> RED_SPIDER_LILY = BLOCKS.registerBlock("red_spider_lily",
+            p -> new FlowerBlock(MobEffects.WITHER, 4f, p),
+            () -> BlockBehaviour.Properties.ofFullCopy(Blocks.POPPY).mapColor(MapColor.COLOR_RED));
 
-    public static final DeferredBlock<Block> PRISMATIC_CRYSTAL = BLOCKS.register("prismatic_crystal",
-            () -> new TransparentBlock(BlockBehaviour.Properties.of()
+    public static final DeferredBlock<Block> PRISMATIC_CRYSTAL = BLOCKS.registerBlock("prismatic_crystal",
+            TransparentBlock::new, () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_LIGHT_BLUE)
                     .strength(1.5f)
                     .sound(SoundType.AMETHYST)
                     .lightLevel(s -> 10)
                     .noOcclusion()
-                    .requiresCorrectToolForDrops()));
+                    .requiresCorrectToolForDrops());
 
-    public static final DeferredBlock<Block> PRISMATIC_CLUSTER = BLOCKS.register("prismatic_cluster",
-            () -> new AmethystClusterBlock(7f, 3f, BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_CLUSTER)
+    public static final DeferredBlock<Block> PRISMATIC_CLUSTER = BLOCKS.registerBlock("prismatic_cluster",
+            p -> new AmethystClusterBlock(7f, 3f, p), () -> BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_CLUSTER)
                     .mapColor(MapColor.COLOR_LIGHT_BLUE)
                     .lightLevel(s -> 7)
-                    .pushReaction(PushReaction.DESTROY)));
+                    .pushReaction(PushReaction.DESTROY));
 
-    public static final DeferredBlock<Block> NIGHTSLAYER_ALTAR = BLOCKS.register("nightslayer_altar",
-            () -> new NightslayerAltarBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.REINFORCED_DEEPSLATE)
+    public static final DeferredBlock<Block> NIGHTSLAYER_ALTAR = BLOCKS.registerBlock("nightslayer_altar",
+            NightslayerAltarBlock::new, () -> BlockBehaviour.Properties.ofFullCopy(Blocks.REINFORCED_DEEPSLATE)
                     .mapColor(MapColor.COLOR_BLACK)
-                    .lightLevel(s -> 4)));
+                    .lightLevel(s -> 4));
 
-    public static final DeferredBlock<Block> SHADOW_ALTAR = BLOCKS.register("shadow_altar",
-            () -> new ShadowAltarBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.REINFORCED_DEEPSLATE)
+    public static final DeferredBlock<Block> SHADOW_ALTAR = BLOCKS.registerBlock("shadow_altar",
+            ShadowAltarBlock::new, () -> BlockBehaviour.Properties.ofFullCopy(Blocks.REINFORCED_DEEPSLATE)
                     .mapColor(MapColor.COLOR_PURPLE)
-                    .lightLevel(s -> 3)));
+                    .lightLevel(s -> 3));
 
     /** Waypoint Crystal: attune to it for fast travel and respawning. Unbreakable in survival. */
-    public static final DeferredBlock<Block> WAYPOINT_CRYSTAL = BLOCKS.register("waypoint_crystal",
-            () -> new WaypointBlock(BlockBehaviour.Properties.of()
+    public static final DeferredBlock<Block> WAYPOINT_CRYSTAL = BLOCKS.registerBlock("waypoint_crystal",
+            WaypointBlock::new, () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.DIAMOND)
                     .strength(-1f, 3600000f)
                     .sound(SoundType.AMETHYST)
                     .lightLevel(s -> 12)
                     .noOcclusion()
-                    .pushReaction(PushReaction.BLOCK)));
+                    .pushReaction(PushReaction.BLOCK));
 
     private ModBlocks() {
     }

@@ -29,14 +29,14 @@ public final class CraftingRegistry {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(SLFrontier.MODID);
 
     // ---- Stations -----------------------------------------------------------------
-    public static final DeferredBlock<CraftingStationBlock> FRONTIER_FORGE = BLOCKS.register("frontier_forge",
-            () -> new CraftingStationBlock(Station.FORGE, BlockBehaviour.Properties.ofFullCopy(Blocks.STONE_BRICKS)
-                    .mapColor(MapColor.COLOR_GRAY).strength(3.5f).lightLevel(s -> 12).requiresCorrectToolForDrops()));
-    public static final DeferredBlock<CraftingStationBlock> ALCHEMY_TABLE = BLOCKS.register("alchemy_table",
-            () -> new CraftingStationBlock(Station.ALCHEMY, BlockBehaviour.Properties.ofFullCopy(Blocks.CRAFTING_TABLE)
-                    .mapColor(MapColor.WOOD).strength(2.5f).sound(SoundType.WOOD).lightLevel(s -> 6).noOcclusion()));
-    public static final DeferredBlock<CraftingStationBlock> FRONTIER_WORKBENCH = BLOCKS.register("frontier_workbench",
-            () -> new CraftingStationBlock(Station.WORKBENCH, BlockBehaviour.Properties.ofFullCopy(Blocks.CRAFTING_TABLE)));
+    public static final DeferredBlock<CraftingStationBlock> FRONTIER_FORGE = BLOCKS.registerBlock("frontier_forge",
+            p -> new CraftingStationBlock(Station.FORGE, p), () -> BlockBehaviour.Properties.ofFullCopy(Blocks.STONE_BRICKS)
+                    .mapColor(MapColor.COLOR_GRAY).strength(3.5f).lightLevel(s -> 12).requiresCorrectToolForDrops());
+    public static final DeferredBlock<CraftingStationBlock> ALCHEMY_TABLE = BLOCKS.registerBlock("alchemy_table",
+            p -> new CraftingStationBlock(Station.ALCHEMY, p), () -> BlockBehaviour.Properties.ofFullCopy(Blocks.CRAFTING_TABLE)
+                    .mapColor(MapColor.WOOD).strength(2.5f).sound(SoundType.WOOD).lightLevel(s -> 6).noOcclusion());
+    public static final DeferredBlock<CraftingStationBlock> FRONTIER_WORKBENCH = BLOCKS.registerBlock("frontier_workbench",
+            p -> new CraftingStationBlock(Station.WORKBENCH, p), () -> BlockBehaviour.Properties.ofFullCopy(Blocks.CRAFTING_TABLE));
 
     public static final DeferredItem<BlockItem> FRONTIER_FORGE_ITEM = ITEMS.registerSimpleBlockItem(FRONTIER_FORGE);
     public static final DeferredItem<BlockItem> ALCHEMY_TABLE_ITEM = ITEMS.registerSimpleBlockItem(ALCHEMY_TABLE);
@@ -47,8 +47,8 @@ public final class CraftingRegistry {
     public static final DeferredItem<Item> FRONTIER_HERB = material("frontier_herb");
     public static final DeferredItem<Item> GRAY_STEEL_INGOT = material("gray_steel_ingot");
     public static final DeferredItem<Item> LEATHER_GRIP = material("leather_grip");
-    public static final DeferredItem<Item> WHETSTONE = ITEMS.register("whetstone",
-            () -> new WhetstoneItem(new Item.Properties().stacksTo(16)));
+    public static final DeferredItem<Item> WHETSTONE = ITEMS.registerItem("whetstone",
+            WhetstoneItem::new, p -> p.stacksTo(16));
 
     // ---- Consumables --------------------------------------------------------------
     public static final DeferredItem<Item> HEALING_POTION = consumable("healing_potion", 16, Rarity.COMMON,
@@ -58,29 +58,28 @@ public final class CraftingRegistry {
     public static final DeferredItem<Item> STAMINA_DRAUGHT = consumable("stamina_draught", 16, Rarity.COMMON,
             FrontierConsumableItem.drink().fullStamina());
     public static final DeferredItem<Item> VIGOR_ELIXIR = consumable("vigor_elixir", 16, Rarity.UNCOMMON,
-            FrontierConsumableItem.drink().fullStamina().effect(MobEffects.MOVEMENT_SPEED, 20 * 60, 0));
+            FrontierConsumableItem.drink().fullStamina().effect(MobEffects.SPEED, 20 * 60, 0));
     public static final DeferredItem<Item> ANTIDOTE = consumable("antidote", 16, Rarity.COMMON,
             FrontierConsumableItem.drink().cures(MobEffects.POISON).cures(MobEffects.HUNGER));
     public static final DeferredItem<Item> NIGHTSIGHT_TONIC = consumable("nightsight_tonic", 16, Rarity.COMMON,
             FrontierConsumableItem.drink().effect(MobEffects.NIGHT_VISION, 20 * 240, 0));
     public static final DeferredItem<Item> IRONHIDE_TONIC = consumable("ironhide_tonic", 16, Rarity.UNCOMMON,
-            FrontierConsumableItem.drink().effect(MobEffects.DAMAGE_RESISTANCE, 20 * 90, 0));
+            FrontierConsumableItem.drink().effect(MobEffects.RESISTANCE, 20 * 90, 0));
     public static final DeferredItem<Item> BANDAGE = consumable("bandage", 32, Rarity.COMMON,
             FrontierConsumableItem.apply(20).effect(MobEffects.REGENERATION, 20 * 6, 1).sound(SoundEvents.ARMOR_EQUIP_LEATHER.value()));
-    public static final DeferredItem<Item> TRAIL_RATION = ITEMS.register("trail_ration",
-            () -> new FrontierConsumableItem(new Item.Properties().stacksTo(16)
-                    .food(new FoodProperties.Builder().nutrition(7).saturationModifier(0.7f).build()),
-                    FrontierConsumableItem.apply(32).stamina(30)));
+    public static final DeferredItem<Item> TRAIL_RATION = ITEMS.registerItem("trail_ration",
+            p -> new FrontierConsumableItem(p, FrontierConsumableItem.apply(32).stamina(30)),
+            p -> p.stacksTo(16).food(new FoodProperties.Builder().nutrition(7).saturationModifier(0.7f).build()));
 
     private CraftingRegistry() {
     }
 
     private static DeferredItem<Item> material(String name) {
-        return ITEMS.register(name, () -> new TooltipItem(new Item.Properties()));
+        return ITEMS.registerItem(name, TooltipItem::new);
     }
 
     private static DeferredItem<Item> consumable(String name, int stack, Rarity rarity, FrontierConsumableItem.Spec spec) {
-        return ITEMS.register(name, () -> new FrontierConsumableItem(new Item.Properties().stacksTo(stack).rarity(rarity), spec));
+        return ITEMS.registerItem(name, p -> new FrontierConsumableItem(p, spec), p -> p.stacksTo(stack).rarity(rarity));
     }
 
     /** Lists every crafting item in the mod's creative tab, just before the spawn eggs. */

@@ -2,7 +2,7 @@ package com.slfrontier.inventory;
 
 import com.mojang.datafixers.util.Pair;
 import com.slfrontier.registry.ModMenus;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -21,7 +21,7 @@ public class FrontierInventoryMenu extends AbstractContainerMenu {
     // Menu slot ranges.
     public static final int ARMOR_START = 0, OFFHAND = 4, BAG_START = 5, HOTBAR_START = 32, END = 41;
     public static final EquipmentSlot[] ARMOR = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
-    private static final ResourceLocation[] ARMOR_ICONS = {InventoryMenu.EMPTY_ARMOR_SLOT_HELMET,
+    private static final Identifier[] ARMOR_ICONS = {InventoryMenu.EMPTY_ARMOR_SLOT_HELMET,
             InventoryMenu.EMPTY_ARMOR_SLOT_CHESTPLATE, InventoryMenu.EMPTY_ARMOR_SLOT_LEGGINGS, InventoryMenu.EMPTY_ARMOR_SLOT_BOOTS};
 
     // Window layout, relative to the window's top-left corner. Slot coordinates are the item's top-left.
@@ -105,9 +105,9 @@ public class FrontierInventoryMenu extends AbstractContainerMenu {
     private static final class GearSlot extends Slot {
         private final Player owner;
         private final EquipmentSlot equipment;
-        private final ResourceLocation emptyIcon;
+        private final Identifier emptyIcon;
 
-        GearSlot(Inventory inventory, Player owner, EquipmentSlot equipment, int index, int x, int y, ResourceLocation emptyIcon) {
+        GearSlot(Inventory inventory, Player owner, EquipmentSlot equipment, int index, int x, int y, Identifier emptyIcon) {
             super(inventory, index, x, y);
             this.owner = owner;
             this.equipment = equipment;
@@ -145,8 +145,8 @@ public class FrontierInventoryMenu extends AbstractContainerMenu {
         }
 
         @Override
-        public Pair<ResourceLocation, ResourceLocation> getNoItemIcon() {
-            return Pair.of(InventoryMenu.BLOCK_ATLAS, emptyIcon);
+        public Identifier getNoItemIcon() {
+            return emptyIcon;
         }
     }
 

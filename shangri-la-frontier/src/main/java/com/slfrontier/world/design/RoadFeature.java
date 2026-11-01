@@ -29,7 +29,7 @@ public class RoadFeature extends Feature<NoneFeatureConfiguration> {
     public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> ctx) {
         WorldGenLevel level = ctx.level();
         RandomSource random = ctx.random();
-        ChunkPos chunk = new ChunkPos(ctx.origin());
+        ChunkPos chunk = ChunkPos.containing(ctx.origin());
         FrontierDesign design = FrontierDesign.get();
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         boolean placed = false;
@@ -107,7 +107,7 @@ public class RoadFeature extends Feature<NoneFeatureConfiguration> {
             if (Math.floorMod(x * 31 + z * 17, 5) == 0) {
                 // A post down to the riverbed.
                 BlockState post = (main ? Blocks.SPRUCE_LOG : Blocks.OAK_LOG).defaultBlockState();
-                for (int y = DECK_Y - 1; y > level.getMinBuildHeight(); y--) {
+                for (int y = DECK_Y - 1; y > level.getMinY(); y--) {
                     BlockState here = level.getBlockState(p.set(x, y, z));
                     if (here.isSolid() && here.getFluidState().isEmpty()) break;
                     level.setBlock(p, post, 2);

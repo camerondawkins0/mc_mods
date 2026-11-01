@@ -9,7 +9,10 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.util.Mth;
-import net.neoforged.neoforge.common.util.INBTSerializable;
+import com.mojang.serialization.MapCodec;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.neoforge.common.util.ValueIOSerializable;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumMap;
@@ -25,7 +28,7 @@ import java.util.Set;
  * skills, story progress and where to send them when they log out.
  * Stored as a NeoForge data attachment and mirrored to the client.
  */
-public class PlayerData implements INBTSerializable<CompoundTag> {
+public class PlayerData implements ValueIOSerializable {
     public static final int MAX_LEVEL = 99;
     public static final int SKILL_SLOTS = 4;
     public static final float BASE_STAMINA = 100f;
@@ -466,70 +469,71 @@ public class PlayerData implements INBTSerializable<CompoundTag> {
     }
 
     public void load(CompoundTag tag) {
-        level = Mth.clamp(tag.getInt("level"), 1, MAX_LEVEL);
-        exp = tag.getInt("exp");
-        statPoints = tag.getInt("statPoints");
-        int[] saved = tag.getIntArray("stats");
+        level = Mth.clamp(tag.getIntOr("level", 0), 1, MAX_LEVEL);
+        exp = tag.getIntOr("exp", 0);
+        statPoints = tag.getIntOr("statPoints", 0);
+        int[] saved = tag.getIntArray("stats").orElse(new int[0]);
         for (int i = 0; i < stats.length; i++) stats[i] = i < saved.length ? saved[i] : 0;
-        stamina = tag.getFloat("stamina");
+        stamina = tag.getFloatOr("stamina", 0f);
         unlocked.clear();
-        for (Tag t : tag.getList("skills", Tag.TAG_STRING)) {
-            Skill s = Skill.byId(t.getAsString());
+        for (Tag t : tag.getListOrEmpty("skills")) {
+            Skill s = Skill.byId(t.asString().orElse(""));
             if (s != null) unlocked.add(s);
         }
         if (unlocked.isEmpty()) unlocked.add(Skill.TAP_STEP);
-        ListTag slots = tag.getList("equipped", Tag.TAG_STRING);
+        ListTag slots = tag.getListOrEmpty("equipped");
         for (int i = 0; i < SKILL_SLOTS; i++) {
-            equipped[i] = i < slots.size() ? Skill.byId(slots.getString(i)) : null;
+            equipped[i] = i < slots.size() ? Skill.byId(slots.getStringOr(i, "")) : null;
         }
         cooldowns.clear();
-        CompoundTag cds = tag.getCompound("cooldowns");
-        for (String key : cds.getAllKeys()) {
+        CompoundTag cds = tag.getCompoundOrEmpty("cooldowns");
+        for (String key : cds.keySet()) {
             Skill s = Skill.byId(key);
-            if (s != null) cooldowns.put(s, cds.getInt(key));
+            if (s != null) cooldowns.put(s, cds.getIntOr(key, 0));
         }
         uses.clear();
-        CompoundTag useTag = tag.getCompound("uses");
-        for (String key : useTag.getAllKeys()) {
+        CompoundTag useTag = tag.getCompoundOrEmpty("uses");
+        for (String key : useTag.keySet()) {
             Skill s = Skill.byId(key);
-            if (s != null) uses.put(s, useTag.getInt(key));
+            if (s != null) uses.put(s, useTag.getIntOr(key, 0));
         }
-        QuestStage named = tag.contains("stageName") ? QuestStage.byName(tag.getString("stageName")) : null;
-        stage = named != null ? named : QuestStage.fromLegacyOrdinal(tag.getInt("stage"));
-        questProgress = tag.getInt("questProgress");
-        questStep = tag.getInt("questStep");
+        QuestStage named = tag.contains("stageName") ? QuestStage.byName(tag.getStringOr("stageName", "")) : null;
+        stage = named != null ? named : QuestStage.fromLegacyOrdinal(tag.getIntOr("stage", 0));
+        questProgress = tag.getIntOr("questProgress", 0);
+        questStep = tag.getIntOr("questStep", 0);
         sideProgress.clear();
-        CompoundTag side = tag.getCompound("sideProgress");
-        for (String key : side.getAllKeys()) {
-            if (SideQuest.byId(key) != null) sideProgress.put(key, side.getInt(key));
+        CompoundTag side = tag.getCompoundOrEmpty("sideProgress");
+        for (String key : side.keySet()) {
+            if (SideQuest.byId(key) != null) sideProgress.put(key, side.getIntOr(key, 0));
         }
         sideDone.clear();
-        for (Tag t : tag.getList("sideDone", Tag.TAG_STRING)) sideDone.add(t.getAsString());
-        tracked = tag.getString("tracked");
+        for (Tag t : tag.getListOrEmpty("sideDone")) sideDone.add(t.asString().orElse(""));
+        tracked = tag.getStringOr("tracked", "");
         waypoints.clear();
-        for (Tag t : tag.getList("waypoints", Tag.TAG_STRING)) waypoints.add(t.getAsString());
-        respawnWaypoint = tag.getString("respawnWaypoint");
-        fastTravelReadyAt = tag.getLong("fastTravelReadyAt");
+        for (Tag t : tag.getListOrEmpty("waypoints")) waypoints.add(t.asString().orElse(""));
+        respawnWaypoint = tag.getStringOr("respawnWaypoint", "");
+        fastTravelReadyAt = tag.getLongOr("fastTravelReadyAt", 0L);
         flags.clear();
-        for (Tag t : tag.getList("flags", Tag.TAG_STRING)) flags.add(t.getAsString());
-        cursed = tag.getBoolean("cursed");
-        hasReturn = tag.getBoolean("hasReturn");
-        returnDim = tag.getString("returnDim");
-        returnX = tag.getDouble("returnX");
-        returnY = tag.getDouble("returnY");
-        returnZ = tag.getDouble("returnZ");
-        hasFrontierPos = tag.getBoolean("hasFrontierPos");
-        frontierPos = tag.getLong("frontierPos");
+        for (Tag t : tag.getListOrEmpty("flags")) flags.add(t.asString().orElse(""));
+        cursed = tag.getBooleanOr("cursed", false);
+        hasReturn = tag.getBooleanOr("hasReturn", false);
+        returnDim = tag.getStringOr("returnDim", "");
+        returnX = tag.getDoubleOr("returnX", 0d);
+        returnY = tag.getDoubleOr("returnY", 0d);
+        returnZ = tag.getDoubleOr("returnZ", 0d);
+        hasFrontierPos = tag.getBooleanOr("hasFrontierPos", false);
+        frontierPos = tag.getLongOr("frontierPos", 0L);
+    }
+
+    /** Saved with the player in the same flat layout as before, so older saves keep loading. */
+    @Override
+    public void serialize(ValueOutput output) {
+        output.store(save());
     }
 
     @Override
-    public CompoundTag serializeNBT(HolderLookup.Provider provider) {
-        return save();
-    }
-
-    @Override
-    public void deserializeNBT(HolderLookup.Provider provider, CompoundTag nbt) {
-        load(nbt);
+    public void deserialize(ValueInput input) {
+        load(input.read(MapCodec.assumeMapUnsafe(CompoundTag.CODEC)).orElseGet(CompoundTag::new));
     }
 
     /** Cheap change detector so the server only syncs when something moved. */

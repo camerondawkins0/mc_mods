@@ -30,7 +30,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -340,7 +340,7 @@ public final class Story {
                         give(p, new ItemStack(ModItems.HOLY_WATER.get(), 4));
                         advance(p, QuestStage.TOMBGUARD);
                         ModNetwork.announce(p, "announce.slfrontier.unique_scenario_ex", "announce.slfrontier.tombguard", 0x8FD8FF);
-                        p.getServer().getPlayerList().broadcastSystemMessage(Component.translatable(
+                        p.level().getServer().getPlayerList().broadcastSystemMessage(Component.translatable(
                                 "message.slfrontier.scenario_ex_started", p.getDisplayName()).withStyle(ChatFormatting.AQUA), false);
                         summonWezaemon(p, setsuna);
                     })
@@ -359,17 +359,17 @@ public final class Story {
     }
 
     private static void summonWezaemon(ServerPlayer player, FrontierNpc setsuna) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
         if (!level.getEntitiesOfClass(WezaemonEntity.class, setsuna.getBoundingBox().inflate(48)).isEmpty()) return;
-        WezaemonEntity wez = ModEntities.WEZAEMON.get().create(level);
+        WezaemonEntity wez = ModEntities.WEZAEMON.get().create(level, EntitySpawnReason.EVENT);
         if (wez == null) return;
         BlockPos pos = setsuna.blockPosition();
         double angle = Math.atan2(player.getZ() - setsuna.getZ(), player.getX() - setsuna.getX());
         double x = setsuna.getX() + Math.cos(angle) * 7;
         double z = setsuna.getZ() + Math.sin(angle) * 7;
         int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) x, (int) z);
-        wez.moveTo(x, Math.max(y, pos.getY()), z, 0, 0);
-        wez.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), MobSpawnType.EVENT, null);
+        wez.snapTo(x, Math.max(y, pos.getY()), z, 0, 0);
+        wez.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), EntitySpawnReason.EVENT, null);
         wez.setTarget(player);
         level.addFreshEntity(wez);
         level.sendParticles(ParticleTypes.SOUL, wez.getX(), wez.getY() + 1.5, wez.getZ(), 80, 0.8, 1.5, 0.8, 0.02);
@@ -379,14 +379,14 @@ public final class Story {
 
     /** Pencilgon and Oikatzo log in next to the player to fight the Tombguard together. */
     private static void callAllies(ServerPlayer player) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
         int i = 0;
         for (var type : List.of(ModEntities.PENCILGON, ModEntities.OIKATZO)) {
             if (!level.getEntitiesOfClass(AllyNpc.class, player.getBoundingBox().inflate(48), e -> e.getType() == type.get()).isEmpty()) continue;
-            AllyNpc ally = type.get().create(level);
+            AllyNpc ally = type.get().create(level, EntitySpawnReason.EVENT);
             if (ally == null) continue;
             double a = player.getYRot() * Math.PI / 180 + (i++ == 0 ? 2.2 : -2.2);
-            ally.moveTo(player.getX() - Math.sin(a) * 2.5, player.getY(), player.getZ() + Math.cos(a) * 2.5, player.getYRot(), 0);
+            ally.snapTo(player.getX() - Math.sin(a) * 2.5, player.getY(), player.getZ() + Math.cos(a) * 2.5, player.getYRot(), 0);
             ally.addTag(ALLY_TAG);
             level.addFreshEntity(ally);
             level.sendParticles(ParticleTypes.END_ROD, ally.getX(), ally.getY() + 1, ally.getZ(), 30, 0.3, 0.8, 0.3, 0.05);
@@ -396,7 +396,7 @@ public final class Story {
 
     /** Summoned allies log out once the fight is over. */
     private static void dismissAllies(ServerLevel level, Entity around) {
-        for (AllyNpc ally : level.getEntitiesOfClass(AllyNpc.class, around.getBoundingBox().inflate(64), e -> e.getTags().contains(ALLY_TAG))) {
+        for (AllyNpc ally : level.getEntitiesOfClass(AllyNpc.class, around.getBoundingBox().inflate(64), e -> e.entityTags().contains(ALLY_TAG))) {
             level.sendParticles(ParticleTypes.END_ROD, ally.getX(), ally.getY() + 1, ally.getZ(), 30, 0.3, 0.8, 0.3, 0.05);
             ally.discard();
         }
@@ -442,15 +442,15 @@ public final class Story {
             SideQuest q = SideQuest.byId(id);
             if (q != null && q.objective == SideQuest.Objective.KILL && q.target.equals(typeId) && data.sideProgress(q) < q.goal) {
                 data.setSideProgress(q, data.sideProgress(q) + 1);
-                player.displayClientMessage(Component.translatable("message.slfrontier.side_progress",
-                        Component.translatable(q.titleKey()), data.sideProgress(q), q.goal).withStyle(ChatFormatting.AQUA), true);
+                player.sendOverlayMessage(Component.translatable("message.slfrontier.side_progress",
+                        Component.translatable(q.titleKey()), data.sideProgress(q), q.goal).withStyle(ChatFormatting.AQUA));
                 if (data.sideProgress(q) >= q.goal) sideReady(player, q);
             }
         }
         if (data.stage() == QuestStage.GOBLIN_HUNT && killed instanceof GoblinEntity && data.questProgress() < QuestStage.GOBLIN_HUNT.goal) {
             data.setQuestProgress(data.questProgress() + 1);
-            player.displayClientMessage(Component.translatable("message.slfrontier.goblins", data.questProgress(), QuestStage.GOBLIN_HUNT.goal)
-                    .withStyle(ChatFormatting.GREEN), true);
+            player.sendOverlayMessage(Component.translatable("message.slfrontier.goblins", data.questProgress(), QuestStage.GOBLIN_HUNT.goal)
+                    .withStyle(ChatFormatting.GREEN));
             if (data.questProgress() >= QuestStage.GOBLIN_HUNT.goal) {
                 player.sendSystemMessage(Component.translatable("message.slfrontier.goblins_done").withStyle(ChatFormatting.GREEN));
             }
@@ -470,10 +470,10 @@ public final class Story {
 
     /** Emul hops over to invite the marked player to Rabituza. */
     private static void spawnInvitingEmul(ServerPlayer player) {
-        ServerLevel level = player.serverLevel();
-        EmulEntity emul = ModEntities.EMUL.get().create(level);
+        ServerLevel level = player.level();
+        EmulEntity emul = ModEntities.EMUL.get().create(level, EntitySpawnReason.EVENT);
         if (emul != null) {
-            emul.moveTo(player.getX() + 2, player.getY(), player.getZ() + 2, player.getYRot() + 180, 0);
+            emul.snapTo(player.getX() + 2, player.getY(), player.getZ() + 2, player.getYRot() + 180, 0);
             level.addFreshEntity(emul);
             level.sendParticles(ParticleTypes.CHERRY_LEAVES, emul.getX(), emul.getY() + 0.5, emul.getZ(), 20, 0.4, 0.4, 0.4, 0);
         }
@@ -574,9 +574,9 @@ public final class Story {
         PlayerData data = ModAttachments.get(player);
         markVisits(player, data);
         updateStep(player, data);
-        goblinCamp(player.serverLevel(), player);
+        goblinCamp(player.level(), player);
         if (data.stage() == QuestStage.RAVENOUS_SNAKE) {
-            ServerLevel level = player.serverLevel();
+            ServerLevel level = player.level();
             BlockPos bridge = Landmarks.built(level, Landmarks.Site.SERPENT_BRIDGE);
             long now = level.getGameTime();
             // One serpent at a time, and never more often than every half minute, wherever it wandered off to.
@@ -600,13 +600,13 @@ public final class Story {
 
     /** The serpent rises out of the river under the bridge. */
     private static void spawnRavenousSnake(ServerLevel level, ServerPlayer player, BlockPos bridge) {
-        RavenousSnakeEntity snake = ModEntities.RAVENOUS_SNAKE.get().create(level);
+        RavenousSnakeEntity snake = ModEntities.RAVENOUS_SNAKE.get().create(level, EntitySpawnReason.EVENT);
         if (snake == null) return;
         BlockPos arena = Landmarks.marker(level, Landmarks.Site.SERPENT_BRIDGE, "arena");
         BlockPos at = arena != null ? arena : bridge;
         level.getChunkAt(at);
-        snake.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
-        snake.finalizeSpawn(level, level.getCurrentDifficultyAt(at), MobSpawnType.EVENT, null);
+        snake.snapTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
+        snake.finalizeSpawn(level, level.getCurrentDifficultyAt(at), EntitySpawnReason.EVENT, null);
         snake.setTarget(player);
         snake.setHome(at);
         if (level.addFreshEntity(snake)) lastSnake = new java.lang.ref.WeakReference<>(snake);
@@ -716,9 +716,9 @@ public final class Story {
 
     @Nullable
     private static Item itemById(String id) {
-        net.minecraft.resources.ResourceLocation rl = net.minecraft.resources.ResourceLocation.tryParse(id);
+        net.minecraft.resources.Identifier rl = net.minecraft.resources.Identifier.tryParse(id);
         if (rl == null) return null;
-        Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(rl);
+        Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(rl);
         return item == Items.AIR ? null : item;
     }
 
@@ -749,7 +749,7 @@ public final class Story {
         PlayerData data = ModAttachments.get(player);
         List<QuestSteps.Step> steps = QuestSteps.of(data.stage());
         if (steps.isEmpty()) return null;
-        return stepTarget(player.serverLevel(), steps.get(Math.min(data.questStep(), steps.size() - 1)).id());
+        return stepTarget(player.level(), steps.get(Math.min(data.questStep(), steps.size() - 1)).id());
     }
 
     /** The Diremarsh's gray-ore fields and the way into the Northern Peaks, on the designed map. */
@@ -851,15 +851,15 @@ public final class Story {
         campReadyAt = now + 20 * 12;
         var box = new net.minecraft.world.phys.AABB(camp).inflate(40, 16, 40);
         if (level.getEntitiesOfClass(com.slfrontier.entity.mob.GoblinEntity.class, box).size() >= 4) return;
-        int count = 1 + level.random.nextInt(2);
+        int count = 1 + level.getRandom().nextInt(2);
         for (int i = 0; i < count; i++) {
-            int x = camp.getX() + level.random.nextInt(25) - 12, z = camp.getZ() + level.random.nextInt(25) - 12;
+            int x = camp.getX() + level.getRandom().nextInt(25) - 12, z = camp.getZ() + level.getRandom().nextInt(25) - 12;
             BlockPos at = new BlockPos(x, level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
             if (at.distSqr(player.blockPosition()) < 10 * 10) continue;
-            var goblin = ModEntities.GOBLIN.get().create(level);
+            var goblin = ModEntities.GOBLIN.get().create(level, EntitySpawnReason.EVENT);
             if (goblin == null) continue;
-            goblin.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, level.random.nextFloat() * 360f, 0);
-            goblin.finalizeSpawn(level, level.getCurrentDifficultyAt(at), MobSpawnType.EVENT, null);
+            goblin.snapTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, level.getRandom().nextFloat() * 360f, 0);
+            goblin.finalizeSpawn(level, level.getCurrentDifficultyAt(at), EntitySpawnReason.EVENT, null);
             level.addFreshEntity(goblin);
         }
     }

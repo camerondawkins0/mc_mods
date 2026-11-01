@@ -8,7 +8,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.LodestoneTracker;
@@ -23,23 +23,23 @@ public class FrontierCompassItem extends TooltipItem {
     }
 
     @Override
-    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+    public InteractionResult use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (player instanceof ServerPlayer serverPlayer) {
             Story.Target target = Story.compassTarget(serverPlayer);
             if (target == null) {
                 stack.remove(DataComponents.LODESTONE_TRACKER);
-                player.displayClientMessage(Component.translatable("message.slfrontier.compass.none").withStyle(ChatFormatting.GRAY), true);
+                player.sendOverlayMessage(Component.translatable("message.slfrontier.compass.none").withStyle(ChatFormatting.GRAY));
             } else {
                 BlockPos pos = target.pos();
                 stack.set(DataComponents.LODESTONE_TRACKER,
                         new LodestoneTracker(Optional.of(GlobalPos.of(level.dimension(), pos)), false));
                 int distance = (int) Math.sqrt(player.blockPosition().distSqr(pos));
-                player.displayClientMessage(Component.translatable("message.slfrontier.compass.target",
-                        Component.translatable(target.nameKey()), distance).withStyle(ChatFormatting.AQUA), true);
+                player.sendOverlayMessage(Component.translatable("message.slfrontier.compass.target",
+                        Component.translatable(target.nameKey()), distance).withStyle(ChatFormatting.AQUA));
             }
-            player.getCooldowns().addCooldown(this, 40);
+            player.getCooldowns().addCooldown(stack, 40);
         }
-        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
+        return InteractionResult.SUCCESS;
     }
 }

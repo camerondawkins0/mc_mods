@@ -2,13 +2,13 @@ package com.slfrontier.world;
 
 import com.slfrontier.SLFrontier;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
@@ -21,7 +21,8 @@ import java.util.Map;
  * ({@code PlayerData#waypoints}).
  */
 public class Waypoints extends SavedData {
-    private static final String NAME = "slfrontier_waypoints";
+    private static final SavedDataType<Waypoints> TYPE = new SavedDataType<>(SLFrontier.id("waypoints"), Waypoints::new,
+            CompoundTag.CODEC.xmap(Waypoints::load, Waypoints::save));
 
     public enum Kind { TOWN, CRYSTAL }
 
@@ -34,7 +35,7 @@ public class Waypoints extends SavedData {
 
     public static Waypoints get(ServerLevel anyLevel) {
         ServerLevel overworld = anyLevel.getServer().overworld();
-        return overworld.getDataStorage().computeIfAbsent(new SavedData.Factory<>(Waypoints::new, Waypoints::load, null), NAME);
+        return overworld.getDataStorage().computeIfAbsent(TYPE);
     }
 
     public static String crystalId(BlockPos pos) {
@@ -62,37 +63,37 @@ public class Waypoints extends SavedData {
         return all.values();
     }
 
-    private static Waypoints load(CompoundTag tag, HolderLookup.Provider provider) {
+    private static Waypoints load(CompoundTag tag) {
         Waypoints data = new Waypoints();
-        if (tag.getInt("Version") < VERSION) {
+        if (tag.getIntOr("Version", 0) < VERSION) {
             // Waypoints of the old Frontier point at places that no longer exist.
             data.setDirty();
             return data;
         }
-        for (Tag t : tag.getList("Waypoints", Tag.TAG_COMPOUND)) {
+        for (Tag t : tag.getListOrEmpty("Waypoints")) {
             CompoundTag c = (CompoundTag) t;
-            BlockPos pos = NbtUtils.readBlockPos(c, "Pos").orElse(null);
+            BlockPos pos = c.read("Pos", BlockPos.CODEC).orElse(null);
             if (pos == null) continue;
             Kind kind;
             try {
-                kind = Kind.valueOf(c.getString("Kind"));
+                kind = Kind.valueOf(c.getStringOr("Kind", ""));
             } catch (IllegalArgumentException e) {
                 kind = Kind.CRYSTAL;
             }
-            data.all.put(c.getString("Id"), new Waypoint(c.getString("Id"), c.getString("Name"), pos, kind));
+            data.all.put(c.getStringOr("Id", ""), new Waypoint(c.getStringOr("Id", ""), c.getStringOr("Name", ""), pos, kind));
         }
         SLFrontier.LOGGER.debug("Loaded {} waypoints", data.all.size());
         return data;
     }
 
-    @Override
-    public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
+    private CompoundTag save() {
+        CompoundTag tag = new CompoundTag();
         ListTag list = new ListTag();
         for (Waypoint wp : all.values()) {
             CompoundTag c = new CompoundTag();
             c.putString("Id", wp.id());
             c.putString("Name", wp.nameKey());
-            c.put("Pos", NbtUtils.writeBlockPos(wp.pos()));
+            c.store("Pos", BlockPos.CODEC, wp.pos());
             c.putString("Kind", wp.kind().name());
             list.add(c);
         }

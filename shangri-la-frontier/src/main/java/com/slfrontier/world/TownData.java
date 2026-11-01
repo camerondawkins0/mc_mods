@@ -1,11 +1,12 @@
 package com.slfrontier.world;
 
+import com.slfrontier.SLFrontier;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -17,7 +18,8 @@ import java.util.Map;
  * dropped when such a save is loaded ({@link #VERSION}).
  */
 public class TownData extends SavedData {
-    private static final String NAME = "slfrontier_towns";
+    private static final SavedDataType<TownData> TYPE = new SavedDataType<>(SLFrontier.id("towns"), TownData::new,
+            CompoundTag.CODEC.xmap(TownData::load, TownData::save));
     /** 1: the Frontier became a designed map in a new dimension. */
     private static final int VERSION = 1;
 
@@ -30,27 +32,27 @@ public class TownData extends SavedData {
 
     public static TownData get(ServerLevel anyLevel) {
         ServerLevel overworld = anyLevel.getServer().overworld();
-        return overworld.getDataStorage().computeIfAbsent(new SavedData.Factory<>(TownData::new, TownData::load, null), NAME);
+        return overworld.getDataStorage().computeIfAbsent(TYPE);
     }
 
-    private static TownData load(CompoundTag tag, HolderLookup.Provider provider) {
+    private static TownData load(CompoundTag tag) {
         TownData data = new TownData();
-        if (tag.getInt("Version") < VERSION) {
+        if (tag.getIntOr("Version", 0) < VERSION) {
             data.setDirty();
             return data;
         }
         // Worlds from before landmarks existed only stored the two towns.
-        NbtUtils.readBlockPos(tag, "Fastera").ifPresent(p -> data.built.put("fastera", p));
-        NbtUtils.readBlockPos(tag, "Rabituza").ifPresent(p -> data.built.put("rabituza", p));
-        readMap(tag.getCompound("Planned"), data.planned);
-        readMap(tag.getCompound("Built"), data.built);
-        readMap(tag.getCompound("Markers"), data.markers);
+        tag.read("Fastera", BlockPos.CODEC).ifPresent(p -> data.built.put("fastera", p));
+        tag.read("Rabituza", BlockPos.CODEC).ifPresent(p -> data.built.put("rabituza", p));
+        readMap(tag.getCompoundOrEmpty("Planned"), data.planned);
+        readMap(tag.getCompoundOrEmpty("Built"), data.built);
+        readMap(tag.getCompoundOrEmpty("Markers"), data.markers);
         return data;
     }
 
     private static void readMap(CompoundTag tag, Map<String, BlockPos> into) {
-        for (String key : tag.getAllKeys()) {
-            into.put(key, BlockPos.of(tag.getLong(key)));
+        for (String key : tag.keySet()) {
+            into.put(key, BlockPos.of(tag.getLongOr(key, 0L)));
         }
     }
 
@@ -60,8 +62,8 @@ public class TownData extends SavedData {
         return tag;
     }
 
-    @Override
-    public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
+    private CompoundTag save() {
+        CompoundTag tag = new CompoundTag();
         tag.putInt("Version", VERSION);
         tag.put("Planned", writeMap(planned));
         tag.put("Built", writeMap(built));

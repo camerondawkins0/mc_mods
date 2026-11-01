@@ -1,5 +1,7 @@
 package com.slfrontier.entity.boss;
 
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import com.slfrontier.entity.FrontierBoss;
 import com.slfrontier.fx.Fx;
 import com.slfrontier.quest.Story;
@@ -53,8 +55,8 @@ public class RavenousSnakeEntity extends FrontierBoss {
     }
 
     @Override
-    protected void customServerAiStep() {
-        super.customServerAiStep();
+    protected void customServerAiStep(ServerLevel level) {
+        super.customServerAiStep(level);
         if (home == null || tickCount % 20 != 0) return;
         if (level().getNearestPlayer(this, 80) == null) {
             // Nobody has come for half a minute: it sinks back into the river until someone returns.
@@ -87,15 +89,15 @@ public class RavenousSnakeEntity extends FrontierBoss {
     }
 
     @Override
-    public void addAdditionalSaveData(CompoundTag tag) {
+    public void addAdditionalSaveData(ValueOutput tag) {
         super.addAdditionalSaveData(tag);
-        if (home != null) tag.put("Home", NbtUtils.writeBlockPos(home));
+        if (home != null) tag.store("Home", BlockPos.CODEC, home);
     }
 
     @Override
-    public void readAdditionalSaveData(CompoundTag tag) {
+    public void readAdditionalSaveData(ValueInput tag) {
         super.readAdditionalSaveData(tag);
-        home = NbtUtils.readBlockPos(tag, "Home").orElse(null);
+        home = tag.read("Home", BlockPos.CODEC).orElse(null);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -168,7 +170,7 @@ public class RavenousSnakeEntity extends FrontierBoss {
                         cloud.setRadius(3f);
                         cloud.setDuration(100);
                         cloud.setRadiusPerTick(-0.01f);
-                        cloud.setParticle(ParticleTypes.WITCH);
+                        cloud.setCustomParticle(ParticleTypes.WITCH);
                         cloud.addEffect(new MobEffectInstance(MobEffects.POISON, 80, 1));
                         server.addFreshEntity(cloud);
                         Fx.ring(server, m, 3.2f, VENOM, 12, 0);

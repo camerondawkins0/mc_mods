@@ -1,5 +1,6 @@
 package com.slfrontier.entity.mob;
 
+import com.slfrontier.entity.WolfVoice;
 import com.slfrontier.entity.FrontierMonster;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -50,7 +51,7 @@ public class ShadowWolfEntity extends FrontierMonster {
             if (tickCount % 4 == 0) {
                 server.sendParticles(ParticleTypes.SMOKE, getX(), getY(0.5), getZ(), 1, 0.3, 0.3, 0.3, 0);
             }
-            if (server.isDay() && server.canSeeSky(blockPosition()) && tickCount % 20 == 0) {
+            if (server.isBrightOutside() && server.canSeeSky(blockPosition()) && tickCount % 20 == 0) {
                 server.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY(0.5), getZ(), 20, 0.4, 0.4, 0.4, 0.02);
                 discard();
             }
@@ -59,16 +60,16 @@ public class ShadowWolfEntity extends FrontierMonster {
 
     @Override
     protected SoundEvent getAmbientSound() {
-        return SoundEvents.WOLF_GROWL;
+        return WolfVoice.GROWL;
     }
 
     @Override
     protected SoundEvent getHurtSound(DamageSource source) {
-        return SoundEvents.WOLF_HURT;
+        return WolfVoice.HURT;
     }
 
     @Override
     protected SoundEvent getDeathSound() {
-        return SoundEvents.WOLF_DEATH;
+        return WolfVoice.DEATH;
     }
 }

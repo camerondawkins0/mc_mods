@@ -1,5 +1,6 @@
 package com.slfrontier.event;
 
+import com.slfrontier.entity.WolfVoice;
 import com.slfrontier.entity.Stun;
 
 import com.slfrontier.SLFrontier;
@@ -90,7 +91,7 @@ public final class CommonEvents {
         if (event.getEntity() instanceof ServerPlayer player) {
             Progression.applyStats(player);
             ModNetwork.sync(player);
-            if (Frontier.isIn(player) && player.serverLevel().getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL) {
+            if (Frontier.isIn(player) && player.level().getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL) {
                 player.sendSystemMessage(Component.translatable("message.slfrontier.peaceful").withStyle(ChatFormatting.GOLD));
             }
         }
@@ -108,14 +109,43 @@ public final class CommonEvents {
     @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.LOWEST)
     public static void keepInventory(LivingDeathEvent event) {
         if (event.isCanceled() || !(event.getEntity() instanceof ServerPlayer player) || !Frontier.isIn(player)) return;
-        if (player.level().getGameRules().getBoolean(net.minecraft.world.level.GameRules.RULE_KEEPINVENTORY)) return;
+        if (player.level().getGameRules().get(net.minecraft.world.level.gamerules.GameRules.KEEP_INVENTORY)) return;
         net.minecraft.nbt.CompoundTag kept = new net.minecraft.nbt.CompoundTag();
-        kept.put("Items", player.getInventory().save(new net.minecraft.nbt.ListTag()));
+        kept.put("Items", saveItems(player));
         kept.putInt("XpLevel", player.experienceLevel);
         kept.putFloat("XpProgress", player.experienceProgress);
         kept.putInt("XpTotal", player.totalExperience);
         player.getPersistentData().put(KEPT, kept);
         player.getInventory().clearContent();
+    }
+
+    /** Every non-empty inventory slot (bag, armor, off hand) as {Slot, Item} entries. */
+    private static net.minecraft.nbt.ListTag saveItems(ServerPlayer player) {
+        var ops = player.registryAccess().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE);
+        net.minecraft.nbt.ListTag list = new net.minecraft.nbt.ListTag();
+        var inventory = player.getInventory();
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack.isEmpty()) continue;
+            net.minecraft.nbt.CompoundTag entry = new net.minecraft.nbt.CompoundTag();
+            entry.putInt("Slot", slot);
+            entry.store("Item", ItemStack.CODEC, ops, stack);
+            list.add(entry);
+        }
+        return list;
+    }
+
+    private static void loadItems(Player player, net.minecraft.nbt.ListTag list) {
+        var ops = player.registryAccess().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE);
+        var inventory = player.getInventory();
+        inventory.clearContent();
+        for (int i = 0; i < list.size(); i++) {
+            net.minecraft.nbt.CompoundTag entry = list.getCompoundOrEmpty(i);
+            int slot = entry.getIntOr("Slot", -1);
+            if (slot >= 0 && slot < inventory.getContainerSize()) {
+                entry.read("Item", ItemStack.CODEC, ops).ifPresent(stack -> inventory.setItem(slot, stack));
+            }
+        }
     }
 
     @SubscribeEvent
@@ -126,14 +156,14 @@ public final class CommonEvents {
     @SubscribeEvent
     public static void restoreInventory(PlayerEvent.Clone event) {
         if (!event.isWasDeath()) return;
-        net.minecraft.nbt.CompoundTag kept = event.getOriginal().getPersistentData().getCompound(KEPT);
+        net.minecraft.nbt.CompoundTag kept = event.getOriginal().getPersistentData().getCompoundOrEmpty(KEPT);
         event.getEntity().getPersistentData().remove(KEPT);
         if (kept.isEmpty()) return;
         var player = event.getEntity();
-        player.getInventory().load(kept.getList("Items", net.minecraft.nbt.Tag.TAG_COMPOUND));
-        player.experienceLevel = kept.getInt("XpLevel");
-        player.experienceProgress = kept.getFloat("XpProgress");
-        player.totalExperience = kept.getInt("XpTotal");
+        loadItems(player, kept.getListOrEmpty("Items"));
+        player.experienceLevel = kept.getIntOr("XpLevel", 0);
+        player.experienceProgress = kept.getFloatOr("XpProgress", 0f);
+        player.totalExperience = kept.getIntOr("XpTotal", 0);
     }
 
     @SubscribeEvent
@@ -142,8 +172,8 @@ public final class CommonEvents {
         PlayerData data = ModAttachments.get(player);
         if (data.flag("died_in_frontier")) {
             data.setFlag("died_in_frontier", false);
-            Waypoints.Waypoint wp = data.respawnWaypoint().isEmpty() || player.getServer() == null ? null
-                    : Waypoints.get(player.getServer().overworld()).byId(data.respawnWaypoint());
+            Waypoints.Waypoint wp = data.respawnWaypoint().isEmpty() || player.level().getServer() == null ? null
+                    : Waypoints.get(player.level().getServer().overworld()).byId(data.respawnWaypoint());
             if (SlfConfig.RESPAWN_AT_WAYPOINT.get() && wp != null) {
                 // Like an MMO save point: wake up at the last waypoint you attuned to.
                 FrontierTravel.toWaypoint(player, wp);
@@ -200,8 +230,8 @@ public final class CommonEvents {
         }
         if (player.tickCount % 20 == 0) {
             Story.tickSideQuests(player);
-            if (inFrontier && player.tickCount % 200 == 0) FrontierTravel.registerTownWaypoints(player.serverLevel());
-            if (inFrontier && player.tickCount % 40 == 0) com.slfrontier.world.Landmarks.tick(player.serverLevel());
+            if (inFrontier && player.tickCount % 200 == 0) FrontierTravel.registerTownWaypoints(player.level());
+            if (inFrontier && player.tickCount % 40 == 0) com.slfrontier.world.Landmarks.tick(player.level());
             if (inFrontier) Story.tickPlayer(player);
             MapSync.tick(player);
         }
@@ -221,8 +251,8 @@ public final class CommonEvents {
             removed = true;
         }
         if (removed) {
-            player.displayClientMessage(Component.translatable("message.slfrontier.curse_armor").withStyle(ChatFormatting.DARK_RED), true);
-            player.level().playSound(null, player.blockPosition(), SoundEvents.WOLF_GROWL, SoundSource.PLAYERS, 0.8f, 0.5f);
+            player.sendOverlayMessage(Component.translatable("message.slfrontier.curse_armor").withStyle(ChatFormatting.DARK_RED));
+            player.level().playSound(null, player.blockPosition(), WolfVoice.GROWL, SoundSource.PLAYERS, 0.8f, 0.5f);
         }
     }
 
@@ -236,13 +266,13 @@ public final class CommonEvents {
 
     @SubscribeEvent
     public static void onEntityTick(net.neoforged.neoforge.event.tick.EntityTickEvent.Post event) {
-        if (event.getEntity() instanceof net.minecraft.world.entity.Mob mob && !mob.level().isClientSide) Stun.tick(mob);
+        if (event.getEntity() instanceof net.minecraft.world.entity.Mob mob && !mob.level().isClientSide()) Stun.tick(mob);
     }
 
     @SubscribeEvent
     public static void onAttack(AttackEntityEvent event) {
         Player player = event.getEntity();
-        if (player.level().isClientSide || !(event.getTarget() instanceof LivingEntity target)) return;
+        if (player.level().isClientSide() || !(event.getTarget() instanceof LivingEntity target)) return;
         if (player.getMainHandItem().getItem() instanceof TwinBladeItem && player.getOffhandItem().getItem() instanceof TwinBladeItem
                 && player.getAttackStrengthScale(0.5f) > 0.8f) {
             PlayerData data = ModAttachments.get(player);
@@ -266,14 +296,14 @@ public final class CommonEvents {
         data.comboStage = 0;
         data.finisherPending = true;
         data.offhandTargetId = -1;
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
         Fx.arc(player, 2.2f, 52, 150, 0xFFEAF4FF, 8);
         Fx.arc(player, 2.2f, -52, 150, 0xFF9FD0FF, 8);
         Fx.flash(level, target.position().add(0, target.getBbHeight() * 0.6, 0), 1.6f, 0xFFE8F4FF, 7, 0.6f);
         level.sendParticles(ParticleTypes.SWEEP_ATTACK, target.getX(), target.getY(0.6), target.getZ(), 2, 0.3, 0.2, 0.3, 0);
         level.playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 1f, 0.75f);
         level.playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.PLAYERS, 0.8f, 1.2f);
-        target.knockback(0.5, player.getX() - target.getX(), player.getZ() - target.getZ());
+        target.knockback(0.5, player.getX() - target.getX(), player.getZ() - target.getZ(), target.damageSources().generic(), 0f);
         ModNetwork.animate(player, PlayerAnims.CROSS_SLASH, 9);
     }
 
@@ -287,9 +317,9 @@ public final class CommonEvents {
         float damage = (float) (weaponDamage(off) * 0.6);
         player.swing(InteractionHand.OFF_HAND, true);
         target.invulnerableTime = 0;
-        target.hurt(player.damageSources().playerAttack(player), damage);
+        target.hurtOrSimulate(player.damageSources().playerAttack(player), damage);
         off.hurtAndBreak(1, player, EquipmentSlot.OFFHAND);
-        player.serverLevel().sendParticles(ParticleTypes.SWEEP_ATTACK, target.getX(), target.getY(0.6), target.getZ(), 1, 0, 0, 0, 0);
+        player.level().sendParticles(ParticleTypes.SWEEP_ATTACK, target.getX(), target.getY(0.6), target.getZ(), 1, 0, 0, 0, 0);
         Fx.arc(player, 1.6f, -40, 120, 0xFFD8E8FF, 6);
         player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_WEAK, SoundSource.PLAYERS, 0.8f, 1.4f);
         ModNetwork.animate(player, PlayerAnims.OFFHAND, 6);
@@ -342,7 +372,7 @@ public final class CommonEvents {
             boolean crit = player.getRandom().nextFloat() < Progression.critChance(player);
             if (crit) {
                 amount *= 1.5f;
-                player.serverLevel().sendParticles(ParticleTypes.CRIT, victim.getX(), victim.getY(0.6), victim.getZ(), 10, 0.3, 0.3, 0.3, 0.3);
+                player.level().sendParticles(ParticleTypes.CRIT, victim.getX(), victim.getY(0.6), victim.getZ(), 10, 0.3, 0.3, 0.3, 0.3);
             }
             HitFlags.mark(victim, crit, weak);
             PlayerData attackerData = ModAttachments.get(player);
@@ -359,11 +389,11 @@ public final class CommonEvents {
     }
 
     private static void onParry(ServerPlayer player, PlayerData data, Entity attacker) {
-        ServerLevel level = player.serverLevel();
-        level.playSound(null, player.blockPosition(), SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, 1f, 1.4f);
+        ServerLevel level = player.level();
+        level.playSound(null, player.blockPosition(), SoundEvents.SHIELD_BLOCK.value(), SoundSource.PLAYERS, 1f, 1.4f);
         level.playSound(null, player.blockPosition(), SoundEvents.ANVIL_PLACE, SoundSource.PLAYERS, 0.4f, 1.8f);
         level.sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY(1.0), player.getZ(), 16, 0.4, 0.4, 0.4, 0.3);
-        player.displayClientMessage(Component.translatable("message.slfrontier.parry").withStyle(ChatFormatting.AQUA), true);
+        player.sendOverlayMessage(Component.translatable("message.slfrontier.parry").withStyle(ChatFormatting.AQUA));
         data.parryTicks = Math.min(data.parryTicks, 4);
         Fx.flash(level, player.position().add(player.getLookAngle().scale(0.8)).add(0, 1.3, 0), 1.4f, 0xFFBFE8FF, 6, 0.8f);
         ModNetwork.animate(player, PlayerAnims.PARRY_HIT, 7);
@@ -375,7 +405,7 @@ public final class CommonEvents {
         if (attacker instanceof WezaemonEntity wezaemon) wezaemon.onParried(player);
         if (data.hasSkill(Skill.REPEL_COUNTER) && attacker instanceof LivingEntity living && living.distanceToSqr(player) < 6 * 6) {
             SkillExecutor.strike(player, living, SkillExecutor.attack(player) * 2f, false);
-            living.knockback(1.0, player.getX() - living.getX(), player.getZ() - living.getZ());
+            living.knockback(1.0, player.getX() - living.getX(), player.getZ() - living.getZ(), living.damageSources().generic(), 0f);
             Fx.arc(player, 2.2f, -20, 220, 0xFFFF5A6A, 9);
             ModNetwork.animate(player, PlayerAnims.COUNTER, 9);
         }
@@ -386,10 +416,10 @@ public final class CommonEvents {
     public static void onDamageDealt(LivingDamageEvent.Post event) {
         LivingEntity victim = event.getEntity();
         int flags = HitFlags.take(victim);
-        if (victim.level().isClientSide || !(event.getSource().getEntity() instanceof ServerPlayer player) || victim == player) return;
-        if (!Frontier.isIn(player) || event.getNewDamage() <= 0) return;
+        if (victim.level().isClientSide() || !(event.getSource().getEntity() instanceof ServerPlayer player) || victim == player) return;
+        if (!Frontier.isIn(player) || event.getHealthDamage() <= 0) return;
         if (victim.isDeadOrDying()) flags |= HitFlags.KILL;
-        PacketDistributor.sendToPlayer(player, new ModNetwork.Hit(victim.getId(), event.getNewDamage(), flags));
+        PacketDistributor.sendToPlayer(player, new ModNetwork.Hit(victim.getId(), event.getHealthDamage(), flags));
     }
 
     // ---- Deaths ----------------------------------------------------------------------
@@ -397,7 +427,7 @@ public final class CommonEvents {
     @SubscribeEvent
     public static void onDeath(LivingDeathEvent event) {
         LivingEntity dead = event.getEntity();
-        if (dead.level().isClientSide) return;
+        if (dead.level().isClientSide()) return;
 
         if (dead instanceof ServerPlayer player) {
             int slot = Progression.findItem(player, ModItems.REBIRTH_TEARJEWEL.get());
@@ -407,16 +437,16 @@ public final class CommonEvents {
                 player.setHealth(player.getMaxHealth() * 0.5f);
                 player.removeAllEffects();
                 player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 200, 1));
-                player.serverLevel().sendParticles(ParticleTypes.TOTEM_OF_UNDYING, player.getX(), player.getY(1.0), player.getZ(), 60, 0.5, 0.8, 0.5, 0.3);
+                player.level().sendParticles(ParticleTypes.TOTEM_OF_UNDYING, player.getX(), player.getY(1.0), player.getZ(), 60, 0.5, 0.8, 0.5, 0.3);
                 player.level().playSound(null, player.blockPosition(), SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 1f, 1.2f);
-                player.displayClientMessage(Component.translatable("message.slfrontier.tearjewel").withStyle(ChatFormatting.LIGHT_PURPLE), true);
+                player.sendOverlayMessage(Component.translatable("message.slfrontier.tearjewel").withStyle(ChatFormatting.LIGHT_PURPLE));
                 return;
             }
             if (Frontier.isIn(player)) {
                 PlayerData data = ModAttachments.get(player);
                 data.setFlag("died_in_frontier", true);
-                data.setFrontierPos(TownData.get(player.serverLevel()).fastera() != null
-                        ? TownData.get(player.serverLevel()).fastera().asLong() : BlockPos.ZERO.asLong());
+                data.setFrontierPos(TownData.get(player.level()).fastera() != null
+                        ? TownData.get(player.level()).fastera().asLong() : BlockPos.ZERO.asLong());
             }
             return;
         }

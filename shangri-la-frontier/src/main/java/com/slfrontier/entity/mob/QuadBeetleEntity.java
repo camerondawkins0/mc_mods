@@ -118,8 +118,8 @@ public class QuadBeetleEntity extends FrontierMonster {
             yBodyRot = getYRot();
             for (LivingEntity hit : level().getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(0.4),
                     e -> e != QuadBeetleEntity.this && e instanceof Player p && !p.isCreative())) {
-                hit.hurt(damageSources().mobAttack(QuadBeetleEntity.this), (float) getAttributeValue(Attributes.ATTACK_DAMAGE) * 1.4f);
-                hit.knockback(1.5, -direction.x, -direction.z);
+                hit.hurtOrSimulate(damageSources().mobAttack(QuadBeetleEntity.this), (float) getAttributeValue(Attributes.ATTACK_DAMAGE) * 1.4f);
+                hit.knockback(1.5, -direction.x, -direction.z, hit.damageSources().generic(), 0f);
                 level().playSound(null, getX(), getY(), getZ(), SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 0.6f, 0.6f);
                 ticks = 40;
             }

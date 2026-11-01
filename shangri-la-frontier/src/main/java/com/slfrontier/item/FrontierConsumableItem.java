@@ -12,7 +12,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffectUtil;
@@ -22,12 +22,14 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUtils;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.UseAnim;
+import net.minecraft.world.item.component.TooltipDisplay;
+import net.minecraft.world.item.ItemUseAnimation;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * A crafted Frontier consumable: potions, tonics, bandages and rations. Each one heals,
@@ -45,7 +47,7 @@ public class FrontierConsumableItem extends TooltipItem {
     /** What using the item does. Build with {@link #drink()} or {@link #apply(int)}. */
     public static final class Spec {
         private final int ticks;
-        private final UseAnim anim;
+        private final ItemUseAnimation anim;
         private float heal;
         private float stamina;
         private boolean fullStamina;
@@ -55,7 +57,7 @@ public class FrontierConsumableItem extends TooltipItem {
         private final List<MobEffectInstance> effects = new ArrayList<>();
         private final List<Holder<MobEffect>> cures = new ArrayList<>();
 
-        private Spec(int ticks, UseAnim anim) {
+        private Spec(int ticks, ItemUseAnimation anim) {
             this.ticks = ticks;
             this.anim = anim;
         }
@@ -99,12 +101,12 @@ public class FrontierConsumableItem extends TooltipItem {
     }
 
     public static Spec drink() {
-        return new Spec(24, UseAnim.DRINK).bottle();
+        return new Spec(24, ItemUseAnimation.DRINK).bottle();
     }
 
     /** Something applied by hand (a bandage); also used for food, where the timing comes from the food component. */
     public static Spec apply(int ticks) {
-        return new Spec(ticks, UseAnim.NONE);
+        return new Spec(ticks, ItemUseAnimation.NONE);
     }
 
     private boolean isFood(ItemStack stack) {
@@ -112,7 +114,7 @@ public class FrontierConsumableItem extends TooltipItem {
     }
 
     @Override
-    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+    public InteractionResult use(Level level, Player player, InteractionHand hand) {
         if (isFood(player.getItemInHand(hand))) return super.use(level, player, hand);
         return ItemUtils.startUsingInstantly(level, player, hand);
     }
@@ -123,7 +125,7 @@ public class FrontierConsumableItem extends TooltipItem {
     }
 
     @Override
-    public UseAnim getUseAnimation(ItemStack stack) {
+    public ItemUseAnimation getUseAnimation(ItemStack stack) {
         return isFood(stack) ? super.getUseAnimation(stack) : spec.anim;
     }
 
@@ -142,7 +144,7 @@ public class FrontierConsumableItem extends TooltipItem {
     }
 
     private void applyTo(Level level, LivingEntity entity) {
-        if (level.isClientSide) return;
+        if (level.isClientSide()) return;
         if (spec.heal > 0) entity.heal(spec.heal);
         for (Holder<MobEffect> cure : spec.cures) entity.removeEffect(cure);
         for (MobEffectInstance e : spec.effects) entity.addEffect(new MobEffectInstance(e));
@@ -158,20 +160,20 @@ public class FrontierConsumableItem extends TooltipItem {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
-        super.appendHoverText(stack, context, tooltip, flag);
+    public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display, Consumer<Component> tooltip, TooltipFlag flag) {
+        super.appendHoverText(stack, context, display, tooltip, flag);
         if (spec.heal > 0) {
             float hearts = spec.heal / 2f;
             String n = hearts == (int) hearts ? String.valueOf((int) hearts) : String.valueOf(hearts);
-            tooltip.add(Component.translatable("tooltip.slfrontier.heals", n).withStyle(ChatFormatting.RED));
+            tooltip.accept(Component.translatable("tooltip.slfrontier.heals", n).withStyle(ChatFormatting.RED));
         }
         if (spec.fullStamina) {
-            tooltip.add(Component.translatable("tooltip.slfrontier.stamina_full").withStyle(ChatFormatting.GREEN));
+            tooltip.accept(Component.translatable("tooltip.slfrontier.stamina_full").withStyle(ChatFormatting.GREEN));
         } else if (spec.stamina > 0) {
-            tooltip.add(Component.translatable("tooltip.slfrontier.stamina", (int) spec.stamina).withStyle(ChatFormatting.GREEN));
+            tooltip.accept(Component.translatable("tooltip.slfrontier.stamina", (int) spec.stamina).withStyle(ChatFormatting.GREEN));
         }
         for (Holder<MobEffect> cure : spec.cures) {
-            tooltip.add(Component.translatable("tooltip.slfrontier.cures", cure.value().getDisplayName()).withStyle(ChatFormatting.AQUA));
+            tooltip.accept(Component.translatable("tooltip.slfrontier.cures", cure.value().getDisplayName()).withStyle(ChatFormatting.AQUA));
         }
         for (MobEffectInstance e : spec.effects) {
             MutableComponent line = Component.translatable(e.getDescriptionId());
@@ -179,7 +181,7 @@ public class FrontierConsumableItem extends TooltipItem {
                 line = Component.translatable("potion.withAmplifier", line, Component.translatable("potion.potency." + e.getAmplifier()));
             }
             line = Component.translatable("potion.withDuration", line, MobEffectUtil.formatDuration(e, 1f, context.tickRate()));
-            tooltip.add(line.withStyle(e.getEffect().value().getCategory().getTooltipFormatting()));
+            tooltip.accept(line.withStyle(e.getEffect().value().getCategory().getTooltipFormatting()));
         }
     }
 }

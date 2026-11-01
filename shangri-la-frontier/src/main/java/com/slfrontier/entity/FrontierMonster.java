@@ -1,5 +1,6 @@
 package com.slfrontier.entity;
 
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.AnimationState;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -37,7 +38,7 @@ public abstract class FrontierMonster extends Monster implements LeveledMob, Slf
     }
 
     public void playAnim(int slot) {
-        if (!level().isClientSide) {
+        if (!level().isClientSide()) {
             level().broadcastEntityEvent(this, (byte) (ANIM_EVENT_BASE + slot));
         }
     }
@@ -54,14 +55,14 @@ public abstract class FrontierMonster extends Monster implements LeveledMob, Slf
     @Override
     public void tick() {
         super.tick();
-        if (level().isClientSide) {
+        if (level().isClientSide()) {
             anims[0].startIfStopped(tickCount);
         }
     }
 
     @Override
-    public boolean doHurtTarget(Entity target) {
-        boolean hit = super.doHurtTarget(target);
+    public boolean doHurtTarget(ServerLevel level, Entity target) {
+        boolean hit = super.doHurtTarget(level, target);
         if (hit) playAnim(ANIM_ATTACK);
         return hit;
     }

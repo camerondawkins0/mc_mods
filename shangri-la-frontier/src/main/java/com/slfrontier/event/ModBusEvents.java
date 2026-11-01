@@ -7,7 +7,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
 import net.neoforged.neoforge.event.entity.RegisterSpawnPlacementsEvent;
 
-@EventBusSubscriber(modid = SLFrontier.MODID, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = SLFrontier.MODID)
 public final class ModBusEvents {
     private ModBusEvents() {
     }

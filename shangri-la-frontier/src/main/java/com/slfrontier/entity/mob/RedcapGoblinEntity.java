@@ -9,7 +9,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
@@ -57,33 +57,33 @@ public class RedcapGoblinEntity extends FrontierMonster {
     }
 
     @Override
-    protected void customServerAiStep() {
-        super.customServerAiStep();
+    protected void customServerAiStep(ServerLevel level) {
+        super.customServerAiStep(level);
         LivingEntity target = getTarget();
         if (feintCooldown > 0) feintCooldown--;
         // The feint: a hop back just before it would be in reach, then a sudden lunge.
         if (target != null && feintCooldown == 0 && onGround() && distanceTo(target) < 3.2) {
             Vec3 away = position().subtract(target.position()).normalize();
             setDeltaMovement(away.x * 0.6, 0.35, away.z * 0.6);
-            hasImpulse = true;
+            needsSync = true;
             feintCooldown = 60 + random.nextInt(40);
         } else if (target != null && feintCooldown == 50 && distanceTo(target) < 7) {
             Vec3 to = target.position().subtract(position()).normalize();
             setDeltaMovement(to.x * 0.9, 0.25, to.z * 0.9);
-            hasImpulse = true;
+            needsSync = true;
         }
     }
 
     @Override
-    public boolean hurt(DamageSource source, float amount) {
-        boolean hurt = super.hurt(source, amount);
+    public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
+        boolean hurt = super.hurtServer(level, source, amount);
         if (hurt && !calledForHelp && isAlive() && getHealth() < getMaxHealth() * 0.5f && level() instanceof ServerLevel server) {
             calledForHelp = true;
             if (random.nextFloat() < 0.4f) {
-                RedcapGoblinEntity friend = ModEntities.REDCAP_GOBLIN.get().create(server);
+                RedcapGoblinEntity friend = ModEntities.REDCAP_GOBLIN.get().create(server, EntitySpawnReason.EVENT);
                 if (friend != null) {
-                    friend.moveTo(getX() + random.nextGaussian() * 2, getY(), getZ() + random.nextGaussian() * 2, getYRot(), 0);
-                    friend.finalizeSpawn(server, server.getCurrentDifficultyAt(blockPosition()), MobSpawnType.REINFORCEMENT, null);
+                    friend.snapTo(getX() + random.nextGaussian() * 2, getY(), getZ() + random.nextGaussian() * 2, getYRot(), 0);
+                    friend.finalizeSpawn(server, server.getCurrentDifficultyAt(blockPosition()), EntitySpawnReason.REINFORCEMENT, null);
                     friend.calledForHelp = true;
                     friend.setTarget(getTarget());
                     server.addFreshEntity(friend);
