@@ -2,35 +2,41 @@
   "has_precipitation": true,
   "temperature": 0.6,
   "downfall": 0.8,
-  "effects": {
-    "sky_color": 10475775,
-    "fog_color": 14207231,
-    "water_color": 8382463,
-    "water_fog_color": 329011,
-    "grass_color": 8378544,
-    "mood_sound": {
-      "sound": "minecraft:ambient.cave",
-      "tick_delay": 6000,
-      "block_search_extent": 8,
-      "offset": 2.0
-    },
-    "foliage_color": 10452960,
-    "particle": {
-      "options": {
-        "type": "minecraft:end_rod"
+  "attributes": {
+    "minecraft:audio/ambient_sounds": {
+      "mood": {
+        "sound": "minecraft:ambient.cave",
+        "tick_delay": 6000,
+        "block_search_extent": 8,
+        "offset": 2.0
       },
-      "probability": 0.0008
+      "additions": {
+        "sound": "minecraft:block.amethyst_block.chime",
+        "tick_chance": 0.004
+      }
     },
-    "music": {
-      "sound": "minecraft:music.overworld.lush_caves",
-      "min_delay": 12000,
-      "max_delay": 24000,
-      "replace_current_music": false
+    "minecraft:audio/background_music": {
+      "default": {
+        "sound": "minecraft:music.overworld.lush_caves",
+        "min_delay": 12000,
+        "max_delay": 24000
+      }
     },
-    "additions_sound": {
-      "sound": "minecraft:block.amethyst_block.chime",
-      "tick_chance": 0.004
-    }
+    "minecraft:visual/ambient_particles": [
+      {
+        "particle": {
+          "type": "minecraft:end_rod"
+        },
+        "probability": 0.0008
+      }
+    ],
+    "minecraft:visual/fog_color": "#d8c8ff",
+    "minecraft:visual/sky_color": "#9fd8ff"
+  },
+  "effects": {
+    "water_color": "#7fe7ff",
+    "grass_color": "#7fd8b0",
+    "foliage_color": "#9f7fe0"
   },
   "spawners": {
     "monster": [
@@ -63,13 +69,11 @@
     "water_creature": []
   },
   "spawn_costs": {},
-  "carvers": {
-    "air": [
-      "minecraft:cave",
-      "minecraft:cave_extra_underground",
-      "minecraft:canyon"
-    ]
-  },
+  "carvers": [
+    "minecraft:cave",
+    "minecraft:cave_extra_underground",
+    "minecraft:canyon"
+  ],
   "features": [
     [],
     [],
@@ -111,7 +115,7 @@
       "slfrontier:crystal_spire",
       "slfrontier:prismatic_pillars",
       "slfrontier:prismatic_clusters",
-      "minecraft:trees_birch_and_oak",
+      "slfrontier:trees_birch_and_oak",
       "minecraft:flower_cherry",
       "minecraft:patch_grass_forest"
     ],

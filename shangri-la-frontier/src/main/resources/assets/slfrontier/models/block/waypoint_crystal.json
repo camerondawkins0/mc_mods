@@ -1,6 +1,5 @@
 {
   "parent": "minecraft:block/block",
-  "render_type": "minecraft:cutout",
   "textures": {
     "base": "minecraft:block/polished_deepslate",
     "trim": "minecraft:block/chiseled_polished_blackstone",
@@ -119,10 +118,7 @@
         ]
       },
       "shade": false,
-      "neoforge_data": {
-        "block_light": 15,
-        "sky_light": 15
-      },
+      "light_emission": 15,
       "faces": {
         "north": {
           "texture": "#crystal",
@@ -201,10 +197,7 @@
         ]
       },
       "shade": false,
-      "neoforge_data": {
-        "block_light": 15,
-        "sky_light": 15
-      },
+      "light_emission": 15,
       "faces": {
         "north": {
           "texture": "#crystal"

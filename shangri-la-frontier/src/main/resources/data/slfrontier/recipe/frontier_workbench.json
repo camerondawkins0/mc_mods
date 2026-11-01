@@ -7,15 +7,9 @@
     "P P"
   ],
   "key": {
-    "I": {
-      "item": "minecraft:iron_ingot"
-    },
-    "T": {
-      "item": "minecraft:crafting_table"
-    },
-    "P": {
-      "tag": "minecraft:planks"
-    }
+    "I": "minecraft:iron_ingot",
+    "T": "minecraft:crafting_table",
+    "P": "#minecraft:planks"
   },
   "result": {
     "id": "slfrontier:frontier_workbench",

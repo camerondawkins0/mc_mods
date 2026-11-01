@@ -7,15 +7,9 @@
     "SSS"
   ],
   "key": {
-    "S": {
-      "tag": "minecraft:stone_crafting_materials"
-    },
-    "I": {
-      "item": "minecraft:iron_ingot"
-    },
-    "F": {
-      "item": "minecraft:furnace"
-    }
+    "S": "#minecraft:stone_crafting_materials",
+    "I": "minecraft:iron_ingot",
+    "F": "minecraft:furnace"
   },
   "result": {
     "id": "slfrontier:frontier_forge",

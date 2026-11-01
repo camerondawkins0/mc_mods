@@ -69,7 +69,7 @@ def pane(name="minecraft:glass_pane"):
 
 
 def chain(axis="y"):
-    return ("minecraft:chain", {"axis": axis, "waterlogged": "false"})
+    return ("minecraft:iron_chain", {"axis": axis, "waterlogged": "false"})  # "minecraft:chain" until 1.21.9
 
 
 def barrel(facing="up"):
@@ -301,14 +301,14 @@ def _sturdy_down(name, props):
 def _center_up(name, props):
     n = _short(name)
     return _sturdy_up(name, props) or n.endswith("_fence") or n.endswith("_wall") and "sign" not in n \
-        and "banner" not in n and "torch" not in n or n in ("chain", "iron_bars", "end_rod", "lightning_rod") \
+        and "banner" not in n and "torch" not in n or n in ("iron_chain", "iron_bars", "end_rod", "lightning_rod") \
         or n.endswith("glass_pane") or n == "glass_pane"
 
 
 def _center_down(name, props):
     n = _short(name)
     return _sturdy_down(name, props) or n.endswith("_fence") or n.endswith("_wall") and "sign" not in n \
-        and "banner" not in n and "torch" not in n or n in ("chain", "iron_bars", "end_rod", "lightning_rod") \
+        and "banner" not in n and "torch" not in n or n in ("iron_chain", "iron_bars", "end_rod", "lightning_rod") \
         or n.endswith("glass_pane") or n == "glass_pane"
 
 
@@ -733,7 +733,8 @@ def standing_banner(t, x, y, z, rotation, color="red", patterns=None):
 
 
 def _sign_text(lines, color="black", glow=False):
-    msgs = [f'{{"text":"{line}"}}' for line in (list(lines) + ["", "", "", ""])[:4]]
+    # Text components are stored as NBT since 1.21.5 (they were JSON strings).
+    msgs = [{"text": line} for line in (list(lines) + ["", "", "", ""])[:4]]
     return {"messages": msgs, "color": color, "has_glowing_text": 1 if glow else 0}
 
 

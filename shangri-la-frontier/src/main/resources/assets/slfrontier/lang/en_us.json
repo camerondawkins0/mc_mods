@@ -525,7 +525,7 @@
   "item.slfrontier.whetstone.lore": "Use with a damaged weapon or tool in your other hand to sharpen it.",
   "item.slfrontier.woodmage_spawn_egg": "Aberrant Woodmage Spawn Egg",
   "itemGroup.slfrontier": "Shangri-La Frontier",
-  "key.categories.slfrontier": "Shangri-La Frontier",
+  "key.category.slfrontier.main": "Shangri-La Frontier",
   "key.slfrontier.map": "Frontier Map",
   "key.slfrontier.menu": "Avatar Menu",
   "key.slfrontier.minimap": "Toggle Minimap",

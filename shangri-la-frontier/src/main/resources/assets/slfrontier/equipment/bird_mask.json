@@ -1,0 +1,9 @@
+{
+  "layers": {
+    "humanoid": [
+      {
+        "texture": "slfrontier:bird_mask"
+      }
+    ]
+  }
+}

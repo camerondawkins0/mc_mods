@@ -298,7 +298,7 @@ BLOCK_COLORS = [
     ("smooth_stone", (158, 158, 158)), ("granite", (149, 103, 85)),
     ("stone", (125, 125, 125)), ("bricks", (150, 97, 83)), ("brick", (150, 97, 83)),
     ("glass", (200, 222, 232)), ("lantern", (255, 200, 100)), ("torch", (255, 210, 110)), ("campfire", (230, 150, 60)),
-    ("gold", (240, 200, 60)), ("iron", (140, 140, 140)), ("chain", (60, 60, 70)), ("anvil", (70, 70, 70)),
+    ("gold", (240, 200, 60)), ("chain", (60, 60, 70)), ("iron", (140, 140, 140)), ("anvil", (70, 70, 70)),
     ("red_wool", (160, 39, 34)), ("red_carpet", (160, 39, 34)), ("yellow", (248, 197, 39)), ("blue", (53, 57, 157)),
     ("white_wool", (233, 236, 236)), ("white_carpet", (233, 236, 236)), ("orange", (240, 118, 19)), ("lime", (112, 185, 25)),
     ("pink", (237, 141, 172)), ("magenta", (189, 68, 179)), ("cyan", (21, 137, 145)), ("green", (84, 109, 27)),
@@ -519,7 +519,7 @@ def shapes(name, props, nb):
         return out
     if "lantern" in n:
         return [(0.31, 0.12, 0.31, 0.69, 0.62, 0.69)] if p.get("hanging") == "true" else [(0.31, 0, 0.31, 0.69, 0.5, 0.69)]
-    if n == "chain" or "torch" in n or n in ("end_rod", "lightning_rod", "pointed_dripstone", "brewing_stand"):
+    if n == "iron_chain" or "torch" in n or n in ("end_rod", "lightning_rod", "pointed_dripstone", "brewing_stand"):
         ax = p.get("axis") or ("y" if f in (None, "up", "down") else "x" if f in ("east", "west") else "z")
         if "wall_torch" in n:
             return [{"north": (0.44, 0.2, 0.6, 0.56, 0.9, 0.9), "south": (0.44, 0.2, 0.1, 0.56, 0.9, 0.4),

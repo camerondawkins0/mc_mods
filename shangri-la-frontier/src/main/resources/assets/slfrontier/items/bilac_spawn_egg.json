@@ -1,0 +1,16 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "slfrontier:item/spawn_egg",
+    "tints": [
+      {
+        "type": "minecraft:constant",
+        "value": -528409
+      },
+      {
+        "type": "minecraft:constant",
+        "value": -3118806
+      }
+    ]
+  }
+}

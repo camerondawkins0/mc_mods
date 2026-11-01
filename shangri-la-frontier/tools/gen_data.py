@@ -2,9 +2,9 @@
 
   python3 tools/gen_data.py
 
-Writes into src/main/resources: lang, item/block models, blockstates, loot tables,
-recipes, tags, the Frontier dimension (noise settings, biomes, features) and the
-structures (jigsaw definitions + .nbt templates).
+Writes into src/main/resources: lang, item definitions, item/block models, blockstates,
+equipment assets, loot tables, recipes, tags, the Frontier dimension (noise settings,
+biomes, features) and the structures (definitions + .nbt templates).
 """
 import copy
 import json
@@ -62,9 +62,19 @@ GENERATED = ["fulldive_headset", "holy_water", "rebirth_tearjewel", "vorpal_soul
              "vorpal_bell", "reallocation_tonic", "gray_ore_chunk", "quad_beetle_shell", "empire_bee_stinger",
              "empire_bee_queen_crown", "mud_digger_fin", "prismatic_shard", "nightslayer_fur", "lycagon_fang",
              "tombguard_fragment", "goblin_tooth", "bird_mask", "battlehorn_helm"]
-EGGS = ["goblin", "vorpal_bunny", "empire_bee", "quad_beetle", "shadow_wolf", "mud_digger", "empire_bee_queen",
-        "lycagon", "wezaemon", "frontier_guide", "frontier_blacksmith", "emul", "vysache", "bilac", "setsuna",
-        "redcap_goblin", "ravenous_snake", "woodmage", "kirin", "lycagon_shadow", "pencilgon", "oikatzo"]
+# Block items drawn as a flat sprite of the block's texture (models/item/<id>.json); every other
+# block item renders its block model.
+FLAT_BLOCK_ITEMS = {"red_spider_lily", "prismatic_cluster"}
+# Glowing model elements: vanilla's per-element light emission (full brightness, like NeoForge's old
+# block_light/sky_light 15 face data).
+GLOW = 15
+
+
+def remove(*paths):
+    """Delete files a previous version of the generators wrote."""
+    for path in paths:
+        if os.path.exists(path):
+            os.remove(path)
 
 
 def gen_models():
@@ -72,40 +82,35 @@ def gen_models():
     # Weapon models (3D) are written by tools/weapons.py together with their textures.
     for name in GENERATED:
         write(f"{m}/item/{name}.json", {"parent": "minecraft:item/generated", "textures": {"layer0": ns(f"item/{name}")}})
-    for name in EGGS:
-        write(f"{m}/item/{name}_spawn_egg.json", {"parent": "minecraft:item/template_spawn_egg"})
-    # The compass reuses vanilla needle sprites; Java gives it the "angle" property.
-    overrides = []
-    angles = [0.0] + [0.015625 + 0.03125 * i for i in range(31)] + [0.984375]
-    for i, a in enumerate(angles):
-        if i == 0:
-            model = "minecraft:item/compass"
-        elif i == len(angles) - 1:
-            model = "minecraft:item/compass"
-        else:
-            model = f"minecraft:item/compass_{(i + 16) % 32:02d}"
-        overrides.append({"predicate": {"angle": round(a, 6)}, "model": model})
-    write(f"{m}/item/frontier_compass.json", {"parent": "minecraft:item/generated",
-                                              "textures": {"layer0": "minecraft:item/compass_16"},
-                                              "overrides": overrides})
+    # Spawn eggs share one two-layer egg (painted by gen_assets.py); each egg's item definition tints
+    # the shell and the spots with the colours from ModItems.java (see gen_item_definitions).
+    write(f"{m}/item/spawn_egg.json", {"parent": "minecraft:item/generated", "textures": {
+        "layer0": ns("item/spawn_egg"), "layer1": ns("item/spawn_egg_overlay")}})
+    # Since 1.21.4 item definitions (assets/slfrontier/items) choose the model, so the old per-egg
+    # models, the compass's override model and the block-item wrappers are gone.
+    for path in os.listdir(f"{m}/item"):
+        if path.endswith("_spawn_egg.json"):
+            os.remove(f"{m}/item/{path}")
+    remove(*(f"{m}/item/{name}.json" for name in ("frontier_compass", "gray_ore", "prismatic_crystal", "waypoint_crystal",
+                                                    "nightslayer_altar", "shadow_altar")))
 
+    # Blocks pick their render layer from their textures since 26.1 (translucent pixels -> translucent,
+    # cut-out pixels -> cutout), so the models no longer name a render_type.
     bs = os.path.join(ASSETS, "blockstates")
     write(f"{m}/block/gray_ore.json", {"parent": "minecraft:block/cube_all", "textures": {"all": ns("block/gray_ore")}})
     write(f"{bs}/gray_ore.json", {"variants": {"": {"model": ns("block/gray_ore")}}})
-    write(f"{m}/item/gray_ore.json", {"parent": ns("block/gray_ore")})
 
-    write(f"{m}/block/prismatic_crystal.json", {"parent": "minecraft:block/cube_all", "render_type": "minecraft:translucent",
+    write(f"{m}/block/prismatic_crystal.json", {"parent": "minecraft:block/cube_all",
                                                 "textures": {"all": ns("block/prismatic_crystal")}})
     write(f"{bs}/prismatic_crystal.json", {"variants": {"": {"model": ns("block/prismatic_crystal")}}})
-    write(f"{m}/item/prismatic_crystal.json", {"parent": ns("block/prismatic_crystal")})
 
-    write(f"{m}/block/red_spider_lily.json", {"parent": "minecraft:block/cross", "render_type": "minecraft:cutout",
+    write(f"{m}/block/red_spider_lily.json", {"parent": "minecraft:block/cross",
                                               "textures": {"cross": ns("block/red_spider_lily")}})
     write(f"{bs}/red_spider_lily.json", {"variants": {"": {"model": ns("block/red_spider_lily")}}})
     write(f"{m}/item/red_spider_lily.json", {"parent": "minecraft:item/generated",
                                              "textures": {"layer0": ns("block/red_spider_lily")}})
 
-    write(f"{m}/block/prismatic_cluster.json", {"parent": "minecraft:block/cross", "render_type": "minecraft:cutout",
+    write(f"{m}/block/prismatic_cluster.json", {"parent": "minecraft:block/cross",
                                                 "textures": {"cross": ns("block/prismatic_cluster")}})
     rot = {"down": {"x": 180}, "east": {"x": 90, "y": 90}, "north": {"x": 90}, "south": {"x": 90, "y": 180},
            "up": {}, "west": {"x": 90, "y": 270}}
@@ -115,9 +120,8 @@ def gen_models():
                                                "textures": {"layer0": ns("block/prismatic_cluster")}})
 
     # Waypoint Crystal: a stone pedestal with a floating, glowing crystal (rotated 45 degrees).
-    glow = {"block_light": 15, "sky_light": 15}
     write(f"{m}/block/waypoint_crystal.json", {
-        "parent": "minecraft:block/block", "render_type": "minecraft:cutout",
+        "parent": "minecraft:block/block",
         "textures": {"base": "minecraft:block/polished_deepslate", "trim": "minecraft:block/chiseled_polished_blackstone",
                      "crystal": ns("block/waypoint_crystal"), "particle": ns("block/waypoint_crystal")},
         "elements": [
@@ -125,23 +129,67 @@ def gen_models():
             {"from": [3, 2, 3], "to": [13, 3, 13], "faces": {f: {"texture": "#trim"} for f in ("north", "south", "east", "west", "up")}},
             {"from": [5, 3, 5], "to": [11, 8, 11], "faces": {f: {"texture": "#base"} for f in ("north", "south", "east", "west", "up")}},
             {"from": [5.5, 9, 5.5], "to": [10.5, 16, 10.5], "rotation": {"angle": 45, "axis": "y", "origin": [8, 12, 8]},
-             "shade": False, "neoforge_data": glow,
+             "shade": False, "light_emission": GLOW,
              "faces": {f: {"texture": "#crystal", "uv": [5, 0, 11, 8]} for f in ("north", "south", "east", "west", "up", "down")}},
             {"from": [7, 16, 7], "to": [9, 17.5, 9], "rotation": {"angle": 45, "axis": "y", "origin": [8, 16, 8]},
-             "shade": False, "neoforge_data": glow, "faces": {f: {"texture": "#crystal"} for f in ("north", "south", "east", "west", "up")}},
+             "shade": False, "light_emission": GLOW, "faces": {f: {"texture": "#crystal"} for f in ("north", "south", "east", "west", "up")}},
         ]})
     write(f"{bs}/waypoint_crystal.json", {"variants": {"": {"model": ns("block/waypoint_crystal")}}})
-    write(f"{m}/item/waypoint_crystal.json", {"parent": ns("block/waypoint_crystal")})
 
     write(f"{m}/block/nightslayer_altar.json", {"parent": "minecraft:block/cube_bottom_top", "textures": {
         "top": ns("block/nightslayer_altar_top"), "bottom": ns("block/nightslayer_altar_side"),
         "side": ns("block/nightslayer_altar_side")}})
     write(f"{bs}/nightslayer_altar.json", {"variants": {"": {"model": ns("block/nightslayer_altar")}}})
-    write(f"{m}/item/nightslayer_altar.json", {"parent": ns("block/nightslayer_altar")})
     write(f"{m}/block/shadow_altar.json", {"parent": "minecraft:block/cube_bottom_top", "textures": {
         "top": ns("block/shadow_altar_top"), "bottom": ns("block/shadow_altar_side"), "side": ns("block/shadow_altar_side")}})
     write(f"{bs}/shadow_altar.json", {"variants": {"": {"model": ns("block/shadow_altar")}}})
-    write(f"{m}/item/shadow_altar.json", {"parent": ns("block/shadow_altar")})
+
+
+def model(path, tints=None):
+    """An item model reference for an item definition, optionally with constant tints (one per layer)."""
+    ref = {"type": "minecraft:model", "model": path}
+    if tints:
+        # Opaque ARGB as a signed int, the way vanilla writes constant tints.
+        ref["tints"] = [{"type": "minecraft:constant", "value": (0xFF000000 | c) - (1 << 32)} for c in tints]
+    return ref
+
+
+def compass_model():
+    """The vanilla compass needle, aimed at the lodestone target FrontierCompassItem stores on the stack
+    (the story objective); with no target the needle spins, as the 1.21.1 "angle" property did."""
+    frames = [(0.0, 16)] + [(i - 0.5, (16 + i) % 32) for i in range(1, 33)]
+    return {"type": "minecraft:range_dispatch", "property": "minecraft:compass", "target": "lodestone", "scale": 32.0,
+            "entries": [{"threshold": t, "model": model(f"minecraft:item/compass_{n:02d}")} for t, n in frames]}
+
+
+def gen_item_definitions():
+    """assets/slfrontier/items/<id>.json for every registered item (required since 1.21.4)."""
+    out = os.path.join(ASSETS, "items")
+    if os.path.isdir(out):
+        shutil.rmtree(out)
+    eggs = inventory.spawn_egg_colours()
+    blocks = set(inventory.mod_blocks().values())
+    for name in inventory.every_item():
+        if name in eggs:
+            definition = model(ns("item/spawn_egg"), eggs[name])
+        elif name == "frontier_compass":
+            definition = compass_model()
+        elif name in blocks and name not in FLAT_BLOCK_ITEMS:
+            definition = model(ns(f"block/{name}"))
+        else:
+            definition = model(ns(f"item/{name}"))
+        if definition["type"] == "minecraft:model":
+            path = definition["model"].split(":")[1]
+            if not os.path.exists(os.path.join(ASSETS, f"models/{path}.json")):
+                print(f"items: {name} uses missing model {definition['model']}")
+        write(os.path.join(out, f"{name}.json"), {"model": definition})
+
+
+def gen_equipment():
+    """Equipment assets for the helmets (ids from ModArmorMaterials); textures/entity/equipment/humanoid/
+    <id>.png is painted by gen_assets.py."""
+    for asset in ("bird_mask", "battlehorn"):
+        write(os.path.join(ASSETS, f"equipment/{asset}.json"), {"layers": {"humanoid": [{"texture": ns(asset)}]}})
 
 
 # ---------------------------------------------------------------------------------------
@@ -266,13 +314,26 @@ def gen_recipes():
     write(f"{r}/fulldive_headset.json", {
         "type": "minecraft:crafting_shaped", "category": "equipment",
         "pattern": ["III", "GRG", "I I"],
-        "key": {"I": {"item": "minecraft:iron_ingot"}, "G": {"item": "minecraft:glass_pane"},
-                "R": {"item": "minecraft:redstone_block"}},
+        "key": {"I": "minecraft:iron_ingot", "G": "minecraft:glass_pane", "R": "minecraft:redstone_block"},
         "result": {"id": ns("fulldive_headset"), "count": 1}})
     # Gameplay items (compass, holy water, blades, bird mask) are Frontier recipes: see tools/crafting_data.py.
     write(f"{r}/gray_ore_chunk_from_smelting.json", {
-        "type": "minecraft:smelting", "category": "misc", "ingredient": {"item": ns("gray_ore")},
+        "type": "minecraft:smelting", "category": "misc", "ingredient": ns("gray_ore"),
         "result": {"id": ns("gray_ore_chunk")}, "experience": 0.7, "cookingtime": 200})
+
+
+# Repair materials are item tags since 1.21.2: weapon tiers (ModTiers: slfrontier:tool_materials/<tier>)
+# and helmets (ModArmorMaterials: slfrontier:repairs/<material>).
+REPAIRS = {
+    "tool_materials/mercenary": ["minecraft:iron_ingot"],
+    "tool_materials/marsh": [ns("gray_ore_chunk")],
+    "tool_materials/vorpal": ["minecraft:rabbit_foot"],
+    "tool_materials/bee": [ns("empire_bee_stinger")],
+    "tool_materials/moon": [ns("quad_beetle_shell")],
+    "tool_materials/tombguard": [ns("tombguard_fragment")],
+    "repairs/bird_mask": ["minecraft:feather"],
+    "repairs/battlehorn": [ns("quad_beetle_shell")],
+}
 
 
 def tag(path, values, replace=False):
@@ -293,6 +354,8 @@ def gen_tags():
     tag(f"{mc}/item/head_armor.json", [ns("bird_mask"), ns("battlehorn_helm")])
     for s in ("wezaemon_tomb", "nightslayer_den", "empire_bee_hive", "mud_digger_lair", "divinity_ruins", "shadow_altar"):
         tag(os.path.join(DATA, f"tags/worldgen/structure/{s}.json"), [ns(s)])
+    for name, values in REPAIRS.items():
+        tag(os.path.join(DATA, f"tags/item/{name}.json"), values)
 
 
 # ---------------------------------------------------------------------------------------
@@ -311,7 +374,7 @@ STEP_ORDER = {
     8: ["minecraft:spring_water"],
     9: ["minecraft:glow_lichen", ns("giant_tree"), ns("giant_tree_rare"), ns("crystal_spire"), ns("dead_tree"),
         ns("dead_tree_rare"), ns("prismatic_pillars"), ns("prismatic_clusters"), "minecraft:trees_taiga", "minecraft:trees_plains",
-        "minecraft:trees_swamp", "minecraft:trees_cherry", "minecraft:dark_forest_vegetation", "minecraft:trees_birch_and_oak",
+        "minecraft:trees_swamp", "minecraft:trees_cherry", "minecraft:dark_forest_vegetation", ns("trees_birch_and_oak"),
         "minecraft:flower_plains", "minecraft:flower_swamp", "minecraft:flower_cherry", ns("spider_lily_patch"),
         "minecraft:patch_grass_plain", "minecraft:patch_grass_normal", "minecraft:patch_grass_forest",
         "minecraft:patch_tall_grass", "minecraft:patch_waterlily", "minecraft:patch_sugar_cane",
@@ -349,7 +412,7 @@ BIOME_DEFS = {
     "prismatic_forest_grotto": {
         "temperature": 0.6, "downfall": 0.8, "sky": 0x9FD8FF, "fog": 0xD8C8FF, "water": 0x7FE7FF, "grass": 0x7FD8B0,
         "foliage": 0x9F7FE0, "particle": ("minecraft:end_rod", 0.0008),
-        "features": {"minecraft:trees_birch_and_oak", "minecraft:flower_cherry", "minecraft:patch_grass_forest",
+        "features": {ns("trees_birch_and_oak"), "minecraft:flower_cherry", "minecraft:patch_grass_forest",
                      ns("prismatic_pillars"), ns("prismatic_clusters"), ns("crystal_spire")},
         "monsters": [("empire_bee", 60, 2, 3), ("quad_beetle", 25, 1, 1)],
         "creatures": [("minecraft:rabbit", 8, 2, 3)],
@@ -373,7 +436,7 @@ BIOME_DEFS = {
     "rampant_forest": {
         "temperature": 0.7, "downfall": 0.8, "sky": 0x7FB3FF, "fog": 0xC8E0FF, "water": 0x3F76E4, "grass": 0x6FBF4A,
         "foliage": 0x59AE30,
-        "features": {"minecraft:trees_birch_and_oak", "minecraft:forest_flowers", "minecraft:patch_grass_forest",
+        "features": {ns("trees_birch_and_oak"), "minecraft:forest_flowers", "minecraft:patch_grass_forest",
                      "minecraft:brown_mushroom_normal", "minecraft:patch_berry_common", ns("giant_tree"), ns("rock_arch_rare")},
         "monsters": [("goblin", 90, 2, 4), ("vorpal_bunny", 30, 1, 2)],
         "creatures": [("minecraft:rabbit", 6, 2, 3), ("minecraft:fox", 4, 1, 2), ("minecraft:pig", 6, 2, 3)],
@@ -474,30 +537,45 @@ def spawner(entry):
     return {"type": eid if ":" in eid else ns(eid), "weight": w, "minCount": mn, "maxCount": mx}
 
 
+def rgb(c):
+    return f"#{c:06x}"
+
+
+# The Frontier's dimension type supplies what every biome shares (overworld sky/fog defaults, the cave
+# mood sound, music.game): see gen_dimension.
+CAVE_MOOD = {"sound": "minecraft:ambient.cave", "tick_delay": 6000, "block_search_extent": 8, "offset": 2.0}
+DEFAULT_WATER_FOG = 0x050533
+
+
 def gen_biomes():
     for name, b in BIOME_DEFS.items():
         feats = b["features"] | COMMON
         steps = [[] for _ in range(11)]
         for step, order in STEP_ORDER.items():
             steps[step] = [f for f in order if f in feats]
-        effects = {
-            "sky_color": b["sky"], "fog_color": b["fog"], "water_color": b["water"],
-            "water_fog_color": b.get("water_fog", 0x050533),
-            "grass_color": b["grass"],
-            "mood_sound": {"sound": "minecraft:ambient.cave", "tick_delay": 6000, "block_search_extent": 8, "offset": 2.0},
-        }
-        if "foliage" in b:
-            effects["foliage_color"] = b["foliage"]
+        # Since 1.21.11 sky/fog colours, particles, music and ambient sounds are environment
+        # attributes; "effects" keeps only the water/grass/foliage colours.
+        attributes = {"minecraft:visual/sky_color": rgb(b["sky"]), "minecraft:visual/fog_color": rgb(b["fog"])}
+        if b.get("water_fog", DEFAULT_WATER_FOG) != DEFAULT_WATER_FOG:
+            attributes["minecraft:visual/water_fog_color"] = rgb(b["water_fog"])
         if "particle" in b:
-            effects["particle"] = {"options": {"type": b["particle"][0]}, "probability": b["particle"][1]}
+            attributes["minecraft:visual/ambient_particles"] = [{"particle": {"type": b["particle"][0]},
+                                                                 "probability": b["particle"][1]}]
         if "music" in b:
-            effects["music"] = {"sound": b["music"], "min_delay": 12000, "max_delay": 24000, "replace_current_music": False}
+            attributes["minecraft:audio/background_music"] = {"default": {"sound": b["music"], "min_delay": 12000,
+                                                                          "max_delay": 24000}}
         if "additions" in b:
-            effects["additions_sound"] = {"sound": b["additions"][0], "tick_chance": b["additions"][1]}
+            # Replaces the dimension's ambient sounds as a whole, so the cave mood comes along.
+            attributes["minecraft:audio/ambient_sounds"] = {
+                "mood": CAVE_MOOD, "additions": {"sound": b["additions"][0], "tick_chance": b["additions"][1]}}
+        effects = {"water_color": rgb(b["water"]), "grass_color": rgb(b["grass"])}
+        if "foliage" in b:
+            effects["foliage_color"] = rgb(b["foliage"])
         biome = {
             "has_precipitation": True,
             "temperature": b["temperature"],
             "downfall": b["downfall"],
+            "attributes": dict(sorted(attributes.items())),
             "effects": effects,
             "spawners": {
                 "monster": [spawner(e) for e in b["monsters"]],
@@ -507,7 +585,7 @@ def gen_biomes():
                 "water_creature": [spawner(e) for e in b.get("water_creatures", [])],
             },
             "spawn_costs": {},
-            "carvers": {"air": ["minecraft:cave", "minecraft:cave_extra_underground", "minecraft:canyon"]},
+            "carvers": ["minecraft:cave", "minecraft:cave_extra_underground", "minecraft:canyon"],
             "features": steps,
         }
         write(os.path.join(DATA, f"worldgen/biome/{name}.json"), biome)
@@ -551,7 +629,7 @@ def gen_features():
         {"type": "minecraft:biome"}])
     configured("mud_disk", {"type": "minecraft:disk", "config": {
         "half_height": 2, "radius": {"type": "minecraft:uniform", "min_inclusive": 3, "max_inclusive": 6},
-        "state_provider": {"fallback": {"type": "minecraft:simple_state_provider", "state": state("minecraft:mud")}, "rules": []},
+        "state_provider": {"type": "minecraft:simple_state_provider", "state": state("minecraft:mud")},
         "target": {"type": "minecraft:matching_blocks", "blocks": ["minecraft:dirt", "minecraft:grass_block", "minecraft:clay"]}}})
     placed("mud_disk", ns("mud_disk"), [
         {"type": "minecraft:count", "count": 3}, {"type": "minecraft:in_square"},
@@ -572,26 +650,46 @@ def gen_features():
                                                                    "blocks": ["minecraft:grass_block", "minecraft:moss_block",
                                                                               "minecraft:dirt"]}},
         {"type": "minecraft:biome"}])
-    configured("prismatic_clusters", {"type": "minecraft:random_patch", "config": {
-        "tries": 24, "xz_spread": 6, "y_spread": 2,
-        "feature": {"feature": {"type": "minecraft:simple_block", "config": {"to_place": {
-            "type": "minecraft:simple_state_provider", "state": state(ns("prismatic_cluster"), {"facing": "up", "waterlogged": "false"})}}},
-            "placement": [{"type": "minecraft:block_predicate_filter", "predicate": {"type": "minecraft:all_of", "predicates": [
-                {"type": "minecraft:matching_blocks", "blocks": "minecraft:air"},
-                {"type": "minecraft:matching_blocks", "offset": [0, -1, 0],
-                 "blocks": ["minecraft:grass_block", "minecraft:moss_block", "minecraft:stone"]}]}}]}}})
+    # Patches (26.1 removed random_patch/flower): a simple_block feature placed `tries` times around each
+    # spot, spread like the old patches (triangular, +-xz_spread / +-y_spread).
+    configured("prismatic_clusters", simple_block(state(ns("prismatic_cluster"), {"facing": "up", "waterlogged": "false"})))
     placed("prismatic_clusters", ns("prismatic_clusters"), [
         {"type": "minecraft:count", "count": 2}, {"type": "minecraft:in_square"},
-        {"type": "minecraft:heightmap", "heightmap": "MOTION_BLOCKING"}, {"type": "minecraft:biome"}])
-    configured("spider_lily_patch", {"type": "minecraft:flower", "config": {
-        "tries": 96, "xz_spread": 7, "y_spread": 2,
-        "feature": {"feature": {"type": "minecraft:simple_block", "config": {"to_place": {
-            "type": "minecraft:simple_state_provider", "state": state(ns("red_spider_lily"))}}},
-            "placement": [{"type": "minecraft:block_predicate_filter", "predicate": {
-                "type": "minecraft:matching_blocks", "blocks": "minecraft:air"}}]}}})
+        {"type": "minecraft:heightmap", "heightmap": "MOTION_BLOCKING"}, {"type": "minecraft:biome"},
+        *patch(24, 6, 2, {"type": "minecraft:all_of", "predicates": [
+            {"type": "minecraft:matching_blocks", "blocks": "minecraft:air"},
+            {"type": "minecraft:matching_blocks", "offset": [0, -1, 0],
+             "blocks": ["minecraft:grass_block", "minecraft:moss_block", "minecraft:stone"]}]})])
+    configured("spider_lily_patch", simple_block(state(ns("red_spider_lily"))))
     placed("spider_lily_patch", ns("spider_lily_patch"), [
         {"type": "minecraft:count", "count": 4}, {"type": "minecraft:in_square"},
-        {"type": "minecraft:heightmap", "heightmap": "MOTION_BLOCKING"}, {"type": "minecraft:biome"}])
+        {"type": "minecraft:heightmap", "heightmap": "MOTION_BLOCKING"}, {"type": "minecraft:biome"},
+        *patch(96, 7, 2, {"type": "minecraft:matching_blocks", "blocks": "minecraft:air"})])
+    # 1.21.1's minecraft:trees_birch_and_oak (gone since 1.21.5, whose successor adds leaf litter and
+    # fallen logs): oak, 20% birch, 10% fancy oak, 10-11 per chunk.
+    configured("trees_birch_and_oak", {"type": "minecraft:random_selector", "config": {
+        "default": "minecraft:oak_checked",
+        "features": [{"chance": 0.2, "feature": "minecraft:birch_checked"},
+                     {"chance": 0.1, "feature": "minecraft:fancy_oak_checked"}]}})
+    placed("trees_birch_and_oak", ns("trees_birch_and_oak"), [
+        {"type": "minecraft:count", "count": {"type": "minecraft:weighted_list", "distribution": [
+            {"data": 10, "weight": 9}, {"data": 11, "weight": 1}]}},
+        {"type": "minecraft:in_square"}, {"type": "minecraft:surface_water_depth_filter", "max_water_depth": 0},
+        {"type": "minecraft:heightmap", "heightmap": "OCEAN_FLOOR"}, {"type": "minecraft:biome"}])
+
+
+def simple_block(block_state):
+    return {"type": "minecraft:simple_block", "config": {"to_place": {"type": "minecraft:simple_state_provider",
+                                                                      "state": block_state}}}
+
+
+def patch(tries, xz_spread, y_spread, predicate):
+    """Placement steps that scatter `tries` copies around a spot, like 1.21.1's random_patch."""
+    def spread(r):
+        return {"type": "minecraft:trapezoid", "min": -r, "max": r, "plateau": 0}
+    return [{"type": "minecraft:count", "count": tries},
+            {"type": "minecraft:random_offset", "xz_spread": spread(xz_spread), "y_spread": spread(y_spread)},
+            {"type": "minecraft:block_predicate_filter", "predicate": predicate}]
 
 
 def gen_landmark_features():
@@ -615,12 +713,31 @@ def gen_landmark_features():
 
 
 def gen_dimension():
+    # The overworld's dimension type (26.2), but no raids. 1.21.1's flags (natural, bed_works, piglin_safe,
+    # ultrawarm, effects...) are environment attributes now; the overworld's clock and timelines give the
+    # Frontier the same day/night cycle and sky as before.
     write(os.path.join(DATA, "dimension_type/frontier.json"), {
-        "ultrawarm": False, "natural": True, "coordinate_scale": 1.0, "has_skylight": True, "has_ceiling": False,
-        "ambient_light": 0.0, "piglin_safe": False, "bed_works": True, "respawn_anchor_works": False, "has_raids": False,
-        "logical_height": 384, "height": 384, "min_y": -64, "infiniburn": "#minecraft:infiniburn_overworld",
-        "effects": "minecraft:overworld", "monster_spawn_block_light_limit": 0,
-        "monster_spawn_light_level": {"type": "minecraft:uniform", "min_inclusive": 0, "max_inclusive": 7}})
+        "has_skylight": True, "has_ceiling": False, "has_ender_dragon_fight": False, "coordinate_scale": 1.0,
+        "ambient_light": 0.0, "logical_height": 384, "height": 384, "min_y": -64,
+        "infiniburn": "#minecraft:infiniburn_overworld", "monster_spawn_block_light_limit": 0,
+        "monster_spawn_light_level": {"type": "minecraft:uniform", "min_inclusive": 0, "max_inclusive": 7},
+        "default_clock": "minecraft:overworld", "timelines": "#minecraft:in_overworld",
+        "attributes": {
+            "minecraft:audio/ambient_sounds": {"mood": CAVE_MOOD},
+            "minecraft:audio/background_music": {
+                "creative": {"sound": "minecraft:music.creative", "min_delay": 12000, "max_delay": 24000},
+                "default": {"sound": "minecraft:music.game", "min_delay": 12000, "max_delay": 24000}},
+            "minecraft:gameplay/bed_rule": {"can_set_spawn": "always", "can_sleep": "when_dark",
+                                            "error_message": {"translate": "block.minecraft.bed.no_sleep"}},
+            "minecraft:gameplay/can_start_raid": False,
+            "minecraft:gameplay/nether_portal_spawns_piglin": True,
+            "minecraft:gameplay/respawn_anchor_works": False,
+            "minecraft:visual/ambient_light_color": "#0a0a0a",
+            "minecraft:visual/cloud_color": "#ccffffff",
+            "minecraft:visual/cloud_height": 192.33,
+            "minecraft:visual/fog_color": "#c0d8ff",
+            "minecraft:visual/sky_color": "#78a7ff",
+        }})
 
     # Noise settings: the terrain comes from the designed map (tools/worldmap.py); vanilla's
     # surface rules, aquifers and ore veins stay, with our own surface rules for the Frontier biomes.
@@ -686,7 +803,12 @@ def gen_dimension():
         "type": "minecraft:add", "argument1": terrain,
         "argument2": {"type": "minecraft:mul", "argument1": {"type": "minecraft:cache_2d", "argument": design("crag")},
                       "argument2": crag}}}
-    noise["noise_router"]["initial_density_without_jaggedness"] = terrain
+    # Where the surface starts (aquifers, surface rules): the highest y, scanning down a noise cell
+    # (8 blocks) at a time, where the terrain without crags is solid enough. 1.21.1 derived this from
+    # initial_density_without_jaggedness > 0.390625; 26.2 names the search itself.
+    noise["noise_router"]["preliminary_surface_level"] = {
+        "type": "minecraft:find_top_surface", "density": {"type": "minecraft:add", "argument1": -0.390625, "argument2": terrain},
+        "upper_bound": 320.0, "lower_bound": -64, "cell_height": 8}
     write(os.path.join(DATA, "worldgen/noise_settings/frontier.json"), noise)
     write(os.path.join(DATA, "worldgen/noise/frontier_detail.json"), {"firstOctave": -6, "amplitudes": [1.0, 1.0, 0.5, 0.25]})
     write(os.path.join(DATA, "worldgen/noise/frontier_crag.json"), {"firstOctave": -5, "amplitudes": [1.0, 0.6, 0.3]})
@@ -732,6 +854,7 @@ def gen_structures():
 if __name__ == "__main__":
     gen_lang()
     gen_models()
+    gen_equipment()
     gen_loot()
     gen_recipes()
     gen_tags()
@@ -742,4 +865,5 @@ if __name__ == "__main__":
     gen_dimension()
     gen_structures()
     crafting_data.build()
+    gen_item_definitions()  # last: checks the models every other step wrote
     print("data generated")

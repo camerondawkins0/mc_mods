@@ -2,35 +2,41 @@
   "has_precipitation": true,
   "temperature": 0.5,
   "downfall": 0.7,
-  "effects": {
-    "sky_color": 2761792,
-    "fog_color": 3813456,
-    "water_color": 2763344,
-    "water_fog_color": 329011,
-    "grass_color": 4086330,
-    "mood_sound": {
-      "sound": "minecraft:ambient.cave",
-      "tick_delay": 6000,
-      "block_search_extent": 8,
-      "offset": 2.0
-    },
-    "foliage_color": 3033646,
-    "particle": {
-      "options": {
-        "type": "minecraft:ash"
+  "attributes": {
+    "minecraft:audio/ambient_sounds": {
+      "mood": {
+        "sound": "minecraft:ambient.cave",
+        "tick_delay": 6000,
+        "block_search_extent": 8,
+        "offset": 2.0
       },
-      "probability": 0.006
+      "additions": {
+        "sound": "minecraft:ambient.soul_sand_valley.additions",
+        "tick_chance": 0.006
+      }
     },
-    "music": {
-      "sound": "minecraft:music.overworld.deep_dark",
-      "min_delay": 12000,
-      "max_delay": 24000,
-      "replace_current_music": false
+    "minecraft:audio/background_music": {
+      "default": {
+        "sound": "minecraft:music.overworld.deep_dark",
+        "min_delay": 12000,
+        "max_delay": 24000
+      }
     },
-    "additions_sound": {
-      "sound": "minecraft:ambient.soul_sand_valley.additions",
-      "tick_chance": 0.006
-    }
+    "minecraft:visual/ambient_particles": [
+      {
+        "particle": {
+          "type": "minecraft:ash"
+        },
+        "probability": 0.006
+      }
+    ],
+    "minecraft:visual/fog_color": "#3a3050",
+    "minecraft:visual/sky_color": "#2a2440"
+  },
+  "effects": {
+    "water_color": "#2a2a50",
+    "grass_color": "#3e5a3a",
+    "foliage_color": "#2e4a2e"
   },
   "spawners": {
     "monster": [
@@ -56,13 +62,11 @@
     "water_creature": []
   },
   "spawn_costs": {},
-  "carvers": {
-    "air": [
-      "minecraft:cave",
-      "minecraft:cave_extra_underground",
-      "minecraft:canyon"
-    ]
-  },
+  "carvers": [
+    "minecraft:cave",
+    "minecraft:cave_extra_underground",
+    "minecraft:canyon"
+  ],
   "features": [
     [],
     [],

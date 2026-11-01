@@ -10,7 +10,7 @@ import random
 import nbt
 from nbt import Byte, DoubleList, Float, FloatList, IntList
 
-DATA_VERSION = 3955  # Minecraft 1.21.1
+DATA_VERSION = 4903  # Minecraft 26.2 (templates written in its block and NBT formats, so nothing is data-fixed)
 
 LEAVES = lambda kind: (f"minecraft:{kind}_leaves", {"persistent": "true", "distance": "1", "waterlogged": "false"})
 
@@ -280,7 +280,7 @@ def divinity_ruins():
     t.set(10, 1, 9, "minecraft:heavy_core", {"waterlogged": "false"})
     t.set(1, 1, 10, "slfrontier:waypoint_crystal")
     for y in range(2, 7):
-        t.set(10, y, 12, "minecraft:chain", {"axis": "y", "waterlogged": "false"})
+        t.set(10, y, 12, "minecraft:iron_chain", {"axis": "y", "waterlogged": "false"})
     t.clear_above()
     return t
 

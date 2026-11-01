@@ -1,9 +1,7 @@
 {
   "type": "minecraft:smelting",
   "category": "misc",
-  "ingredient": {
-    "item": "slfrontier:gray_ore"
-  },
+  "ingredient": "slfrontier:gray_ore",
   "result": {
     "id": "slfrontier:gray_ore_chunk"
   },

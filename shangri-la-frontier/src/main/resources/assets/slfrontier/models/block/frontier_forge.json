@@ -1,6 +1,5 @@
 {
   "parent": "minecraft:block/block",
-  "render_type": "minecraft:cutout",
   "textures": {
     "front": "slfrontier:block/frontier_forge_front",
     "side": "slfrontier:block/frontier_forge_side",
@@ -61,10 +60,7 @@
         16
       ],
       "shade": false,
-      "neoforge_data": {
-        "block_light": 15,
-        "sky_light": 15
-      },
+      "light_emission": 15,
       "faces": {
         "north": {
           "texture": "#glow",
