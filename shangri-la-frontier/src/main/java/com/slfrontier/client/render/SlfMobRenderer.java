@@ -1,45 +1,76 @@
 package com.slfrontier.client.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.slfrontier.client.fx.Impact;
 import com.slfrontier.client.model.SlfModel;
 import com.slfrontier.entity.SlfAnimated;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.MobRenderer;
-import net.minecraft.client.renderer.entity.layers.RenderLayer;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.renderer.entity.layers.RenderLayer;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.AnimationState;
 import net.minecraft.world.entity.Mob;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.function.Predicate;
 
 /**
  * Renderer for {@link SlfModel} creatures with a fixed texture and size. Parts painted
  * with glowing materials also live in {@code <texture>_glow.png}, which is drawn full
  * bright on top (eyes, Wezaemon's visor, Kirin's cables...).
  */
-public class SlfMobRenderer<T extends Mob & SlfAnimated> extends MobRenderer<T, SlfModel<T>> {
-    private final ResourceLocation texture;
+public class SlfMobRenderer<T extends Mob & SlfAnimated> extends MobRenderer<T, SlfRenderState, SlfModel> {
+    private static final int FULL_BRIGHT = 0xF000F0;
+    private final Identifier texture;
     private final float scale;
+    @Nullable
+    private final Predicate<T> flag;
 
-    public SlfMobRenderer(EntityRendererProvider.Context ctx, SlfModel<T> model, ResourceLocation texture, float shadow, float scale) {
+    public SlfMobRenderer(EntityRendererProvider.Context ctx, SlfModel model, Identifier texture, float shadow, float scale) {
+        this(ctx, model, texture, shadow, scale, null);
+    }
+
+    public SlfMobRenderer(EntityRendererProvider.Context ctx, SlfModel model, Identifier texture, float shadow, float scale,
+                          @Nullable Predicate<T> flag) {
         super(ctx, model, shadow * scale);
         this.texture = texture;
         this.scale = scale;
-        addLayer(new GlowLayer<>(this, texture));
-        addLayer(new FlashLayer<>(this, texture));
+        this.flag = flag;
+        addLayer(new GlowLayer(this, texture));
+        addLayer(new FlashLayer(this, texture));
     }
 
     @Override
-    public ResourceLocation getTextureLocation(T entity) {
+    public SlfRenderState createRenderState() {
+        return new SlfRenderState();
+    }
+
+    @Override
+    public void extractRenderState(T entity, SlfRenderState state, float partialTick) {
+        super.extractRenderState(entity, state, partialTick);
+        AnimationState[] anims = entity.animStates();
+        for (int i = 0; i < state.animTimes.length; i++) {
+            AnimationState anim = i < anims.length ? anims[i] : null;
+            state.animTimes[i] = anim != null && anim.isStarted()
+                    ? Impact.heldBack(entity.getId(), anim.getTimeInMillis(state.ageInTicks), partialTick) : -1;
+        }
+        state.flash = Impact.flash(entity.getId(), partialTick);
+        state.flag = flag != null && flag.test(entity);
+    }
+
+    @Override
+    public Identifier getTextureLocation(SlfRenderState state) {
         return texture;
     }
 
     @Override
-    protected void scale(T entity, PoseStack poseStack, float partialTick) {
+    protected void scale(SlfRenderState state, PoseStack poseStack) {
         if (scale != 1f) poseStack.scale(scale, scale, scale);
     }
 
@@ -47,43 +78,41 @@ public class SlfMobRenderer<T extends Mob & SlfAnimated> extends MobRenderer<T, 
      * The white flash of a fresh hit: the model drawn again, washed white and fading out.
      * (Vanilla's white overlay would be tinted red by the hurt overlay, so it's a second pass.)
      */
-    static final class FlashLayer<T extends Mob & SlfAnimated> extends RenderLayer<T, SlfModel<T>> {
+    static final class FlashLayer extends RenderLayer<SlfRenderState, SlfModel> {
         private static final int WHITE_OVERLAY = OverlayTexture.pack(15, 10);
-        private final ResourceLocation texture;
+        private final Identifier texture;
 
-        FlashLayer(RenderLayerParent<T, SlfModel<T>> parent, ResourceLocation texture) {
+        FlashLayer(RenderLayerParent<SlfRenderState, SlfModel> parent, Identifier texture) {
             super(parent);
             this.texture = texture;
         }
 
         @Override
-        public void render(PoseStack pose, MultiBufferSource buffers, int light, T entity, float limbSwing, float limbSwingAmount,
-                           float partialTick, float ageInTicks, float netHeadYaw, float headPitch) {
-            float flash = com.slfrontier.client.fx.Impact.flash(entity.getId(), partialTick);
-            if (flash <= 0 || entity.isInvisible()) return;
-            VertexConsumer buffer = buffers.getBuffer(RenderType.entityTranslucent(texture));
-            getParentModel().renderToBuffer(pose, buffer, 0xF000F0, WHITE_OVERLAY, (int) (flash * 235) << 24 | 0xFFFFFF);
+        public void submit(PoseStack pose, SubmitNodeCollector collector, int light, SlfRenderState state, float yRot, float xRot) {
+            if (state.flash <= 0 || state.isInvisible) return;
+            // A later order than the glow layer, so the flash always washes over it.
+            collector.order(2).submitModel(getParentModel(), state, pose, RenderTypes.entityTranslucent(texture), FULL_BRIGHT, WHITE_OVERLAY,
+                    (int) (state.flash * 235) << 24 | 0xFFFFFF, null, 0, null);
         }
     }
 
     /** Draws the emissive {@code _glow} texture, if the creature has one. */
-    static final class GlowLayer<T extends Mob & SlfAnimated> extends RenderLayer<T, SlfModel<T>> {
-        private final ResourceLocation glow;
+    static final class GlowLayer extends RenderLayer<SlfRenderState, SlfModel> {
+        private final Identifier glow;
         private Boolean present;
 
-        GlowLayer(RenderLayerParent<T, SlfModel<T>> parent, ResourceLocation texture) {
+        GlowLayer(RenderLayerParent<SlfRenderState, SlfModel> parent, Identifier texture) {
             super(parent);
             String path = texture.getPath();
             this.glow = texture.withPath(path.substring(0, path.length() - 4) + "_glow.png");
         }
 
         @Override
-        public void render(PoseStack pose, MultiBufferSource buffers, int light, T entity, float limbSwing, float limbSwingAmount,
-                           float partialTick, float ageInTicks, float netHeadYaw, float headPitch) {
+        public void submit(PoseStack pose, SubmitNodeCollector collector, int light, SlfRenderState state, float yRot, float xRot) {
             if (present == null) present = Minecraft.getInstance().getResourceManager().getResource(glow).isPresent();
-            if (!present || entity.isInvisible()) return;
-            VertexConsumer buffer = buffers.getBuffer(RenderType.eyes(glow));
-            getParentModel().renderToBuffer(pose, buffer, 0xF000F0, LivingEntityRenderer.getOverlayCoords(entity, 0f));
+            if (!present || state.isInvisible) return;
+            collector.order(1).submitModel(getParentModel(), state, pose, RenderTypes.eyes(glow), FULL_BRIGHT,
+                    LivingEntityRenderer.getOverlayCoords(state, 0f), -1, null, 0, null);
         }
     }
 }

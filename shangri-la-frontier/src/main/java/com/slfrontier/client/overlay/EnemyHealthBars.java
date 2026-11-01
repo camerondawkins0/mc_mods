@@ -1,10 +1,10 @@
 package com.slfrontier.client.overlay;
 
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.slfrontier.SLFrontier;
 import com.slfrontier.SlfConfig;
+import com.slfrontier.client.fx.WorldLayer;
 import com.slfrontier.client.ui.Gfx;
 import com.slfrontier.client.ui.Theme;
 import com.slfrontier.entity.FrontierBoss;
@@ -16,17 +16,21 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderStateShard;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
-import org.joml.Vector3f;
+import org.joml.Quaternionf;
+import org.joml.Vector3fc;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -55,16 +59,11 @@ public final class EnemyHealthBars {
     /**
      * Alpha-blended quads, hidden by terrain but not writing depth, so each layer of a bar simply
      * paints over the one before it in the order drawn (frame, track, damage trail, HP fill...).
-     * Layering by depth instead left the fill hidden behind the frame.
+     * Layering by depth instead left the fill hidden behind the frame. (Vanilla's debug-quad
+     * pipeline, but unsorted so the layers keep that order.)
      */
-    private static final RenderType BAR = RenderType.create("slfrontier_health_bar", DefaultVertexFormat.POSITION_COLOR,
-            VertexFormat.Mode.QUADS, 4096, false, false, RenderType.CompositeState.builder()
-                    .setShaderState(RenderStateShard.POSITION_COLOR_SHADER)
-                    .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
-                    .setCullState(RenderStateShard.NO_CULL)
-                    .setWriteMaskState(RenderStateShard.COLOR_WRITE)
-                    .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)
-                    .createCompositeState(false));
+    private static final RenderType BAR = RenderType.create("slfrontier_health_bar",
+            RenderSetup.builder(RenderPipelines.DEBUG_QUADS).createRenderSetup());
 
     private static final class Bar {
         float health;
@@ -78,8 +77,16 @@ public final class EnemyHealthBars {
         }
     }
 
-    private record Shown(Mob mob, Bar bar, double x, double y, double z, double dist, float alpha) {
+    /** A bar to draw this frame: where it is (camera-relative), what it shows and how faded it is. */
+    private record Shown(double x, double y, double z, double dist, float alpha, float width, float hp, float trail,
+                         Component name, int nameColor) {
     }
+
+    /** This frame's bars, far to near, and the camera's rotation, taken while the level's render state is extracted. */
+    private record Frame(List<Shown> bars, Quaternionf rotation) {
+    }
+
+    private static final ContextKey<Frame> SHOWN = new ContextKey<>(SLFrontier.id("enemy_health_bars"));
 
     private static final Map<Integer, Bar> BARS = new HashMap<>();
     private static int clock;
@@ -141,13 +148,14 @@ public final class EnemyHealthBars {
         return since <= HOLD ? 1f : Mth.clamp(1f - (since - HOLD) / FADE, 0f, 1f);
     }
 
-    public static void render(Camera camera, float pt) {
+    public static void extract(LevelRenderState state, Camera camera, float pt) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         ClientLevel level = mc.level;
-        if (BARS.isEmpty() || player == null || level == null || mc.options.hideGui) return;
-        Vec3 cam = camera.getPosition();
-        Vector3f look = camera.getLookVector();
+        if (BARS.isEmpty() || player == null || level == null || mc.gui.hud.isHidden()) return;
+        Vec3 cam = camera.position();
+        Vector3fc look = camera.forwardVector();
+        int playerLevel = Frontier.isIn(player) ? ModAttachments.get(player).level() : -1;
         List<Shown> shown = new ArrayList<>();
         for (Map.Entry<Integer, Bar> e : BARS.entrySet()) {
             float alpha = visibility(e.getValue(), pt);
@@ -159,43 +167,50 @@ public final class EnemyHealthBars {
             double y = Mth.lerp(pt, mob.yo, mob.getY()) + mob.getBbHeight() + (mob.shouldShowName() ? 0.95 : 0.45) - cam.y;
             double z = Mth.lerp(pt, mob.zo, mob.getZ()) - cam.z;
             if (x * look.x() + y * look.y() + z * look.z() < 0 || alpha <= 0.02f) continue;
-            shown.add(new Shown(mob, e.getValue(), x, y, z, Math.sqrt(x * x + y * y + z * z), alpha));
+            Bar bar = e.getValue();
+            float max = Math.max(1f, mob.getMaxHealth());
+            Component name = mob instanceof LeveledMob leveled
+                    ? Component.translatable("hud.slfrontier.target", mob.getDisplayName(), leveled.frontierLevel())
+                    : mob.getDisplayName();
+            shown.add(new Shown(x, y, z, Math.sqrt(x * x + y * y + z * z), alpha, mob instanceof LeveledMob ? LEVELED_WIDTH : WIDTH,
+                    Mth.clamp(bar.health / max, 0f, 1f), Mth.clamp(bar.trail / max, 0f, 1f), name, nameColor(mob, playerLevel)));
         }
         if (shown.isEmpty()) return;
         // Far to near, so nearer bars blend over farther ones.
         shown.sort((p, q) -> Double.compare(q.dist(), p.dist()));
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        PoseStack pose = new PoseStack();
-        VertexConsumer v = buffers.getBuffer(BAR);
-        for (Shown s : shown) {
-            billboard(pose, camera, s);
-            drawBar(v, pose.last().pose(), s);
-            pose.popPose();
-        }
-        buffers.endBatch(BAR);
-        Font font = mc.font;
-        int playerLevel = Frontier.isIn(player) ? ModAttachments.get(player).level() : -1;
-        for (Shown s : shown) {
+        state.setRenderData(SHOWN, new Frame(List.copyOf(shown), new Quaternionf(camera.rotation())));
+    }
+
+    public static void submit(LevelRenderState state, SubmitNodeCollector collector, PoseStack pose) {
+        Frame frame = state.getRenderData(SHOWN);
+        if (frame == null) return;
+        // Every bar goes into one batch, frame to highlight, in far-to-near order.
+        WorldLayer.geometry(collector, WorldLayer.BARS, pose, BAR, (p, v) -> {
+            PoseStack bars = new PoseStack();
+            bars.last().set(p);
+            for (Shown s : frame.bars) {
+                billboard(bars, frame.rotation, s);
+                drawBar(v, bars.last().pose(), s);
+                bars.popPose();
+            }
+        });
+        Font font = Minecraft.getInstance().font;
+        for (Shown s : frame.bars) {
             if (s.alpha < 0.05f) continue;
-            billboard(pose, camera, s);
-            Component name = s.mob instanceof LeveledMob leveled
-                    ? Component.translatable("hud.slfrontier.target", s.mob.getDisplayName(), leveled.frontierLevel())
-                    : s.mob.getDisplayName();
+            billboard(pose, frame.rotation, s);
             pose.translate(0, -8.5f, -3f);
             pose.scale(0.75f, 0.75f, 0.75f);
-            int color = nameColor(s.mob, playerLevel);
-            font.drawInBatch(name, -font.width(name) / 2f, 0, ((int) (s.alpha * 255) << 24) | (color & 0xFFFFFF), true,
-                    pose.last().pose(), buffers, Font.DisplayMode.NORMAL, 0, 0xF000F0);
+            WorldLayer.text(collector, pose, -font.width(s.name) / 2f, 0, s.name, true, Font.DisplayMode.NORMAL,
+                    ((int) (s.alpha * 255) << 24) | (s.nameColor & 0xFFFFFF), 0);
             pose.popPose();
         }
-        buffers.endBatch();
     }
 
     /** Pushes a camera-facing frame above the monster, in "pixels" that grow with distance. */
-    private static void billboard(PoseStack pose, Camera camera, Shown s) {
+    private static void billboard(PoseStack pose, Quaternionf rotation, Shown s) {
         pose.pushPose();
         pose.translate(s.x, s.y, s.z);
-        pose.mulPose(camera.rotation());
+        pose.mulPose(rotation);
         float k = 0.022f * (1f + (float) Math.max(0, s.dist - 6) * 0.045f);
         pose.scale(k, -k, k);
     }
@@ -205,10 +220,9 @@ public final class EnemyHealthBars {
      * billboard's -z points away from the camera, so each layer also sits a hair nearer it.)
      */
     private static void drawBar(VertexConsumer v, Matrix4f m, Shown s) {
-        float w = s.mob instanceof LeveledMob ? LEVELED_WIDTH : WIDTH;
+        float w = s.width;
         float x0 = -w / 2, x1 = w / 2;
-        float max = Math.max(1f, s.mob.getMaxHealth());
-        float hp = Mth.clamp(s.bar.health / max, 0f, 1f), trail = Mth.clamp(s.bar.trail / max, 0f, 1f);
+        float hp = s.hp, trail = s.trail;
         float a = s.alpha;
         rect(v, m, x0 - 1, -1, x1 + 1, HEIGHT + 1, 0f, fade(FRAME, a), fade(FRAME, a));
         rect(v, m, x0, 0, x1, HEIGHT, 0.1f, fade(Theme.BAR_BACK, a), fade(Theme.BAR_BACK, a));

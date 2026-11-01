@@ -1,16 +1,26 @@
 package com.slfrontier.client.fx;
 
+import com.mojang.blaze3d.PrimitiveTopology;
+import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.ColorTargetState;
+import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.slfrontier.SLFrontier;
 import com.slfrontier.SlfConfig;
 import com.slfrontier.fx.Fx;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderStateShard;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.util.Mth;
+import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -21,24 +31,23 @@ import java.util.List;
 
 /** Draws the server's {@link Fx} effects in the world after particles. */
 public final class FxRenderer {
+    /** The lightning shader's glow, two-sided and without depth writes (registered in ClientSetup). */
+    public static final RenderPipeline ADDITIVE_PIPELINE = RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
+            .withLocation(SLFrontier.id("pipeline/fx_additive"))
+            .withVertexShader("core/rendertype_lightning")
+            .withFragmentShader("core/rendertype_lightning")
+            .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
+            .withCull(false)
+            .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false))
+            .build();
     /** Glowing, additive, no depth write: slashes, rings, spirals. */
-    public static final RenderType ADDITIVE = RenderType.create("slfrontier_fx_additive", DefaultVertexFormat.POSITION_COLOR,
-            VertexFormat.Mode.QUADS, 8192, false, true, RenderType.CompositeState.builder()
-                    .setShaderState(RenderStateShard.RENDERTYPE_LIGHTNING_SHADER)
-                    .setTransparencyState(RenderStateShard.LIGHTNING_TRANSPARENCY)
-                    .setCullState(RenderStateShard.NO_CULL)
-                    .setWriteMaskState(RenderStateShard.COLOR_WRITE)
-                    .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)
-                    .createCompositeState(false));
-    /** Alpha-blended ground decals: boss telegraphs. */
-    public static final RenderType DECAL = RenderType.create("slfrontier_fx_decal", DefaultVertexFormat.POSITION_COLOR,
-            VertexFormat.Mode.QUADS, 4096, false, true, RenderType.CompositeState.builder()
-                    .setShaderState(RenderStateShard.POSITION_COLOR_SHADER)
-                    .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
-                    .setCullState(RenderStateShard.NO_CULL)
-                    .setWriteMaskState(RenderStateShard.COLOR_WRITE)
-                    .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)
-                    .createCompositeState(false));
+    public static final RenderType ADDITIVE = RenderType.create("slfrontier_fx_additive",
+            RenderSetup.builder(ADDITIVE_PIPELINE).sortOnUpload().createRenderSetup());
+    /** Alpha-blended ground decals: boss telegraphs. (Vanilla's debug quads: two-sided, blended, no depth write.) */
+    public static final RenderType DECAL = RenderType.create("slfrontier_fx_decal",
+            RenderSetup.builder(RenderPipelines.DEBUG_QUADS).sortOnUpload().createRenderSetup());
 
     private record Instance(Fx.Spec spec, float start) {
     }
@@ -72,28 +81,38 @@ public final class FxRenderer {
         return ACTIVE.size();
     }
 
-    public static void render(Camera camera, float partialTick) {
-        if (ACTIVE.isEmpty()) return;
-        Vec3 cam = camera.getPosition();
-        Matrix4f m = new Matrix4f();
-        MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
-        VertexConsumer decal = buffers.getBuffer(DECAL);
-        for (Instance i : ACTIVE) {
-            int kind = i.spec.kind();
-            if (kind == Fx.TELEGRAPH || kind == Fx.CONE) draw(i, decal, m, cam, camera, partialTick);
-        }
-        buffers.endBatch(DECAL);
-        VertexConsumer add = buffers.getBuffer(ADDITIVE);
-        for (Instance i : ACTIVE) {
-            int kind = i.spec.kind();
-            if (kind != Fx.TELEGRAPH && kind != Fx.CONE) draw(i, add, m, cam, camera, partialTick);
-        }
-        buffers.endBatch(ADDITIVE);
+    /** This frame's effects and view, taken while the level's render state is extracted. */
+    private record Frame(List<Instance> instances, float time, Vec3 cam, Quaternionf rotation) {
     }
 
-    private static void draw(Instance inst, VertexConsumer v, Matrix4f m, Vec3 cam, Camera camera, float pt) {
+    private static final ContextKey<Frame> FRAME = new ContextKey<>(SLFrontier.id("fx"));
+
+    public static void extract(LevelRenderState state, Camera camera, float partialTick) {
+        if (ACTIVE.isEmpty()) return;
+        state.setRenderData(FRAME, new Frame(List.copyOf(ACTIVE), clock + partialTick, camera.position(), new Quaternionf(camera.rotation())));
+    }
+
+    public static void submit(LevelRenderState state, SubmitNodeCollector collector, PoseStack pose) {
+        Frame frame = state.getRenderData(FRAME);
+        if (frame == null) return;
+        WorldLayer.geometry(collector, WorldLayer.DECALS, pose, DECAL, (p, v) -> {
+            for (Instance i : frame.instances) {
+                int kind = i.spec.kind();
+                if (kind == Fx.TELEGRAPH || kind == Fx.CONE) draw(i, v, p.pose(), frame);
+            }
+        });
+        WorldLayer.geometry(collector, WorldLayer.EFFECTS, pose, ADDITIVE, (p, v) -> {
+            for (Instance i : frame.instances) {
+                int kind = i.spec.kind();
+                if (kind != Fx.TELEGRAPH && kind != Fx.CONE) draw(i, v, p.pose(), frame);
+            }
+        });
+    }
+
+    private static void draw(Instance inst, VertexConsumer v, Matrix4f m, Frame frame) {
         Fx.Spec s = inst.spec;
-        float age = clock + pt - inst.start;
+        Vec3 cam = frame.cam;
+        float age = frame.time - inst.start;
         float life = Mth.clamp(age / Math.max(1, s.duration()), 0f, 1f);
         Vec3 c = new Vec3(s.x() - cam.x, s.y() - cam.y, s.z() - cam.z);
         switch (s.kind()) {
@@ -109,7 +128,7 @@ public final class FxRenderer {
             case Fx.PILLAR -> pillar(v, m, c, s, life);
             case Fx.TELEGRAPH -> telegraph(v, m, c, s, life);
             case Fx.CONE -> cone(v, m, c, s, life);
-            case Fx.FLASH -> flash(v, m, c, s, life, camera);
+            case Fx.FLASH -> flash(v, m, c, s, life, frame.rotation);
             case Fx.BEAM -> beam(v, m, c, s, life);
             default -> {
             }
@@ -296,8 +315,7 @@ public final class FxRenderer {
         band(v, m, c.add(0, 0.02, 0), r - 0.12f, r, center - half, center + half, argb(s.color(), 0.85f), 24);
     }
 
-    private static void flash(VertexConsumer v, Matrix4f m, Vec3 c, Fx.Spec s, float life, Camera camera) {
-        Quaternionf q = camera.rotation();
+    private static void flash(VertexConsumer v, Matrix4f m, Vec3 c, Fx.Spec s, float life, Quaternionf q) {
         // Keep flashes from swallowing the screen when they happen right at the camera.
         float dist = (float) c.length();
         float size = Math.min(s.radius(), Math.max(0.2f, dist * 0.35f)) * (0.4f + 0.9f * easeOut(life));

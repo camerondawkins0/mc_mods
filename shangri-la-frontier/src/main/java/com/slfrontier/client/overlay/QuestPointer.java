@@ -1,14 +1,15 @@
 package com.slfrontier.client.overlay;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Axis;
+import com.slfrontier.SLFrontier;
 import com.slfrontier.SlfConfig;
 import com.slfrontier.client.ClientState;
 import com.slfrontier.client.fx.FxRenderer;
+import com.slfrontier.client.fx.WorldLayer;
 import com.slfrontier.client.ui.Gfx;
 import com.slfrontier.client.ui.Theme;
 import com.slfrontier.network.ModNetwork;
@@ -16,16 +17,23 @@ import com.slfrontier.world.Frontier;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Options;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderStateShard;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.state.level.CameraEntityRenderState;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
+import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
@@ -43,17 +51,16 @@ import java.util.Locale;
  * edge, with an arrow, when the objective is off-screen or behind the camera.
  */
 public final class QuestPointer {
-    private static final ResourceLocation MARKER = Theme.icon("quest_marker");
-    private static final ResourceLocation EDGE_ARROW = Theme.icon("quest_edge_arrow");
+    private static final Identifier MARKER = Theme.icon("quest_marker");
+    private static final Identifier EDGE_ARROW = Theme.icon("quest_edge_arrow");
+    /** Flat-coloured, blended, back-face culled and depth-writing (registered in ClientSetup). */
+    public static final RenderPipeline SOLID_PIPELINE = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            .withLocation(SLFrontier.id("pipeline/quest_marker"))
+            .withCull(true)
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .build();
     /** Opaque, back-face culled, depth-writing geometry: the diamond itself. */
-    private static final RenderType SOLID = RenderType.create("slfrontier_quest_marker", DefaultVertexFormat.POSITION_COLOR,
-            VertexFormat.Mode.QUADS, 256, false, false, RenderType.CompositeState.builder()
-                    .setShaderState(RenderStateShard.POSITION_COLOR_SHADER)
-                    .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
-                    .setCullState(RenderStateShard.CULL)
-                    .setWriteMaskState(RenderStateShard.COLOR_DEPTH_WRITE)
-                    .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)
-                    .createCompositeState(false));
+    private static final RenderType SOLID = RenderType.create("slfrontier_quest_marker", RenderSetup.builder(SOLID_PIPELINE).createRenderSetup());
     private static final int GOLD_LIGHT = 0xFFFFF1B0, GOLD = 0xFFF2B530, GOLD_DARK = 0xFFA86A08;
     private static final float HOVER = 2.3f;
     /** The on-screen pointer fades out between these distances as the world marker takes over. */
@@ -64,6 +71,12 @@ public final class QuestPointer {
     private static final float LABEL_RANGE = 48;
     private static final int EDGE_MARGIN = 22;
 
+    /** The marker's place this frame, taken while the level's render state is extracted. */
+    private record Frame(double dx, double dz, double dist, double hoverY, double groundY, float size, float time,
+                         Quaternionf rotation, float far) {
+    }
+
+    private static final ContextKey<Frame> FRAME = new ContextKey<>(SLFrontier.id("quest_pointer"));
     private static final Matrix4f VIEW = new Matrix4f();
     private static final Matrix4f PROJECTION = new Matrix4f();
     private static Vec3 cameraPos = Vec3.ZERO;
@@ -111,61 +124,96 @@ public final class QuestPointer {
      */
     private static double groundY(ClientLevel level, BlockPos pos) {
         if (!level.getChunkSource().hasChunk(pos.getX() >> 4, pos.getZ() >> 4)) return Math.max(pos.getY(), level.getSeaLevel());
-        boolean standable = pos.getY() > level.getMinBuildHeight()
+        boolean standable = pos.getY() > level.getMinY()
                 && level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()
                 && !level.getBlockState(pos.below()).getCollisionShape(level, pos.below()).isEmpty();
         return standable ? pos.getY() : level.getHeight(Heightmap.Types.MOTION_BLOCKING, pos.getX(), pos.getZ());
     }
 
-    /** Keeps this frame's camera matrices so the HUD can project the objective onto the screen. */
-    public static void capture(Matrix4f modelView, Matrix4f projection, Camera camera) {
-        VIEW.set(modelView);
-        PROJECTION.set(projection);
-        cameraPos = camera.getPosition();
+    /**
+     * Keeps this frame's camera matrices so the HUD can project the objective onto the screen,
+     * including the view bob and damage tilt the level is drawn with.
+     */
+    private static void capture(CameraRenderState camera) {
+        PoseStack bob = new PoseStack();
+        bob(camera.entityRenderState, bob);
+        VIEW.set(camera.viewRotationMatrix);
+        PROJECTION.set(camera.projectionMatrix).mul(bob.last().pose());
+        cameraPos = camera.pos;
         captured = true;
+    }
+
+    /** Vanilla's damage tilt and view bob (GameRenderer#bobHurt and #bobView), which it applies to the level's projection. */
+    private static void bob(CameraEntityRenderState e, PoseStack pose) {
+        Options options = Minecraft.getInstance().options;
+        if (e.isLiving) {
+            if (e.isDeadOrDying) pose.mulPose(Axis.ZP.rotationDegrees(40f - 8000f / (Math.min(e.deathTime, 20f) + 200f)));
+            if (e.hurtTime >= 0 && !e.preventFlinch) {
+                float hurt = e.hurtTime / e.hurtDuration;
+                hurt = Mth.sin(hurt * hurt * hurt * hurt * Mth.PI);
+                pose.mulPose(Axis.YP.rotationDegrees(-e.hurtDir));
+                pose.mulPose(Axis.ZP.rotationDegrees((float) (-hurt * 14.0 * options.damageTiltStrength().get())));
+                pose.mulPose(Axis.YP.rotationDegrees(e.hurtDir));
+            }
+        }
+        if (e.isPlayer && options.bobView().get()) {
+            float walk = e.backwardsInterpolatedWalkDistance * Mth.PI, b = e.bob;
+            pose.translate(Mth.sin(walk) * b * 0.5f, -Math.abs(Mth.cos(walk) * b), 0f);
+            pose.mulPose(Axis.ZP.rotationDegrees(Mth.sin(walk) * b * 3f));
+            pose.mulPose(Axis.XP.rotationDegrees(Math.abs(Mth.cos(walk - 0.2f) * b) * 5f));
+        }
     }
 
     // ---- World ---------------------------------------------------------------------------
 
-    public static void renderWorld(Camera camera, float pt) {
+    public static void extract(LevelRenderState state, Camera camera, float pt) {
+        capture(state.cameraRenderState);
         ModNetwork.Marker m = target();
         Minecraft mc = Minecraft.getInstance();
-        if (m == null || anchorFor == null || mc.options.hideGui) return;
-        Vec3 cam = camera.getPosition();
+        if (m == null || anchorFor == null || mc.gui.hud.isHidden()) return;
+        Vec3 cam = camera.position();
         double dx = m.pos().getX() + 0.5 - cam.x, dz = m.pos().getZ() + 0.5 - cam.z;
         double dist = Math.sqrt(dx * dx + dz * dz);
         float time = clock + pt;
         float size = Math.min(4f, 1f + (float) Math.max(0, dist - 20) * 0.025f);
         double hoverY = anchorY + HOVER + Mth.sin(time * 0.07f) * 0.2f - cam.y;
-        Matrix4f mat = new Matrix4f();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        state.setRenderData(FRAME, new Frame(dx, dz, dist, hoverY, anchorY - cam.y, size, time, new Quaternionf(camera.rotation()),
+                state.cameraRenderState.depthFar * 0.8f));
+    }
+
+    public static void submit(LevelRenderState state, SubmitNodeCollector collector, PoseStack pose) {
+        Frame f = state.getRenderData(FRAME);
+        if (f == null) return;
+        double dx = f.dx, dz = f.dz, dist = f.dist, hoverY = f.hoverY;
+        float size = f.size, time = f.time;
 
         float near = (float) Mth.clamp((Math.sqrt(dist * dist + hoverY * hoverY) - 1.2) / 2.0, 0.25, 1.0);
-        diamond(buffers.getBuffer(SOLID), mat, dx, hoverY, dz, size, time * 2.2f * Mth.DEG_TO_RAD, near);
-        buffers.endBatch(SOLID);
+        WorldLayer.geometry(collector, WorldLayer.MARKER, pose, SOLID,
+                (p, v) -> diamond(v, p.pose(), dx, hoverY, dz, size, time * 2.2f * Mth.DEG_TO_RAD, near));
 
-        VertexConsumer glow = buffers.getBuffer(FxRenderer.ADDITIVE);
-        halo(glow, mat, camera.rotation(), new Vec3(dx, hoverY, dz), 1.4f * size, near * (0.32f + 0.06f * Mth.sin(time * 0.15f)));
         float beam = smoothstep(BEAM_NEAR, BEAM_FAR, (float) dist);
-        if (beam > 0.01f) beam(glow, mat, dx, anchorY - 1 - cam.y, dz, dist, beam, time, mc.gameRenderer.getDepthFar() * 0.8f);
-        if (dist < LABEL_RANGE) groundPulse(glow, mat, dx, anchorY + 0.05 - cam.y, dz, time);
-        buffers.endBatch(FxRenderer.ADDITIVE);
+        WorldLayer.geometry(collector, WorldLayer.MARKER_GLOW, pose, FxRenderer.ADDITIVE, (p, v) -> {
+            Matrix4f mat = p.pose();
+            halo(v, mat, f.rotation, new Vec3(dx, hoverY, dz), 1.4f * size, near * (0.32f + 0.06f * Mth.sin(time * 0.15f)));
+            if (beam > 0.01f) beam(v, mat, dx, f.groundY - 1, dz, dist, beam, time, f.far);
+            if (dist < LABEL_RANGE) groundPulse(v, mat, dx, f.groundY + 0.05, dz, time);
+        });
 
         float label = Mth.clamp((LABEL_RANGE - (float) dist) / 16f, 0f, 1f) * Mth.clamp(((float) dist - 1.5f) / 1.5f, 0f, 1f);
         if (label > 0.05f) {
-            Font font = mc.font;
+            Font font = Minecraft.getInstance().font;
             Component text = distance(dist);
-            PoseStack pose = new PoseStack();
+            pose.pushPose();
             pose.translate(dx, hoverY - 0.75 * size - 0.35, dz);
-            pose.mulPose(camera.rotation());
+            pose.mulPose(f.rotation);
             float k = 0.025f * Math.max(1f, (float) dist / 10f);
             pose.scale(k, -k, k);
             float x = -font.width(text) / 2f;
             int a = (int) (label * 255);
-            font.drawInBatch(text, x, 0, ((a / 3) << 24) | 0xFFE9A8, false, pose.last().pose(), buffers, Font.DisplayMode.SEE_THROUGH,
-                    (int) (label * 0x50) << 24, 0xF000F0);
-            font.drawInBatch(text, x, 0, (a << 24) | 0xFFF1B0, false, pose.last().pose(), buffers, Font.DisplayMode.NORMAL, 0, 0xF000F0);
-            buffers.endBatch();
+            WorldLayer.text(collector, pose, x, 0, text, false, Font.DisplayMode.SEE_THROUGH, ((a / 3) << 24) | 0xFFE9A8,
+                    (int) (label * 0x50) << 24);
+            WorldLayer.text(collector, pose, x, 0, text, false, Font.DisplayMode.NORMAL, (a << 24) | 0xFFF1B0, 0);
+            pose.popPose();
         }
     }
 
@@ -264,10 +312,10 @@ public final class QuestPointer {
     // ---- Screen --------------------------------------------------------------------------
 
     /** The on-screen pointer, drawn as a HUD layer; hidden while any screen is open. */
-    public static void renderHud(GuiGraphics g, DeltaTracker delta) {
+    public static void renderHud(GuiGraphicsExtractor g, DeltaTracker delta) {
         Minecraft mc = Minecraft.getInstance();
         ModNetwork.Marker m = target();
-        if (m == null || anchorFor == null || !captured || mc.options.hideGui || mc.screen != null) return;
+        if (m == null || anchorFor == null || !captured || mc.gui.hud.isHidden() || mc.gui.screen() != null) return;
         double wx = m.pos().getX() + 0.5, wz = m.pos().getZ() + 0.5;
         double dx = wx - cameraPos.x, dz = wz - cameraPos.z;
         double dist = Math.sqrt(dx * dx + dz * dz);
@@ -314,18 +362,13 @@ public final class QuestPointer {
         Gfx.alpha = 1f;
     }
 
-    private static void sprite(GuiGraphics g, ResourceLocation tex, float x, float y, float size, float rot) {
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        g.pose().pushPose();
-        g.pose().translate(x, y, 0);
-        if (rot != 0) g.pose().mulPose(Axis.ZP.rotation(rot));
-        g.pose().scale(size / 32f, size / 32f, 1f);
-        g.setColor(1f, 1f, 1f, Mth.clamp(Gfx.alpha, 0f, 1f));
-        g.blit(tex, -16, -16, 0f, 0f, 32, 32, 32, 32);
-        g.setColor(1f, 1f, 1f, 1f);
-        g.pose().popPose();
-        RenderSystem.disableBlend();
+    private static void sprite(GuiGraphicsExtractor g, Identifier tex, float x, float y, float size, float rot) {
+        g.pose().pushMatrix();
+        g.pose().translate(x, y);
+        if (rot != 0) g.pose().rotate(rot);
+        g.pose().scale(size / 32f, size / 32f);
+        g.blit(RenderPipelines.GUI_TEXTURED, tex, -16, -16, 0f, 0f, 32, 32, 32, 32, ARGB.white(Mth.clamp(Gfx.alpha, 0f, 1f)));
+        g.pose().popMatrix();
     }
 
     // ---- Helpers -------------------------------------------------------------------------

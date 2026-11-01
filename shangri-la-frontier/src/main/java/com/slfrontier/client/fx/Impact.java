@@ -1,13 +1,12 @@
 package com.slfrontier.client.fx;
 
-import com.mojang.math.Axis;
 import com.slfrontier.SlfConfig;
 import com.slfrontier.client.ClientAnims;
 import com.slfrontier.entity.FrontierBoss;
 import com.slfrontier.network.ModNetwork;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
@@ -52,7 +51,7 @@ public final class Impact {
     public static void onHit(ModNetwork.Hit hit) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
-        float now = ClientAnims.clock() + mc.getTimer().getGameTimeDeltaPartialTick(false);
+        float now = ClientAnims.clock() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         int f = hit.flags();
         Entity victim = mc.level.getEntity(hit.entityId());
         boolean boss = victim instanceof FrontierBoss;
@@ -77,7 +76,7 @@ public final class Impact {
             if (burst > 0 && burst >= burstLeft(now)) {
                 burstStart = now;
                 burstStrength = burst;
-                burstSeed = mc.level.random.nextLong();
+                burstSeed = mc.level.getRandom().nextLong();
             }
         }
         if ((big || kill) && SlfConfig.CAMERA_SHAKE.get()) CameraShake.add(big && kill ? 0.9f : 0.5f, 5);
@@ -106,15 +105,14 @@ public final class Impact {
         return lost;
     }
 
-    /** 0 while an entity is held by a hit-stop, else 1 (multiplies keyframe animation speed). */
-    public static float animSpeed(int id, float partialTick) {
-        List<Window> list = FREEZES.get(id);
-        if (list == null) return 1;
+    /**
+     * An animation's play time in milliseconds ({@code millis}, by the entity's own clock) with the
+     * time its entity spent held by hit-stops taken out: held creatures resume where they left off.
+     */
+    public static long heldBack(int id, long millis, float partialTick) {
         float now = ClientAnims.clock() + partialTick;
-        for (Window w : list) {
-            if (now >= w.start() && now < w.end()) return 0;
-        }
-        return 1;
+        float lost = lost(id, now - millis / 50f, now);
+        return Math.max(0, millis - (long) (lost * 50));
     }
 
     /** White flash strength (0..1) on a monster that was just hit. */
@@ -144,8 +142,22 @@ public final class Impact {
             SWING_HOLD.clear();
         }
         float now = ClientAnims.clock();
-        FREEZES.values().removeIf(list -> {
-            list.removeIf(w -> w.end() < now - 400);
+        // Old hit-stops fold into one window of the same total length rather than vanishing, so
+        // long-running loops (a monster's idle) don't skip ahead when they're forgotten.
+        FREEZES.entrySet().removeIf(e -> {
+            if (mc.level == null || mc.level.getEntity(e.getKey()) == null) return true;
+            List<Window> list = e.getValue();
+            int old = 0;
+            float held = 0;
+            while (old < list.size() && list.get(old).end() < now - 400) {
+                held += list.get(old).end() - list.get(old).start();
+                old++;
+            }
+            if (old > 1) {
+                Window first = list.get(0);
+                list.subList(0, old).clear();
+                list.add(0, new Window(first.start(), first.start() + held));
+            }
             return list.isEmpty();
         });
         FLASH.values().removeIf(start -> now - start > (FLASH_TICKS + 1) * testStretch);
@@ -183,9 +195,9 @@ public final class Impact {
     }
 
     /** GUI layer under the HUD: a white flash (unless lightning flashes are hidden) and speed lines. */
-    public static void renderOverlay(GuiGraphics g, DeltaTracker delta) {
+    public static void renderOverlay(GuiGraphicsExtractor g, DeltaTracker delta) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.options.hideGui || mc.player == null) return;
+        if (mc.gui.hud.isHidden() || mc.player == null) return;
         float t = (ClientAnims.clock() + delta.getGameTimeDeltaPartialTick(false) - burstStart) / testStretch;
         if (t < 0 || t > BURST_TICKS) return;
         float fade = 1 - t / BURST_TICKS;
@@ -197,8 +209,8 @@ public final class Impact {
         RandomSource random = RandomSource.create(burstSeed);
         float cx = w / 2f, cy = h / 2f;
         float outer = (float) Math.hypot(cx, cy) + 4;
-        g.pose().pushPose();
-        g.pose().translate(cx, cy, 0);
+        g.pose().pushMatrix();
+        g.pose().translate(cx, cy);
         for (int i = 0; i < SPEED_LINES; i++) {
             float angle = random.nextFloat() * Mth.TWO_PI;
             // Lines streak in from the edges, then pull back out as they fade.
@@ -207,11 +219,11 @@ public final class Impact {
             int thick = 1 + (random.nextFloat() < 0.3f ? 1 : 0);
             int alpha = (int) (fade * burstStrength * (110 + 90 * random.nextFloat()));
             if (alpha <= 4) continue;
-            g.pose().pushPose();
-            g.pose().mulPose(Axis.ZP.rotation(angle));
+            g.pose().pushMatrix();
+            g.pose().rotate(angle);
             g.fill((int) inner, -thick / 2, (int) outer, thick - thick / 2, alpha << 24 | 0xFFFFFF);
-            g.pose().popPose();
+            g.pose().popMatrix();
         }
-        g.pose().popPose();
+        g.pose().popMatrix();
     }
 }
