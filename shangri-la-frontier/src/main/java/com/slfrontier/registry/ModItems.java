@@ -130,7 +130,7 @@ public final class ModItems {
         return ITEMS.registerItem(name, TooltipItem::new);
     }
 
-    /** The two colours are read by tools/gen_assets.py to tint the egg's item model. */
+    /** The two colours are read by tools/gen_data.py (via tools/inventory.py) to tint the egg's item model. */
     private static <T extends Mob> void egg(String name, Supplier<EntityType<T>> type, int bg, int fg) {
         SPAWN_EGGS.add(ITEMS.registerItem(name + "_spawn_egg", SpawnEggItem::new, p -> p.spawnEgg(type.get())));
     }
