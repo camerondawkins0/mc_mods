@@ -3,6 +3,7 @@ package com.slfrontier.world;
 import com.slfrontier.SLFrontier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.Identifier;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -18,7 +19,9 @@ import java.util.Map;
  * dropped when such a save is loaded ({@link #VERSION}).
  */
 public class TownData extends SavedData {
-    private static final SavedDataType<TownData> TYPE = new SavedDataType<>(SLFrontier.id("towns"), TownData::new,
+    /** Saved as {@code data/slfrontier/towns.dat} in the world folder; see {@link LegacySaves}. */
+    static final Identifier ID = SLFrontier.id("towns");
+    private static final SavedDataType<TownData> TYPE = new SavedDataType<>(ID, TownData::new,
             CompoundTag.CODEC.xmap(TownData::load, TownData::save));
     /** 1: the Frontier became a designed map in a new dimension. */
     private static final int VERSION = 1;
@@ -31,8 +34,8 @@ public class TownData extends SavedData {
     private final Map<String, BlockPos> markers = new HashMap<>();
 
     public static TownData get(ServerLevel anyLevel) {
-        ServerLevel overworld = anyLevel.getServer().overworld();
-        return overworld.getDataStorage().computeIfAbsent(TYPE);
+        // World-wide, so it lives in the world's own data folder rather than a dimension's.
+        return anyLevel.getServer().getDataStorage().computeIfAbsent(TYPE);
     }
 
     private static TownData load(CompoundTag tag) {

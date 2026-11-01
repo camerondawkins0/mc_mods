@@ -132,9 +132,13 @@ public record FrontierRecipe(Identifier id, Station station, String category, It
                 stage, GsonHelper.getAsString(json, "npc", ""), Math.max(1, GsonHelper.getAsInt(json, "time", 40)));
     }
 
-    /** A fresh stack of what one craft makes. */
+    /**
+     * A fresh stack of what one craft makes. Built directly rather than with
+     * {@link ItemStackTemplate#create()}, which refuses counts above the item's stack size (the
+     * Empire Bee blades come as a pair); crafting splits the result into proper stacks.
+     */
     public ItemStack resultStack() {
-        return result.create();
+        return new ItemStack(result.item(), result.count(), result.components());
     }
 
     private static Item item(String id) {

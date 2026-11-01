@@ -169,6 +169,9 @@ public final class SlfCommand {
         }
         if (ModItems.ITEMS.getEntries().isEmpty()) problems.add("No items registered");
         if (ModEntities.LYCAGON.get() == null) problems.add("Lycagon not registered");
+        for (com.slfrontier.crafting.FrontierRecipe r : com.slfrontier.crafting.FrontierRecipes.all()) {
+            if (r.resultStack().isEmpty()) problems.add("Frontier recipe " + r.id() + " makes nothing");
+        }
         if (problems.isEmpty()) {
             ctx.getSource().sendSuccess(() -> Component.literal("Self-test passed"), false);
             SLFrontier.LOGGER.info("Self-test passed");

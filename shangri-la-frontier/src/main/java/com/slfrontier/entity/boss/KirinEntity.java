@@ -201,7 +201,7 @@ public class KirinEntity extends FrontierBoss {
 
     @Override
     protected boolean considersEntityAsAlly(Entity other) {
-        return other instanceof WezaemonEntity || super.isAlliedTo(other);
+        return other instanceof WezaemonEntity || super.considersEntityAsAlly(other);
     }
 
     @Override

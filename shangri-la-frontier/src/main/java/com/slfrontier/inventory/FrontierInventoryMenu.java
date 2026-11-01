@@ -3,6 +3,7 @@ package com.slfrontier.inventory;
 import com.mojang.datafixers.util.Pair;
 import com.slfrontier.registry.ModMenus;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -48,7 +49,7 @@ public class FrontierInventoryMenu extends AbstractContainerMenu {
             }
         }
         for (int col = 0; col < 9; col++) {
-            addSlot(new Slot(inventory, col, GRID_X + col * PITCH, HOTBAR_Y));
+            addSlot(new FrontierSlot(inventory, col, GRID_X + col * PITCH, HOTBAR_Y));
         }
     }
 
@@ -102,7 +103,19 @@ public class FrontierInventoryMenu extends AbstractContainerMenu {
     }
 
     /** An armor or off-hand slot, with the same rules as the vanilla inventory's. */
-    private static final class GearSlot extends Slot {
+    /** The screen draws its own cyan hover wash, so vanilla's white slot highlight is left out. */
+    private static class FrontierSlot extends Slot {
+        FrontierSlot(Container container, int slot, int x, int y) {
+            super(container, slot, x, y);
+        }
+
+        @Override
+        public boolean isHighlightable() {
+            return false;
+        }
+    }
+
+    private static final class GearSlot extends FrontierSlot {
         private final Player owner;
         private final EquipmentSlot equipment;
         private final Identifier emptyIcon;
@@ -151,7 +164,7 @@ public class FrontierInventoryMenu extends AbstractContainerMenu {
     }
 
     /** A bag slot; hidden while the bag is filtered to a category its item isn't in. */
-    private final class BagSlot extends Slot {
+    private final class BagSlot extends FrontierSlot {
         BagSlot(Inventory inventory, int index, int x, int y) {
             super(inventory, index, x, y);
         }

@@ -9,9 +9,9 @@ stamina, evolving skills, twin-blade combat, NPCs and the Unique Monsters.
 
 | | |
 |---|---|
-| Minecraft | **1.21.1** |
-| Loader | **NeoForge 21.1.x** (built against 21.1.264) |
-| Java | 21 |
+| Minecraft | **26.2** |
+| Loader | **NeoForge 26.2.x** (built against 26.2.0.93) |
+| Java | 25 (the launchers bundle it) |
 | Dependencies | none besides NeoForge |
 | Optional | the **modpack** adds Sodium, Iris and a shader pack (see below) |
 
@@ -64,9 +64,9 @@ off so the two don't stack.
      **slfrontier-jar** artifact (unzip it), or
    * build it yourself (see *Building* below) — the jar ends up in `build/libs/`.
 2. In the CurseForge app, open **Minecraft → Create Custom Profile**, pick
-   **Minecraft 1.21.1** and the **NeoForge** loader (any 21.1.x version), and create it.
+   **Minecraft 26.2** and the **NeoForge** loader (any 26.2.x version), and create it.
 3. On the profile page click **⋯ → Open Folder**, open the `mods` folder, and drop
-   `slfrontier-neoforge-1.21.1-<version>.jar` in it.
+   `slfrontier-neoforge-26.2-<version>.jar` in it.
 4. Hit **Play**.
 
 (The mod is needed on both the client and the server.)
@@ -76,6 +76,20 @@ off so the two don't stack.
 > world with a data-pack dimension (the Frontier). Click **"I know what I'm doing!"** —
 > it won't show again for that world.
 
+### Upgrading from 0.2 (Minecraft 1.21.1)
+
+0.3 runs on Minecraft 26.2 only. **Back up your world first**, then open it with 26.2 and
+the new jar. Minecraft upgrades the world itself, and the mod moves its own records (towns
+and waypoints you discovered) to where 26.2 keeps saved data. Your level, stats, skills,
+items and story progress carry over.
+
+Gameplay differences you may notice on 26.2:
+
+* **Herbs drop again.** The Frontier's extra herb drops from grass now work; on 0.2 they
+  never dropped.
+* **Lycagon's howl** is now a low wolf whine: Minecraft 26.2 removed the wolf howl sound.
+  Lycagon, its shadow and the shadow wolves use vanilla's deep "big" wolf voice.
+
 ## Building
 
 ```bash
@@ -84,7 +98,7 @@ cd mc_mods/shangri-la-frontier
 ./gradlew build          # Windows: gradlew.bat build
 ```
 
-The first build downloads Minecraft and NeoForge (a few minutes). Other useful tasks:
+Building needs a **JDK 25** (for example Temurin 25). The first build downloads Minecraft and NeoForge (a few minutes). Other useful tasks:
 `./gradlew runClient` launches a dev client with the mod, `./gradlew runServer` a dev
 server.
 

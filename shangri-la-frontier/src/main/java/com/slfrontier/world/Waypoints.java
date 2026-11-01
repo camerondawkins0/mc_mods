@@ -3,6 +3,7 @@ package com.slfrontier.world;
 import com.slfrontier.SLFrontier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.Identifier;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
@@ -21,7 +22,9 @@ import java.util.Map;
  * ({@code PlayerData#waypoints}).
  */
 public class Waypoints extends SavedData {
-    private static final SavedDataType<Waypoints> TYPE = new SavedDataType<>(SLFrontier.id("waypoints"), Waypoints::new,
+    /** Saved as {@code data/slfrontier/waypoints.dat} in the world folder; see {@link LegacySaves}. */
+    static final Identifier ID = SLFrontier.id("waypoints");
+    private static final SavedDataType<Waypoints> TYPE = new SavedDataType<>(ID, Waypoints::new,
             CompoundTag.CODEC.xmap(Waypoints::load, Waypoints::save));
 
     public enum Kind { TOWN, CRYSTAL }
@@ -34,8 +37,8 @@ public class Waypoints extends SavedData {
     private final Map<String, Waypoint> all = new LinkedHashMap<>();
 
     public static Waypoints get(ServerLevel anyLevel) {
-        ServerLevel overworld = anyLevel.getServer().overworld();
-        return overworld.getDataStorage().computeIfAbsent(TYPE);
+        // World-wide, so it lives in the world's own data folder rather than a dimension's.
+        return anyLevel.getServer().getDataStorage().computeIfAbsent(TYPE);
     }
 
     public static String crystalId(BlockPos pos) {
