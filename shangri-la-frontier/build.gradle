@@ -15,8 +15,8 @@ base {
     archivesName = "${mod_id}-neoforge-${minecraft_version}"
 }
 
-// Minecraft 1.21.1 ships Java 21 to players, so the mod targets Java 21.
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+// Minecraft 26.2 ships Java 25 to players, so the mod targets Java 25.
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 neoForge {
     version = project.neo_version
@@ -72,7 +72,7 @@ neoForge.ideSyncTask generateModMetadata
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    options.compilerArgs += ['-Xmaxerrs', '1000']
+    options.compilerArgs += ['-Xmaxerrs', '10000']
 }
 
 idea {
