@@ -35,6 +35,9 @@ neoForge {
             systemProperty 'slfrontier.clientTest', 'true'
             // ./gradlew runClientTest -PslfScenes=weapons,menus runs only those scenes
             systemProperty 'slfrontier.clientTest.only', (project.findProperty('slfScenes') ?: '').toString()
+            // Companion mods (Sodium, Iris) still use the old logoFile key, which opens a
+            // dev-only warning screen that would stop the test before the world loads.
+            systemProperty 'neoforge.warnings.logofile.hide', 'true'
             programArguments.addAll '--quickPlaySingleplayer', 'ci_world', '--width', '1280', '--height', '720'
         }
         configureEach {

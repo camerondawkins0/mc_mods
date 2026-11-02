@@ -79,9 +79,10 @@ off so the two don't stack.
 ### Upgrading from 0.2 (Minecraft 1.21.1)
 
 0.3 runs on Minecraft 26.2 only. **Back up your world first**, then open it with 26.2 and
-the new jar. Minecraft upgrades the world itself, and the mod moves its own records (towns
-and waypoints you discovered) to where 26.2 keeps saved data. Your level, stats, skills,
-items and story progress carry over.
+the new jar. Minecraft upgrades the world itself, and the mod takes care of its own parts:
+it moves its records (towns and waypoints you discovered) to where 26.2 keeps saved data,
+and upgrades the Frontier's creatures and NPCs along with vanilla's as their chunks load.
+Your level, stats, skills, items and story progress are stored the same way as before.
 
 Gameplay differences you may notice on 26.2:
 
