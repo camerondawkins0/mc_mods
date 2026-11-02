@@ -45,9 +45,18 @@ public final class FxRenderer {
     /** Glowing, additive, no depth write: slashes, rings, spirals. */
     public static final RenderType ADDITIVE = RenderType.create("slfrontier_fx_additive",
             RenderSetup.builder(ADDITIVE_PIPELINE).sortOnUpload().createRenderSetup());
-    /** Alpha-blended ground decals: boss telegraphs. (Vanilla's debug quads: two-sided, blended, no depth write.) */
+    /**
+     * Alpha-blended, two-sided quads that don't write depth: boss telegraphs and enemy health bars.
+     * The same as vanilla's debug quads, but the mod's own, so it can be handed to Iris
+     * ({@link com.slfrontier.client.IrisCompat}); shader packs drop draws Iris has no program for.
+     */
+    public static final RenderPipeline DECAL_PIPELINE = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            .withLocation(SLFrontier.id("pipeline/fx_decal"))
+            .withCull(false)
+            .build();
+    /** Ground decals: boss telegraphs. */
     public static final RenderType DECAL = RenderType.create("slfrontier_fx_decal",
-            RenderSetup.builder(RenderPipelines.DEBUG_QUADS).sortOnUpload().createRenderSetup());
+            RenderSetup.builder(DECAL_PIPELINE).sortOnUpload().createRenderSetup());
 
     private record Instance(Fx.Spec spec, float start) {
     }

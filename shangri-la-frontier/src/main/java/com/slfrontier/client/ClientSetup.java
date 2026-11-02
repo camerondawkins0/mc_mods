@@ -70,6 +70,7 @@ public final class ClientSetup {
 
     @SubscribeEvent
     public static void clientSetup(FMLClientSetupEvent event) {
+        event.enqueueWork(IrisCompat::init);
         // Mods → Shangri-La Frontier → Config: NeoForge's generated screen for the client and server configs.
         ModList.get().getModContainerById(SLFrontier.MODID)
                 .ifPresent(mod -> mod.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new));
@@ -97,6 +98,7 @@ public final class ClientSetup {
     @SubscribeEvent
     public static void registerPipelines(RegisterRenderPipelinesEvent event) {
         event.registerPipeline(FxRenderer.ADDITIVE_PIPELINE);
+        event.registerPipeline(FxRenderer.DECAL_PIPELINE);
         event.registerPipeline(QuestPointer.SOLID_PIPELINE);
     }
 

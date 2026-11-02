@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.slfrontier.SLFrontier;
 import com.slfrontier.SlfConfig;
+import com.slfrontier.client.fx.FxRenderer;
 import com.slfrontier.client.fx.WorldLayer;
 import com.slfrontier.client.ui.Gfx;
 import com.slfrontier.client.ui.Theme;
@@ -16,7 +17,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -59,11 +59,11 @@ public final class EnemyHealthBars {
     /**
      * Alpha-blended quads, hidden by terrain but not writing depth, so each layer of a bar simply
      * paints over the one before it in the order drawn (frame, track, damage trail, HP fill...).
-     * Layering by depth instead left the fill hidden behind the frame. (Vanilla's debug-quad
+     * Layering by depth instead left the fill hidden behind the frame. (The telegraph decal
      * pipeline, but unsorted so the layers keep that order.)
      */
     private static final RenderType BAR = RenderType.create("slfrontier_health_bar",
-            RenderSetup.builder(RenderPipelines.DEBUG_QUADS).createRenderSetup());
+            RenderSetup.builder(FxRenderer.DECAL_PIPELINE).createRenderSetup());
 
     private static final class Bar {
         float health;
