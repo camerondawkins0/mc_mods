@@ -885,6 +885,9 @@ COMBAT_PROGRESSION = {
     "stat.slfrontier.sta.desc": "Stamina: +2 max stamina and +2% stamina regeneration per point.",
     "item.slfrontier.vorpal_soul_collar.lore": "While carried: -30% EXP, but a level earned mostly with it carried gives 5 stat points instead of 3.",
     "skill.slfrontier.slide_step.desc": "Evolved Tap Step: a longer dash with more invincibility. Stamina pauses for a moment after any skill.",
+    # Lycagon's Mark keeps armor that didn't fit
+    "message.slfrontier.curse_armor_kept": "Your bag is full: %s is kept safe and comes back as soon as there's room.",
+    "message.slfrontier.curse_armor_returned": "%s is back in your bag.",
     # Allies' callouts
     "message.slfrontier.ally_says": "<%s> %s",
     "message.slfrontier.pencilgon.pin.1": "Pinned it! Hit it now!",

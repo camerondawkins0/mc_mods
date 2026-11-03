@@ -77,6 +77,11 @@ public final class CommonEvents {
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             Progression.applyStats(player);
+            // Loading clamped the health to the base maximum before VIT's bonus was back: restore it.
+            PlayerData data = ModAttachments.get(player);
+            if (Frontier.isIn(player) && player.isAlive() && data.savedHealth() > player.getHealth()) {
+                player.setHealth(Math.min(data.savedHealth(), player.getMaxHealth()));
+            }
             ModNetwork.sync(player);
         }
     }
@@ -84,14 +89,22 @@ public final class CommonEvents {
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            rememberHealth(player);
+            PendingSlam.clear(player);
             Story.forget(player);
             MapSync.forget(player);
         }
     }
 
+    /** Notes the avatar's health in the Frontier, for {@link #onLogin}. */
+    private static void rememberHealth(ServerPlayer player) {
+        if (Frontier.isIn(player) && player.isAlive()) ModAttachments.get(player).setSavedHealth(player.getHealth());
+    }
+
     @SubscribeEvent
     public static void onChangeDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            PendingSlam.clear(player);
             Progression.applyStats(player);
             ModNetwork.sync(player);
             if (Frontier.isIn(player) && player.level().getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL) {
@@ -138,15 +151,43 @@ public final class CommonEvents {
         return list;
     }
 
+    /** Data version of Minecraft 1.21.1, which version 0.2 of the mod ran on. */
+    private static final int LEGACY_DATA_VERSION = 3955;
+
     private static void loadItems(Player player, net.minecraft.nbt.ListTag list) {
         var ops = player.registryAccess().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE);
         var inventory = player.getInventory();
         inventory.clearContent();
         for (int i = 0; i < list.size(); i++) {
             net.minecraft.nbt.CompoundTag entry = list.getCompoundOrEmpty(i);
-            int slot = entry.getIntOr("Slot", -1);
-            if (slot >= 0 && slot < inventory.getContainerSize()) {
-                entry.read("Item", ItemStack.CODEC, ops).ifPresent(stack -> inventory.setItem(slot, stack));
+            if (entry.contains("Item")) {
+                int slot = entry.getIntOr("Slot", -1);
+                if (slot >= 0 && slot < inventory.getContainerSize()) {
+                    entry.read("Item", ItemStack.CODEC, ops).ifPresent(stack -> inventory.setItem(slot, stack));
+                }
+                continue;
+            }
+            // Kept at a death under version 0.2 (Minecraft 1.21.1): Inventory.save's layout, a byte slot
+            // (armor 100-103, off hand 150) with the stack's fields alongside, in 1.21.1's item format.
+            int raw = entry.getIntOr("Slot", -1) & 0xFF;
+            int slot = raw < 36 ? raw : raw >= 100 && raw <= 103 ? 36 + raw - 100 : raw == 150 ? 40 : -1;
+            net.minecraft.nbt.CompoundTag stackTag = entry.copy();
+            stackTag.remove("Slot");
+            ItemStack stack = ItemStack.EMPTY;
+            try {
+                var fixed = net.minecraft.util.datafix.DataFixers.getDataFixer().update(net.minecraft.util.datafix.fixes.References.ITEM_STACK,
+                        new com.mojang.serialization.Dynamic<>(net.minecraft.nbt.NbtOps.INSTANCE, (net.minecraft.nbt.Tag) stackTag),
+                        LEGACY_DATA_VERSION, net.minecraft.SharedConstants.getCurrentVersion().dataVersion().version());
+                stack = ItemStack.CODEC.parse(ops, fixed.getValue()).result().orElse(ItemStack.EMPTY);
+            } catch (RuntimeException e) {
+                SLFrontier.LOGGER.warn("Could not upgrade an item kept at death: {}", stackTag, e);
+            }
+            if (stack.isEmpty()) {
+                SLFrontier.LOGGER.warn("Dropped an unreadable item kept at death (slot {}): {}", raw, stackTag);
+            } else if (slot >= 0 && slot < inventory.getContainerSize() && inventory.getItem(slot).isEmpty()) {
+                inventory.setItem(slot, stack);
+            } else if (!inventory.add(stack)) {
+                player.drop(stack, false);
             }
         }
     }
@@ -189,6 +230,8 @@ public final class CommonEvents {
         }
         data.setStamina(data.maxStamina());
         Progression.applyStats(player);
+        // A new avatar body starts whole: full health including VIT's bonus.
+        if (Frontier.isIn(player)) player.setHealth(player.getMaxHealth());
         ModNetwork.sync(player);
     }
 
@@ -235,6 +278,8 @@ public final class CommonEvents {
             Progression.applyStats(player);
         }
         if (player.tickCount % 20 == 0) {
+            rememberHealth(player);
+            if (!data.curseOverflow().isEmpty()) returnCurseOverflow(player, data);
             Story.tickSideQuests(player);
             if (inFrontier && player.tickCount % 200 == 0) FrontierTravel.registerTownWaypoints(player.level());
             if (inFrontier && player.tickCount % 40 == 0) com.slfrontier.world.Landmarks.tick(player.level());
@@ -248,19 +293,42 @@ public final class CommonEvents {
         }
     }
 
-    /** Lycagon's Mark: the body and legs cannot hold armor while in the Frontier. */
+    /**
+     * Lycagon's Mark: the body and legs cannot hold armor while in the Frontier. Armor that doesn't
+     * fit in the bag is kept safe (not dropped where it could be lost) and handed back when there's room.
+     */
     private static void enforceCurse(ServerPlayer player) {
         boolean removed = false;
         for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.CHEST, EquipmentSlot.LEGS}) {
             ItemStack stack = player.getItemBySlot(slot);
             if (stack.isEmpty()) continue;
             player.setItemSlot(slot, ItemStack.EMPTY);
-            if (!player.getInventory().add(stack)) player.drop(stack, false);
+            if (!player.getInventory().add(stack)) {
+                ModAttachments.get(player).curseOverflow().add(stack);
+                player.sendSystemMessage(Component.translatable("message.slfrontier.curse_armor_kept", stack.getHoverName())
+                        .withStyle(ChatFormatting.GRAY));
+            }
             removed = true;
         }
         if (removed) {
             player.sendOverlayMessage(Component.translatable("message.slfrontier.curse_armor").withStyle(ChatFormatting.DARK_RED));
             player.level().playSound(null, player.blockPosition(), WolfVoice.GROWL, SoundSource.PLAYERS, 0.8f, 0.5f);
+        }
+    }
+
+    /** Hands back armor the Mark took off as soon as the bag has room for it. */
+    private static void returnCurseOverflow(ServerPlayer player, PlayerData data) {
+        var it = data.curseOverflow().iterator();
+        while (it.hasNext()) {
+            ItemStack stack = it.next();
+            if (stack.isEmpty()) {
+                it.remove();
+                continue;
+            }
+            Component name = stack.getHoverName();
+            if (!player.getInventory().add(stack)) break;
+            it.remove();
+            player.sendSystemMessage(Component.translatable("message.slfrontier.curse_armor_returned", name).withStyle(ChatFormatting.GRAY));
         }
     }
 
@@ -490,6 +558,7 @@ public final class CommonEvents {
                 player.sendOverlayMessage(Component.translatable("message.slfrontier.tearjewel").withStyle(ChatFormatting.LIGHT_PURPLE));
                 return;
             }
+            PendingSlam.clear(player);
             if (Frontier.isIn(player)) {
                 PlayerData data = ModAttachments.get(player);
                 data.setFlag("died_in_frontier", true);
@@ -499,6 +568,7 @@ public final class CommonEvents {
             return;
         }
 
+        com.slfrontier.quest.ColosseumTrial.onDeath(dead);
         // The hive's queen is part of its template and never comes back: remember it for the whole world.
         if (dead.getType() == com.slfrontier.registry.ModEntities.EMPIRE_BEE_QUEEN.get() && dead.level() instanceof ServerLevel server) {
             com.slfrontier.quest.WorldStory.set(server, com.slfrontier.quest.WorldStory.BEE_QUEEN_SLAIN);
@@ -515,5 +585,14 @@ public final class CommonEvents {
     @SubscribeEvent
     public static void onServerStopping(net.neoforged.neoforge.event.server.ServerStoppingEvent event) {
         Story.resetTimers();
+        com.slfrontier.quest.ColosseumTrial.shutdown(event.getServer());
+    }
+
+    /** A Colosseum foe whose trial no longer runs (the game stopped mid-round) leaves when it loads again. */
+    @SubscribeEvent
+    public static void onEntityJoin(net.neoforged.neoforge.event.entity.EntityJoinLevelEvent event) {
+        if (!event.getLevel().isClientSide() && com.slfrontier.quest.ColosseumTrial.isOrphanFoe(event.getEntity())) {
+            event.setCanceled(true);
+        }
     }
 }

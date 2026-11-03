@@ -568,6 +568,8 @@
   "message.slfrontier.craft.too_far": "You moved away from the station.",
   "message.slfrontier.craft.unknown": "That recipe no longer exists.",
   "message.slfrontier.curse_armor": "Lycagon's Mark rejects your armor!",
+  "message.slfrontier.curse_armor_kept": "Your bag is full: %s is kept safe and comes back as soon as there's room.",
+  "message.slfrontier.curse_armor_returned": "%s is back in your bag.",
   "message.slfrontier.curse_lifted": "Lycagon's Mark fades away.",
   "message.slfrontier.death_penalty": "Death Penalty: your avatar is weakened for a while.",
   "message.slfrontier.empty_slot": "Skill slot %s is empty — equip skills in the avatar menu (K).",

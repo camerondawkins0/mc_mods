@@ -15,11 +15,15 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.neoforge.common.util.ValueIOSerializable;
 import org.jetbrains.annotations.Nullable;
 
+import net.minecraft.world.item.ItemStack;
+
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -68,6 +72,14 @@ public class PlayerData implements ValueIOSerializable {
     private double returnX, returnY, returnZ;
     private boolean hasFrontierPos = false;
     private long frontierPos;
+    /**
+     * Health in the Frontier as last seen (-1: unknown). VIT's bonus health is a transient modifier, so
+     * on loading a player vanilla clamps their health to the base maximum before the stats are put
+     * back; login restores it from here.
+     */
+    private float savedHealth = -1;
+    /** Body and leg armor Lycagon's Mark took off that didn't fit in the bag; handed back when there's room. */
+    private final List<ItemStack> curseOverflow = new ArrayList<>();
 
     // Transient combat state (server side only, never saved)
     public int parryTicks;
@@ -430,6 +442,18 @@ public class PlayerData implements ValueIOSerializable {
         return frontierPos;
     }
 
+    public float savedHealth() {
+        return savedHealth;
+    }
+
+    public void setSavedHealth(float health) {
+        this.savedHealth = health;
+    }
+
+    public List<ItemStack> curseOverflow() {
+        return curseOverflow;
+    }
+
     public boolean hasReturn() {
         return hasReturn;
     }
@@ -498,6 +522,7 @@ public class PlayerData implements ValueIOSerializable {
         tag.putDouble("returnZ", returnZ);
         tag.putBoolean("hasFrontierPos", hasFrontierPos);
         tag.putLong("frontierPos", frontierPos);
+        tag.putFloat("savedHealth", savedHealth);
         return tag;
     }
 
@@ -557,17 +582,22 @@ public class PlayerData implements ValueIOSerializable {
         returnZ = tag.getDoubleOr("returnZ", 0d);
         hasFrontierPos = tag.getBooleanOr("hasFrontierPos", false);
         frontierPos = tag.getLongOr("frontierPos", 0L);
+        savedHealth = tag.getFloatOr("savedHealth", -1f);
     }
 
     /** Saved with the player in the same flat layout as before, so older saves keep loading. */
     @Override
     public void serialize(ValueOutput output) {
         output.store(save());
+        // Items need the registries, so they go through the output's own (registry-aware) codec ops.
+        if (!curseOverflow.isEmpty()) output.store("curseOverflow", ItemStack.CODEC.listOf(), List.copyOf(curseOverflow));
     }
 
     @Override
     public void deserialize(ValueInput input) {
         load(input.read(MapCodec.assumeMapUnsafe(CompoundTag.CODEC)).orElseGet(CompoundTag::new));
+        curseOverflow.clear();
+        input.read("curseOverflow", ItemStack.CODEC.listOf()).ifPresent(curseOverflow::addAll);
     }
 
     /**
