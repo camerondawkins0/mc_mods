@@ -194,7 +194,7 @@ public final class QuestPointer {
         float beam = smoothstep(BEAM_NEAR, BEAM_FAR, (float) dist);
         WorldLayer.geometry(collector, WorldLayer.MARKER_GLOW, pose, FxRenderer.ADDITIVE, (p, v) -> {
             Matrix4f mat = p.pose();
-            halo(v, mat, f.rotation, new Vec3(dx, hoverY, dz), 1.4f * size, near * (0.32f + 0.06f * Mth.sin(time * 0.15f)));
+            halo(v, mat, f.rotation, dx, hoverY, dz, 1.4f * size, near * (0.32f + 0.06f * Mth.sin(time * 0.15f)));
             if (beam > 0.01f) beam(v, mat, dx, f.groundY - 1, dz, dist, beam, time, f.far);
             if (dist < LABEL_RANGE) groundPulse(v, mat, dx, f.groundY + 0.05, dz, time);
         });
@@ -244,14 +244,17 @@ public final class QuestPointer {
     }
 
     /** A soft camera-facing disc of light. */
-    private static void halo(VertexConsumer v, Matrix4f m, Quaternionf rot, Vec3 c, float radius, float alpha) {
+    private static void halo(VertexConsumer v, Matrix4f m, Quaternionf rot, double cx, double cy, double cz, float radius, float alpha) {
         int centre = withAlpha(0xFFFFD34F, alpha), edge = withAlpha(0xFFFFD34F, 0f);
+        // The camera's right and up axes span the disc.
+        Vector3f right = rot.transform(new Vector3f(radius, 0, 0)), up = rot.transform(new Vector3f(0, radius, 0));
         int n = 20;
         for (int i = 0; i < n; i++) {
             float t0 = Mth.TWO_PI * i / n, t1 = Mth.TWO_PI * (i + 1) / n;
-            Vector3f p0 = rot.transform(new Vector3f(Mth.cos(t0) * radius, Mth.sin(t0) * radius, 0));
-            Vector3f p1 = rot.transform(new Vector3f(Mth.cos(t1) * radius, Mth.sin(t1) * radius, 0));
-            quad(v, m, c, centre, c, centre, c.add(p1.x(), p1.y(), p1.z()), edge, c.add(p0.x(), p0.y(), p0.z()), edge);
+            float c0 = Mth.cos(t0), s0 = Mth.sin(t0), c1 = Mth.cos(t1), s1 = Mth.sin(t1);
+            quad(v, m, cx, cy, cz, centre, cx, cy, cz, centre,
+                    cx + right.x() * c1 + up.x() * s1, cy + right.y() * c1 + up.y() * s1, cz + right.z() * c1 + up.z() * s1, edge,
+                    cx + right.x() * c0 + up.x() * s0, cy + right.y() * c0 + up.y() * s0, cz + right.z() * c0 + up.z() * s0, edge);
         }
     }
 
@@ -267,21 +270,21 @@ public final class QuestPointer {
         float width = (float) (0.35 + dist * 0.012) * s;
         double len = Math.sqrt(x * x + z * z);
         if (len < 1e-3) return;
-        Vec3 side = new Vec3(-z / len, 0, x / len);
+        double sideX = -z / len, sideZ = x / len;
         int segments = 14;
         for (int i = 0; i < segments; i++) {
             float f0 = (float) i / segments, f1 = (float) (i + 1) / segments;
             float a0 = alpha * profile(f0, time), a1 = alpha * profile(f1, time);
-            Vec3 p0 = new Vec3(x, base + height * f0, z), p1 = new Vec3(x, base + height * f1, z);
+            double ya = base + height * f0, yb = base + height * f1;
             for (int layer = 0; layer < 2; layer++) {
                 float half = layer == 0 ? width * 2.2f : width * 0.45f;
                 int color = layer == 0 ? 0xFFF2B530 : 0xFFFFF4C8;
                 float strength = layer == 0 ? 0.22f : 0.6f;
-                Vec3 o = side.scale(half);
+                double ox = sideX * half, oz = sideZ * half;
                 int c0 = withAlpha(color, a0 * strength), c1 = withAlpha(color, a1 * strength);
                 int e0 = withAlpha(color, 0f);
-                quad(v, m, p0.subtract(o), e0, p0, c0, p1, c1, p1.subtract(o), e0);
-                quad(v, m, p0, c0, p0.add(o), e0, p1.add(o), e0, p1, c1);
+                quad(v, m, x - ox, ya, z - oz, e0, x, ya, z, c0, x, yb, z, c1, x - ox, yb, z - oz, e0);
+                quad(v, m, x, ya, z, c0, x + ox, ya, z + oz, e0, x + ox, yb, z + oz, e0, x, yb, z, c1);
             }
         }
     }
@@ -298,14 +301,15 @@ public final class QuestPointer {
         float phase = (time % 40f) / 40f;
         float r = 0.4f + phase * 2.6f, w = 0.18f;
         int col = withAlpha(0xFFFFD34F, (1 - phase) * 0.55f), clear = withAlpha(0xFFFFD34F, 0f);
-        Vec3 c = new Vec3(x, y, z);
+        double ro = r + w, ri = Math.max(0, r - w);
         int n = 32;
         for (int i = 0; i < n; i++) {
             double t0 = Math.PI * 2 * i / n, t1 = Math.PI * 2 * (i + 1) / n;
-            Vec3 o0 = new Vec3(Math.cos(t0), 0, Math.sin(t0)), o1 = new Vec3(Math.cos(t1), 0, Math.sin(t1));
-            quad(v, m, c.add(o0.scale(r + w)), clear, c.add(o0.scale(r)), col, c.add(o1.scale(r)), col, c.add(o1.scale(r + w)), clear);
-            quad(v, m, c.add(o0.scale(r)), col, c.add(o0.scale(Math.max(0, r - w))), clear, c.add(o1.scale(Math.max(0, r - w))), clear,
-                    c.add(o1.scale(r)), col);
+            double c0 = Math.cos(t0), s0 = Math.sin(t0), c1 = Math.cos(t1), s1 = Math.sin(t1);
+            quad(v, m, x + c0 * ro, y, z + s0 * ro, clear, x + c0 * r, y, z + s0 * r, col, x + c1 * r, y, z + s1 * r, col,
+                    x + c1 * ro, y, z + s1 * ro, clear);
+            quad(v, m, x + c0 * r, y, z + s0 * r, col, x + c0 * ri, y, z + s0 * ri, clear, x + c1 * ri, y, z + s1 * ri, clear,
+                    x + c1 * r, y, z + s1 * r, col);
         }
     }
 
@@ -373,7 +377,8 @@ public final class QuestPointer {
 
     // ---- Helpers -------------------------------------------------------------------------
 
-    static Component distance(double meters) {
+    /** "850m", or "1.1km" from a kilometre on: the one distance format of the HUD, pointer and map. */
+    public static Component distance(double meters) {
         if (meters < 1000) return Component.translatable("pointer.slfrontier.meters", (int) meters);
         return Component.translatable("pointer.slfrontier.kilometers", String.format(Locale.ROOT, "%.1f", meters / 1000));
     }
@@ -390,6 +395,15 @@ public final class QuestPointer {
 
     private static void tri(VertexConsumer v, Matrix4f m, Vec3 a, int ca, Vec3 b, int cb, Vec3 c, int cc) {
         quad(v, m, a, ca, b, cb, c, cc, c, cc);
+    }
+
+    /** A quad from plain coordinates: the beam, halo and ground ring draw hundreds a frame, so no Vec3s. */
+    private static void quad(VertexConsumer v, Matrix4f m, double ax, double ay, double az, int ca, double bx, double by, double bz, int cb,
+                             double cx, double cy, double cz, int cc, double dx, double dy, double dz, int cd) {
+        v.addVertex(m, (float) ax, (float) ay, (float) az).setColor(ca);
+        v.addVertex(m, (float) bx, (float) by, (float) bz).setColor(cb);
+        v.addVertex(m, (float) cx, (float) cy, (float) cz).setColor(cc);
+        v.addVertex(m, (float) dx, (float) dy, (float) dz).setColor(cd);
     }
 
     private static void quad(VertexConsumer v, Matrix4f m, Vec3 a, int ca, Vec3 b, int cb, Vec3 c, int cc, Vec3 d, int cd) {

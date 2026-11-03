@@ -70,6 +70,10 @@ public final class EnemyHealthBars {
         float trail;
         int trailHold;
         int lastActive = -10_000;
+        /** The label ("Goblin  Lv.5") and its colour, rebuilt once a second rather than every frame. */
+        Component name = Component.empty();
+        int nameColor = 0xFFFFFFFF;
+        int nameAt = Integer.MIN_VALUE;
 
         Bar(float health) {
             this.health = health;
@@ -112,6 +116,7 @@ public final class EnemyHealthBars {
             return;
         }
         Set<Integer> seen = new HashSet<>();
+        int playerLevel = Frontier.isIn(player) ? ModAttachments.get(player).level() : -1;
         for (Mob mob : level.getEntitiesOfClass(Mob.class, player.getBoundingBox().inflate(RANGE), EnemyHealthBars::tracks)) {
             if (mob.distanceToSqr(player) > RANGE * RANGE) continue;
             seen.add(mob.getId());
@@ -120,6 +125,13 @@ public final class EnemyHealthBars {
             boolean damaged = hp < bar.health - 0.01f;
             if (damaged) bar.trailHold = TRAIL_DELAY;
             if (damaged || mob.hurtTime > 0 || mob == mc.crosshairPickEntity || targets(mob, player)) bar.lastActive = clock;
+            if (clock - bar.nameAt >= 20) {
+                bar.nameAt = clock;
+                bar.name = mob instanceof LeveledMob leveled
+                        ? Component.translatable("hud.slfrontier.target", mob.getDisplayName(), leveled.frontierLevel())
+                        : mob.getDisplayName();
+                bar.nameColor = nameColor(mob, playerLevel);
+            }
             bar.health = hp;
             if (hp >= bar.trail) {
                 bar.trail = hp;
@@ -155,7 +167,6 @@ public final class EnemyHealthBars {
         if (BARS.isEmpty() || player == null || level == null || mc.gui.hud.isHidden()) return;
         Vec3 cam = camera.position();
         Vector3fc look = camera.forwardVector();
-        int playerLevel = Frontier.isIn(player) ? ModAttachments.get(player).level() : -1;
         List<Shown> shown = new ArrayList<>();
         for (Map.Entry<Integer, Bar> e : BARS.entrySet()) {
             float alpha = visibility(e.getValue(), pt);
@@ -169,11 +180,8 @@ public final class EnemyHealthBars {
             if (x * look.x() + y * look.y() + z * look.z() < 0 || alpha <= 0.02f) continue;
             Bar bar = e.getValue();
             float max = Math.max(1f, mob.getMaxHealth());
-            Component name = mob instanceof LeveledMob leveled
-                    ? Component.translatable("hud.slfrontier.target", mob.getDisplayName(), leveled.frontierLevel())
-                    : mob.getDisplayName();
             shown.add(new Shown(x, y, z, Math.sqrt(x * x + y * y + z * z), alpha, mob instanceof LeveledMob ? LEVELED_WIDTH : WIDTH,
-                    Mth.clamp(bar.health / max, 0f, 1f), Mth.clamp(bar.trail / max, 0f, 1f), name, nameColor(mob, playerLevel)));
+                    Mth.clamp(bar.health / max, 0f, 1f), Mth.clamp(bar.trail / max, 0f, 1f), bar.name, bar.nameColor));
         }
         if (shown.isEmpty()) return;
         // Far to near, so nearer bars blend over farther ones.

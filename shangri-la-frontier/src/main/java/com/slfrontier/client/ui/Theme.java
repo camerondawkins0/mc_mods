@@ -5,6 +5,10 @@ import com.slfrontier.data.Stat;
 import com.slfrontier.skill.Skill;
 import net.minecraft.resources.Identifier;
 
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.Map;
+
 /** Colours and textures shared by every Frontier screen and the HUD. */
 public final class Theme {
     // Panels: deep navy glass with a cyan rim, like the in-game windows of Shangri-La Frontier.
@@ -19,7 +23,8 @@ public final class Theme {
     public static final int GOLD = 0xFFFFD34F;
     public static final int TEXT = 0xFFEAF6FF;
     public static final int TEXT_DIM = 0xFF8EA6C0;
-    public static final int TEXT_FAINT = 0xFF5A6E86;
+    /** Hints and disabled text: about 5:1 on the panel navy, still a step below TEXT_DIM. */
+    public static final int TEXT_FAINT = 0xFF7D90A8;
     public static final int RED = 0xFFFF5A6A;
     public static final int GREEN = 0xFF7FE07F;
     public static final int VIOLET = 0xFFB57CFF;
@@ -30,6 +35,11 @@ public final class Theme {
     public static final int EXP_A = 0xFFFFE680, EXP_B = 0xFFE0A020;
     public static final int BAR_BACK = 0xC0050A12;
 
+    // Identifiers are looked up every frame by the HUD and screens: build each one once.
+    private static final Map<String, Identifier> ICONS = new HashMap<>();
+    private static final Map<Skill, Identifier> SKILL_ICONS = new EnumMap<>(Skill.class);
+    private static final Map<Stat, Identifier> STAT_ICONS = new EnumMap<>(Stat.class);
+
     private Theme() {
     }
 
@@ -38,15 +48,15 @@ public final class Theme {
     }
 
     public static Identifier skillIcon(Skill skill) {
-        return SLFrontier.id("textures/gui/skill/" + skill.icon() + ".png");
+        return SKILL_ICONS.computeIfAbsent(skill, s -> SLFrontier.id("textures/gui/skill/" + s.icon() + ".png"));
     }
 
     public static Identifier statIcon(Stat stat) {
-        return SLFrontier.id("textures/gui/stat/" + stat.name().toLowerCase() + ".png");
+        return STAT_ICONS.computeIfAbsent(stat, s -> SLFrontier.id("textures/gui/stat/" + s.name().toLowerCase() + ".png"));
     }
 
     public static Identifier icon(String name) {
-        return SLFrontier.id("textures/gui/icon/" + name + ".png");
+        return ICONS.computeIfAbsent(name, n -> SLFrontier.id("textures/gui/icon/" + n + ".png"));
     }
 
     /** Accent colour for a skill's card and HUD slot. */

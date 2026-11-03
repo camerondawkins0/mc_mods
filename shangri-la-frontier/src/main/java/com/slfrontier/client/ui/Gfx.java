@@ -30,7 +30,9 @@ import java.util.Objects;
  *
  * <p>The GUI is extracted into a render state and drawn later, so quads are collected (already
  * transformed by the current pose) and {@link #flush flushed} into one {@link Shape} element per
- * primitive; the GUI renderer keeps elements in submission order where they overlap.
+ * primitive; the GUI renderer keeps elements in submission order where they overlap. Repeated
+ * primitives that need no ordering between them (hatching, grid lines, bar ticks) can be queued
+ * with the {@code ...Queued} variants and flushed once as a single element.
  */
 public final class Gfx {
     /** Global opacity multiplier, used for screen fade-ins. */
@@ -126,8 +128,13 @@ public final class Gfx {
     }
 
     public static void rect(GuiGraphicsExtractor g, float x0, float y0, float x1, float y1, int color) {
-        quad(g, x0, y0, color, x0, y1, color, x1, y1, color, x1, y0, color);
+        rectQueued(g, x0, y0, x1, y1, color);
         flush(g);
+    }
+
+    /** {@link #rect} without the flush: queue many, then {@link #flush} once. */
+    public static void rectQueued(GuiGraphicsExtractor g, float x0, float y0, float x1, float y1, int color) {
+        quad(g, x0, y0, color, x0, y1, color, x1, y1, color, x1, y0, color);
     }
 
     public static void vgrad(GuiGraphicsExtractor g, float x0, float y0, float x1, float y1, int top, int bottom) {
@@ -180,17 +187,18 @@ public final class Gfx {
         int n = xy.length / 2;
         for (int i = 0; i < n; i++) {
             int j = (i + 1) % n;
-            lineNoFlush(g, xy[i * 2], xy[i * 2 + 1], xy[j * 2], xy[j * 2 + 1], width, color);
+            lineQueued(g, xy[i * 2], xy[i * 2 + 1], xy[j * 2], xy[j * 2 + 1], width, color);
         }
         flush(g);
     }
 
     public static void line(GuiGraphicsExtractor g, float x0, float y0, float x1, float y1, float width, int color) {
-        lineNoFlush(g, x0, y0, x1, y1, width, color);
+        lineQueued(g, x0, y0, x1, y1, width, color);
         flush(g);
     }
 
-    private static void lineNoFlush(GuiGraphicsExtractor g, float x0, float y0, float x1, float y1, float width, int color) {
+    /** {@link #line} without the flush: queue many, then {@link #flush} once. */
+    public static void lineQueued(GuiGraphicsExtractor g, float x0, float y0, float x1, float y1, float width, int color) {
         float dx = x1 - x0, dy = y1 - y0;
         float len = Mth.sqrt(dx * dx + dy * dy);
         if (len < 1e-4f) return;
@@ -294,8 +302,9 @@ public final class Gfx {
         if (segments > 1) {
             for (int i = 1; i < segments; i++) {
                 float sx = x + w * i / segments;
-                rect(g, sx, y, sx + 0.5f, y + h, 0x60000000);
+                rectQueued(g, sx, y, sx + 0.5f, y + h, 0x60000000);
             }
+            flush(g);
         }
     }
 

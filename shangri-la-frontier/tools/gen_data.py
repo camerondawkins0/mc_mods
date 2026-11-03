@@ -44,9 +44,9 @@ def ns(x):
 
 def gen_lang():
     entries = lang.build()
-    # Escape stray percent signs so Minecraft's formatter leaves them alone.
+    # Escape stray percent signs so Minecraft's formatter leaves them alone (%s and positional %1$s stay).
     def escape(text):
-        return re.sub(r"%%|%s|%", lambda m: m.group(0) if m.group(0) in ("%%", "%s") else "%%", text)
+        return re.sub(r"%%|%(?:\d+\$)?s|%", lambda m: m.group(0) if m.group(0) != "%" else "%%", text)
 
     fixed = {k: escape(v) for k, v in entries.items()}
     write(os.path.join(ASSETS, "lang/en_us.json"), dict(sorted(fixed.items())))
@@ -316,10 +316,26 @@ def gen_recipes():
         "pattern": ["III", "GRG", "I I"],
         "key": {"I": "minecraft:iron_ingot", "G": "minecraft:glass_pane", "R": "minecraft:redstone_block"},
         "result": {"id": ns("fulldive_headset"), "count": 1}})
+    # The headset is the way into the Frontier: put it in the recipe book as soon as the player holds
+    # any of its iron or redstone, like vanilla's recipe advancements do.
+    recipe_unlock("tools", "fulldive_headset", {"has_iron_ingot": "minecraft:iron_ingot", "has_redstone": "minecraft:redstone",
+                                                "has_redstone_block": "minecraft:redstone_block"})
     # Gameplay items (compass, holy water, blades, bird mask) are Frontier recipes: see tools/crafting_data.py.
     write(f"{r}/gray_ore_chunk_from_smelting.json", {
         "type": "minecraft:smelting", "category": "misc", "ingredient": ns("gray_ore"),
         "result": {"id": ns("gray_ore_chunk")}, "experience": 0.7, "cookingtime": 200})
+
+
+def recipe_unlock(folder, recipe, items):
+    """A vanilla-style recipe advancement: unlocks the recipe once the player has any of the items."""
+    criteria = {name: {"trigger": "minecraft:inventory_changed", "conditions": {"items": [{"items": item}]}}
+                for name, item in items.items()}
+    criteria["has_the_recipe"] = {"trigger": "minecraft:recipe_unlocked", "conditions": {"recipe": ns(recipe)}}
+    write(os.path.join(DATA, f"advancement/recipes/{folder}/{recipe}.json"), {
+        "parent": "minecraft:recipes/root",
+        "criteria": criteria,
+        "requirements": [["has_the_recipe", *items]],
+        "rewards": {"recipes": [ns(recipe)]}})
 
 
 # Repair materials are item tags since 1.21.2: weapon tiers (ModTiers: slfrontier:tool_materials/<tier>)

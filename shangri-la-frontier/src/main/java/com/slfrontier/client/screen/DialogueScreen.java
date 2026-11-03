@@ -1,9 +1,12 @@
 package com.slfrontier.client.screen;
 
+import com.slfrontier.client.ClientSfx;
+import com.slfrontier.client.KeyBindings;
 import com.slfrontier.client.ui.Gfx;
 import com.slfrontier.client.ui.SlfButton;
 import com.slfrontier.client.ui.Theme;
 import com.slfrontier.network.ModNetwork;
+import com.slfrontier.registry.ModSounds;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -21,7 +24,8 @@ import java.util.List;
 
 /**
  * NPC dialogue, framed like a cutscene: letterbox bars, a live portrait of the speaker,
- * typewriter text, and numbered replies (click or press 1-9).
+ * typewriter text with a soft key tick, and numbered replies (click or press 1-9 as soon as
+ * they show). The HUD, crosshair and hand are hidden while it is open (see ClientEvents).
  */
 public class DialogueScreen extends Screen {
     private static final int BOX_HEIGHT = 74;
@@ -29,20 +33,29 @@ public class DialogueScreen extends Screen {
     private int line;
     private float typed;
     private float openTicks;
+    /** The current line, resolved once per line rather than every frame. */
+    private Component lineText = Component.empty();
+    private String lineString = "";
+    /** Characters typed when the last tick sound played. */
+    private int ticked;
 
     public DialogueScreen(ModNetwork.OpenDialogue dialogue) {
         super(Component.translatable(dialogue.speakerKey()));
         this.dialogue = dialogue;
     }
 
-    /** Turns {@code key|arg|@argKey} into a component; '@' marks an argument that is itself a translation key. */
+    /**
+     * Turns {@code key|arg|@argKey} into a component; '@' marks an argument that is itself a translation key.
+     * The Frontier's key names follow the line's own arguments (see {@link KeyBindings#text}), so lines like
+     * the Guide's welcome can name the keys as bound.
+     */
     public static Component parse(String raw) {
         String[] parts = raw.split("\\|");
         Object[] args = new Object[parts.length - 1];
         for (int i = 1; i < parts.length; i++) {
             args[i - 1] = parts[i].startsWith("@") ? Component.translatable(parts[i].substring(1)) : parts[i];
         }
-        return Component.translatable(parts[0], args);
+        return KeyBindings.text(parts[0], args);
     }
 
     private int boxLeft() {
@@ -59,7 +72,14 @@ public class DialogueScreen extends Screen {
 
     @Override
     protected void init() {
+        resolveLine();
         rebuild();
+    }
+
+    private void resolveLine() {
+        lineText = dialogue.lines().isEmpty() ? Component.empty()
+                : parse(dialogue.lines().get(Math.min(line, dialogue.lines().size() - 1)));
+        lineString = lineText.getString();
     }
 
     private boolean onLastLine() {
@@ -81,13 +101,15 @@ public class DialogueScreen extends Screen {
     }
 
     private void advance() {
-        if (typed < currentLine().getString().length()) {
+        if (typed < lineString.length()) {
             typed = 9999;
             return;
         }
         if (!onLastLine()) {
             line++;
             typed = 0;
+            ticked = 0;
+            resolveLine();
             rebuild();
         }
     }
@@ -97,15 +119,19 @@ public class DialogueScreen extends Screen {
         onClose();
     }
 
-    private Component currentLine() {
-        if (dialogue.lines().isEmpty()) return Component.empty();
-        return parse(dialogue.lines().get(Math.min(line, dialogue.lines().size() - 1)));
-    }
-
     @Override
     public void tick() {
         typed += 1.8f;
         openTicks++;
+        // A quiet key tick every third character while the line types out (not on spaces).
+        int shown = Math.min(lineString.length(), (int) typed);
+        if (shown >= ticked + 3) {
+            ticked = shown;
+            if (!Character.isWhitespace(lineString.charAt(shown - 1))) {
+                float pitch = 0.94f + (shown * 7 % 5) * 0.03f;
+                ClientSfx.ui(ModSounds.UI_TYPE, pitch, 0.18f);
+            }
+        }
     }
 
     @Override
@@ -125,7 +151,8 @@ public class DialogueScreen extends Screen {
             advance();
             return true;
         }
-        if (key >= 49 && key <= 57 && onLastLine() && typed >= currentLine().getString().length()) { // 1-9
+        // 1-9 work as soon as the replies are on screen, like clicking them.
+        if (key >= 49 && key <= 57 && onLastLine()) {
             int option = key - 49;
             if (option < dialogue.options().size()) {
                 choose(option);
@@ -178,7 +205,7 @@ public class DialogueScreen extends Screen {
         g.text(font, title, nx + 8, top - 9, Gfx.fade(Theme.GOLD), true);
 
         // Typewriter text
-        String full = currentLine().getString();
+        String full = lineString;
         String shown = full.substring(0, Math.min(full.length(), (int) typed));
         int y = top + 10;
         for (FormattedCharSequence seq : font.split(Component.literal(shown), right - nx - 12)) {

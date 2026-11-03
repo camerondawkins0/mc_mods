@@ -2,6 +2,7 @@ package com.slfrontier.client.map;
 
 import com.slfrontier.client.ui.Gfx;
 import com.slfrontier.client.ui.Theme;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
@@ -10,7 +11,9 @@ import net.minecraft.util.Mth;
 
 /**
  * A view onto the explored map: centre (world x/z), zoom (screen pixels per block) and an
- * optional rotation. Draws tiles inside a screen rectangle and converts coordinates.
+ * optional rotation. Draws tiles inside a screen rectangle and converts coordinates. Zoomed out
+ * below {@link #OVERVIEW_ZOOM} it draws quarter-resolution overviews (one per 512 blocks), and with
+ * {@link #underlay} on, the designed continent shows faintly beneath what has been explored.
  */
 public final class MapView {
     public double centerX, centerZ;
@@ -18,6 +21,10 @@ public final class MapView {
     /** Radians; the minimap can rotate with the camera. */
     public float rotation;
     public int x0, y0, x1, y1;
+    /** Draw the designed continent under the explored tiles (the map screen; the minimap stays plain). */
+    public boolean underlay;
+    /** Below this zoom, overview textures replace the full-resolution tiles. */
+    public static final float OVERVIEW_ZOOM = 0.5f;
 
     public void setRect(int x0, int y0, int x1, int y1) {
         this.x0 = x0;
@@ -62,15 +69,27 @@ public final class MapView {
         return sx >= x0 && sx < x1 && sy >= y0 && sy < y1;
     }
 
-    /** Background, explored tiles and a faint coordinate grid. */
+    /** Background, the designed continent (if shown), explored tiles and a faint coordinate grid. */
     public void draw(GuiGraphicsExtractor g) {
+        MapTextures.beginFrame();
         Gfx.vgrad(g, x0, y0, x1, y1, 0xF0081220, 0xF0050A14);
         g.enableScissor(x0, y0, x1, y1);
-        // Unexplored hatching
+        int tint = ARGB.white(Mth.clamp(Gfx.alpha, 0f, 1f));
+        if (underlay && rotation == 0 && DesignMap.ready()) {
+            float[] s = toScreen(DesignMap.x0(), DesignMap.z0());
+            g.pose().pushMatrix();
+            g.pose().translate(s[0], s[1]);
+            g.pose().scale(zoom, zoom);
+            g.blit(RenderPipelines.GUI_TEXTURED, DesignMap.texture(), 0, 0, 0, 0, DesignMap.width(), DesignMap.height(),
+                    DesignMap.texWidth(), DesignMap.texHeight(), DesignMap.texWidth(), DesignMap.texHeight(), tint);
+            g.pose().popMatrix();
+        }
+        // Unexplored hatching, as one batch.
         float span = (x1 - x0) + (y1 - y0);
         for (float d = -span; d < span; d += 6) {
-            Gfx.line(g, x0 + d, y0, x0 + d + (y1 - y0), y1, 1f, 0x0C5FE0FF);
+            Gfx.lineQueued(g, x0 + d, y0, x0 + d + (y1 - y0), y1, 1f, 0x0C5FE0FF);
         }
+        Gfx.flush(g);
         g.pose().pushMatrix();
         g.pose().translate(screenCX(), screenCY());
         if (rotation != 0) g.pose().rotate(rotation);
@@ -81,13 +100,24 @@ public final class MapView {
         // Integer origin so tile blits land on whole blocks; the fractional part is a translation.
         int ox = Mth.floor(centerX), oz = Mth.floor(centerZ);
         g.pose().translate(-(float) (centerX - ox), -(float) (centerZ - oz));
-        int tint = ARGB.white(Mth.clamp(Gfx.alpha, 0f, 1f));
-        for (int tx = tx0; tx <= tx1; tx++) {
-            for (int tz = tz0; tz <= tz1; tz++) {
-                Identifier tex = MapTextures.get(tx, tz);
-                if (tex == null) continue;
-                int bx = tx * MapStore.TILE - ox, bz = tz * MapStore.TILE - oz;
-                g.blit(RenderPipelines.GUI_TEXTURED, tex, bx, bz, 0, 0, MapStore.TILE, MapStore.TILE, MapStore.TILE, MapStore.TILE, tint);
+        if (zoom < OVERVIEW_ZOOM) {
+            int n = MapTextures.OVERVIEW, span4 = MapStore.TILE * n;
+            for (int rx = Math.floorDiv(tx0, n); rx <= Math.floorDiv(tx1, n); rx++) {
+                for (int rz = Math.floorDiv(tz0, n); rz <= Math.floorDiv(tz1, n); rz++) {
+                    Identifier tex = MapTextures.overview(rx, rz);
+                    if (tex == null) continue;
+                    g.blit(RenderPipelines.GUI_TEXTURED, tex, rx * span4 - ox, rz * span4 - oz, 0, 0, span4, span4,
+                            MapStore.TILE, MapStore.TILE, MapStore.TILE, MapStore.TILE, tint);
+                }
+            }
+        } else {
+            for (int tx = tx0; tx <= tx1; tx++) {
+                for (int tz = tz0; tz <= tz1; tz++) {
+                    Identifier tex = MapTextures.get(tx, tz);
+                    if (tex == null) continue;
+                    int bx = tx * MapStore.TILE - ox, bz = tz * MapStore.TILE - oz;
+                    g.blit(RenderPipelines.GUI_TEXTURED, tex, bx, bz, 0, 0, MapStore.TILE, MapStore.TILE, MapStore.TILE, MapStore.TILE, tint);
+                }
             }
         }
         g.pose().popMatrix();
@@ -97,13 +127,32 @@ public final class MapView {
             double[] tl = toWorld(x0, y0), br = toWorld(x1, y1);
             for (long gx = Mth.floor(tl[0] / step) * (long) step; gx <= br[0]; gx += step) {
                 float sx = toScreen(gx, 0)[0];
-                Gfx.rect(g, sx, y0, sx + 0.5f, y1, 0x225FE0FF);
+                Gfx.rectQueued(g, sx, y0, sx + 0.5f, y1, 0x225FE0FF);
             }
             for (long gz = Mth.floor(tl[1] / step) * (long) step; gz <= br[1]; gz += step) {
                 float sy = toScreen(0, gz)[1];
-                Gfx.rect(g, x0, sy, x1, sy + 0.5f, 0x225FE0FF);
+                Gfx.rectQueued(g, x0, sy, x1, sy + 0.5f, 0x225FE0FF);
             }
+            Gfx.flush(g);
         }
+        g.disableScissor();
+    }
+
+    /** Region names over the designed continent, fading in as the view zooms out. */
+    public void drawRegionLabels(GuiGraphicsExtractor g, Font font) {
+        if (!underlay || rotation != 0 || zoom > 0.6f || !DesignMap.ready()) return;
+        float fade = Mth.clamp((0.6f - zoom) / 0.25f, 0f, 1f) * Mth.clamp(Gfx.alpha, 0f, 1f);
+        if (fade < 0.05f) return;
+        g.enableScissor(x0, y0, x1, y1);
+        float saved = Gfx.alpha;
+        Gfx.alpha = fade;
+        for (DesignMap.Label label : DesignMap.labels()) {
+            float[] s = toScreen(label.x(), label.z());
+            if (!contains(s[0], s[1])) continue;
+            int w = font.width(label.name());
+            Gfx.text(g, font, label.name(), s[0] - w / 2f, s[1] - 4, 1f, 0xFFF2E6B8, true);
+        }
+        Gfx.alpha = saved;
         g.disableScissor();
     }
 
