@@ -866,6 +866,20 @@ SUBTITLES = {
 }
 
 
+# ---- Combat, progression and story fixes ---------------------------------------------------
+# One block so parallel edits to this file stay apart; applied last in build(), so a key
+# here overrides the same key above.
+COMBAT_PROGRESSION = {
+    # Story soft-lock fixes
+    "message.slfrontier.mud_digger_gone": "The lair is silent: the Mud Digger has already been slain. The road to Thirdrema is open.",
+    "dialogue.slfrontier.option.lost_choppers": "I lost one of the Vorpal Choppers...",
+    "message.slfrontier.choppers_replaced": "Vysache sighs and hands you a new pair of Vorpal Choppers. \"Don't make a habit of it.\"",
+    "sidequest.slfrontier.solo_killer.desc": "\"Word is you went through the Diremarsh and came back. The Mud Digger has swallowed lone adventurers whole for years. Show me its fin and the bounty is yours.\"",
+    "sidequest.slfrontier.solo_killer.objective": "Bring the Mud Digger's fin to the Blacksmith. (Once the Mud Digger is gone for good, he pays the bounty without it.)",
+    "sidequest.slfrontier.queens_crown.objective": "Defeat the Empire Bee Queen in her hive. (If she has already fallen, Bilac takes your word for it.)",
+}
+
+
 def build():
     lang = dict(MISC)
     lang.update(GUI)
@@ -912,4 +926,5 @@ def build():
     lang.update(lang_inventory.STRINGS)
     lang.update(lang_overlays.STRINGS)
     lang.update(lang_crafting.STRINGS)
+    lang.update(COMBAT_PROGRESSION)
     return lang

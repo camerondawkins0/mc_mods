@@ -17,7 +17,7 @@ public enum SideQuest {
     GOBLIN_CULL("goblin_cull", "frontier_guide", Objective.KILL, "slfrontier:goblin", 12, 180, QuestStage.RAVENOUS_SNAKE,
             () -> new ItemStack(Items.GOLDEN_APPLE), () -> new ItemStack(ModItems.HOLY_WATER.get(), 2)),
     SOLO_KILLER("solo_killer", "frontier_blacksmith", Objective.COLLECT, "slfrontier:mud_digger_fin", 1, 300,
-            QuestStage.NIGHTSLAYER_ENCOUNTER, () -> new ItemStack(ModItems.REBIRTH_TEARJEWEL.get())),
+            QuestStage.THIRDREMA, () -> new ItemStack(ModItems.REBIRTH_TEARJEWEL.get())),
     BEETLE_HUNTER("beetle_hunter", "bilac", Objective.COLLECT, "slfrontier:quad_beetle_shell", 3, 400, QuestStage.MOONBLADES,
             () -> new ItemStack(ModItems.REALLOCATION_TONIC.get())),
     QUEENS_CROWN("queens_crown", "bilac", Objective.KILL, "slfrontier:empire_bee_queen", 1, 600, QuestStage.MOONBLADES,
@@ -58,6 +58,20 @@ public enum SideQuest {
         this.exp = exp;
         this.unlockedAt = unlockedAt;
         this.rewards = List.of(rewards);
+    }
+
+    /**
+     * For quests about a one-off monster (it lives in a site's template and never respawns): the
+     * {@link WorldStory} flag set once it is slain. With the flag set the objective counts as met,
+     * so killing it before taking the quest (or a friend killing it) never makes the quest impossible.
+     */
+    @Nullable
+    public String oneOffSlainFlag() {
+        return switch (this) {
+            case QUEENS_CROWN -> WorldStory.BEE_QUEEN_SLAIN;
+            case SOLO_KILLER -> WorldStory.MUD_DIGGER_SLAIN;
+            default -> null;
+        };
     }
 
     public List<ItemStack> rewards() {

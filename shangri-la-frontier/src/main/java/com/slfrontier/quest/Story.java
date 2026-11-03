@@ -299,6 +299,8 @@ public final class Story {
                     });
                 } else {
                     d.node(choppers ? "vysache.need_shell" : "vysache.need_choppers", 2);
+                    // Lost or broke a chopper on the way: she keeps spares for her Vorpal Soul.
+                    if (!choppers) d.option("lost_choppers", Story::replaceChoppers);
                 }
             }
             case MUD_DIGGER_ROAD, THIRDREMA -> d.node("vysache.thirdrema", 3);
@@ -319,6 +321,16 @@ public final class Story {
             default -> d.node("vysache.stranger", 2);
         }
         return d.option("return_fastera", FrontierTravel::toFastera).close();
+    }
+
+    /** Vysache hands over new Vorpal Choppers when the pair needed for the Moonblades went missing. */
+    private static void replaceChoppers(ServerPlayer player) {
+        if (ModAttachments.get(player).stage() != QuestStage.MOONBLADES) return;
+        int missing = 2 - Progression.countItem(player, ModItems.VORPAL_CHOPPERS.get());
+        for (int i = 0; i < missing; i++) give(player, new ItemStack(ModItems.VORPAL_CHOPPERS.get()));
+        if (missing > 0) {
+            player.sendSystemMessage(Component.translatable("message.slfrontier.choppers_replaced").withStyle(ChatFormatting.LIGHT_PURPLE));
+        }
     }
 
     private static Dialogue bilac(ServerPlayer player) {
@@ -529,6 +541,8 @@ public final class Story {
     }
 
     public static void onMudDiggerSlain(ServerLevel level, Entity digger, @Nullable Entity killer) {
+        // The lair's digger is part of its template and never comes back: remember it for the whole world.
+        if (digger instanceof com.slfrontier.entity.boss.MudDiggerEntity) WorldStory.set(level, WorldStory.MUD_DIGGER_SLAIN);
         for (ServerPlayer p : participants(level, digger, killer, 48)) {
             if (ModAttachments.get(p).stage() == QuestStage.MUD_DIGGER_ROAD) {
                 Progression.grantExp(p, 600);
@@ -536,6 +550,22 @@ public final class Story {
                 ModNetwork.announce(p, "announce.slfrontier.area_boss", "entity.slfrontier.mud_digger", 0xB89A5A);
             }
         }
+    }
+
+    /**
+     * The Mud Digger was slain before this avatar reached that chapter (while mining ore in Act I, or by
+     * a friend): the road to Thirdrema opens as soon as they stand in the empty lair.
+     */
+    private static void checkMudDiggerGone(ServerPlayer player, PlayerData data) {
+        if (data.stage() != QuestStage.MUD_DIGGER_ROAD || !WorldStory.has(player.level(), WorldStory.MUD_DIGGER_SLAIN)) return;
+        var lair = Landmarks.Site.MUD_DIGGER_LAIR;
+        int reach = Math.max(lair.design().sizeX(), lair.design().sizeZ()) / 2 + 16;
+        if (horizontalDistSqr(player.blockPosition(), Landmarks.center(lair)) > (double) reach * reach) return;
+        if (!player.level().getEntitiesOfClass(com.slfrontier.entity.boss.MudDiggerEntity.class,
+                player.getBoundingBox().inflate(64), net.minecraft.world.entity.LivingEntity::isAlive).isEmpty()) return;
+        player.sendSystemMessage(Component.translatable("message.slfrontier.mud_digger_gone").withStyle(ChatFormatting.GOLD));
+        Progression.grantExp(player, 600);
+        advance(player, QuestStage.THIRDREMA);
     }
 
     public static void onWoodmageSlain(ServerLevel level, Entity woodmage, @Nullable Entity killer) {
@@ -577,20 +607,39 @@ public final class Story {
         markVisits(player, data);
         updateStep(player, data);
         goblinCamp(player.level(), player);
+        checkMudDiggerGone(player, data);
         if (data.stage() == QuestStage.RAVENOUS_SNAKE) {
             ServerLevel level = player.level();
             BlockPos bridge = Landmarks.built(level, Landmarks.Site.SERPENT_BRIDGE);
             long now = level.getGameTime();
             // One serpent at a time, and never more often than every half minute, wherever it wandered off to.
-            if (bridge != null && player.blockPosition().closerThan(bridge, 26) && now >= snakeReadyAt
+            if (bridge != null && player.blockPosition().closerThan(bridge, 26) && ready(SNAKE_READY, level, now, SNAKE_COOLDOWN)
                     && level.getEntitiesOfClass(RavenousSnakeEntity.class, new net.minecraft.world.phys.AABB(bridge).inflate(192)).isEmpty()) {
-                snakeReadyAt = now + 20 * 30;
+                SNAKE_READY.put(level, now + SNAKE_COOLDOWN);
                 spawnRavenousSnake(level, player, bridge);
             }
         }
     }
 
-    private static long snakeReadyAt;
+    /**
+     * When the serpent may rise again and the goblin camp refill, per level. Kept per level (and a
+     * ready time further away than one cooldown is ignored as stale) so opening another world in the
+     * same game, whose clock is behind, never stops them.
+     */
+    private static final Map<ServerLevel, Long> SNAKE_READY = new java.util.WeakHashMap<>();
+    private static final Map<ServerLevel, Long> CAMP_READY = new java.util.WeakHashMap<>();
+    private static final int SNAKE_COOLDOWN = 20 * 30, CAMP_COOLDOWN = 20 * 12;
+
+    private static boolean ready(Map<ServerLevel, Long> timers, ServerLevel level, long now, int cooldown) {
+        Long at = timers.get(level);
+        return at == null || now >= at || at - now > cooldown;
+    }
+
+    /** Forgets the per-world timers (server stopping). */
+    public static void resetTimers() {
+        SNAKE_READY.clear();
+        CAMP_READY.clear();
+    }
     private static java.lang.ref.WeakReference<RavenousSnakeEntity> lastSnake = new java.lang.ref.WeakReference<>(null);
 
     /** The serpent that rose last, if it's still around (for the story test). */
@@ -672,7 +721,12 @@ public final class Story {
         if (data.sideState(q) != PlayerData.SideState.ACTIVE || !sideComplete(player, data, q)) return;
         if (q.objective == SideQuest.Objective.COLLECT) {
             Item item = itemById(q.target);
-            if (item == null || Progression.takeItem(player, item, q.goal) < q.goal) return;
+            if (oneOffGone(player, q)) {
+                // The one-off monster is gone for good: hand over its trophy if you still carry it, but don't insist.
+                if (item != null) Progression.takeItem(player, item, Math.min(q.goal, Progression.countItem(player, item)));
+            } else if (item == null || Progression.takeItem(player, item, q.goal) < q.goal) {
+                return;
+            }
         }
         data.completeSide(q);
         for (ItemStack reward : q.rewards()) give(player, reward);
@@ -688,7 +742,10 @@ public final class Story {
                 Component.translatable("entity.slfrontier." + q.giver)).withStyle(ChatFormatting.GREEN));
     }
 
-    /** Collect and level objectives are measured from the player's state. */
+    /**
+     * Collect and level objectives are measured from the player's state; a quest about a one-off
+     * monster that is already dead counts as done (see {@link SideQuest#oneOffSlainFlag()}).
+     */
     private static void updateSideProgress(ServerPlayer player, PlayerData data, SideQuest q) {
         int before = data.sideProgress(q);
         switch (q.objective) {
@@ -700,7 +757,14 @@ public final class Story {
             default -> {
             }
         }
-        if (before < q.goal && data.sideProgress(q) >= q.goal && q.objective != SideQuest.Objective.KILL) sideReady(player, q);
+        if (oneOffGone(player, q)) data.setSideProgress(q, q.goal);
+        if (before < q.goal && data.sideProgress(q) >= q.goal) sideReady(player, q);
+    }
+
+    /** Whether the quest's one-off monster has been slain in this world (so its objective is met). */
+    private static boolean oneOffGone(ServerPlayer player, SideQuest q) {
+        String flag = q.oneOffSlainFlag();
+        return flag != null && WorldStory.has(player.level(), flag);
     }
 
     /** Runs once a second from the player tick. */
@@ -712,7 +776,7 @@ public final class Story {
         }
         for (String id : List.copyOf(data.activeSideIds())) {
             SideQuest q = SideQuest.byId(id);
-            if (q != null && q.objective != SideQuest.Objective.KILL) updateSideProgress(player, data, q);
+            if (q != null && (q.objective != SideQuest.Objective.KILL || q.oneOffSlainFlag() != null)) updateSideProgress(player, data, q);
         }
     }
 
@@ -842,15 +906,13 @@ public final class Story {
         return dx * dx + dz * dz;
     }
 
-    private static long campReadyAt;
-
     /** The goblin war camp keeps a few goblins around, day or night, so First Blood never stalls. */
     private static void goblinCamp(ServerLevel level, ServerPlayer player) {
         BlockPos camp = Landmarks.where(level, Landmarks.Site.GOBLIN_CAMP);
         long now = level.getGameTime();
-        if (now < campReadyAt || level.getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL
+        if (!ready(CAMP_READY, level, now, CAMP_COOLDOWN) || level.getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL
                 || horizontalDistSqr(player.blockPosition(), camp) > 80 * 80) return;
-        campReadyAt = now + 20 * 12;
+        CAMP_READY.put(level, now + CAMP_COOLDOWN);
         var box = new net.minecraft.world.phys.AABB(camp).inflate(40, 16, 40);
         if (level.getEntitiesOfClass(com.slfrontier.entity.mob.GoblinEntity.class, box).size() >= 4) return;
         int count = 1 + level.getRandom().nextInt(2);

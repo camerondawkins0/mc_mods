@@ -454,9 +454,19 @@ public final class CommonEvents {
             return;
         }
 
+        // The hive's queen is part of its template and never comes back: remember it for the whole world.
+        if (dead.getType() == com.slfrontier.registry.ModEntities.EMPIRE_BEE_QUEEN.get() && dead.level() instanceof ServerLevel server) {
+            com.slfrontier.quest.WorldStory.set(server, com.slfrontier.quest.WorldStory.BEE_QUEEN_SLAIN);
+        }
+
         if (event.getSource().getEntity() instanceof ServerPlayer killer && Frontier.isIn(killer)) {
             Progression.grantExp(killer, Progression.expFor(dead));
             Story.onKill(killer, dead);
         }
+    }
+
+    @SubscribeEvent
+    public static void onServerStopping(net.neoforged.neoforge.event.server.ServerStoppingEvent event) {
+        Story.resetTimers();
     }
 }
