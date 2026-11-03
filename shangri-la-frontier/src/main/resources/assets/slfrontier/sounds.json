@@ -1,0 +1,400 @@
+{
+  "combat.slash": {
+    "sounds": [
+      {
+        "name": "slfrontier:combat/slash_1",
+        "volume": 0.9
+      },
+      {
+        "name": "slfrontier:combat/slash_2",
+        "volume": 0.9
+      },
+      {
+        "name": "slfrontier:combat/slash_3",
+        "volume": 0.9
+      },
+      {
+        "name": "slfrontier:combat/slash_4",
+        "volume": 0.9
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.combat.slash"
+  },
+  "combat.heavy_slash": {
+    "sounds": [
+      {
+        "name": "slfrontier:combat/heavy_slash_1",
+        "volume": 1.0
+      },
+      {
+        "name": "slfrontier:combat/heavy_slash_2",
+        "volume": 1.0
+      },
+      {
+        "name": "slfrontier:combat/heavy_slash_3",
+        "volume": 1.0
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.combat.heavy_slash"
+  },
+  "combat.cross_slash": {
+    "sounds": [
+      {
+        "name": "slfrontier:combat/cross_slash_1",
+        "volume": 1.0
+      },
+      {
+        "name": "slfrontier:combat/cross_slash_2",
+        "volume": 1.0
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.combat.cross_slash"
+  },
+  "combat.impact": {
+    "sounds": [
+      {
+        "name": "slfrontier:combat/impact_1",
+        "volume": 0.9
+      },
+      {
+        "name": "slfrontier:combat/impact_2",
+        "volume": 0.9
+      },
+      {
+        "name": "slfrontier:combat/impact_3",
+        "volume": 0.9
+      },
+      {
+        "name": "slfrontier:combat/impact_4",
+        "volume": 0.9
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.combat.impact"
+  },
+  "combat.crit": {
+    "sounds": [
+      {
+        "name": "slfrontier:combat/crit_1",
+        "volume": 1.0
+      },
+      {
+        "name": "slfrontier:combat/crit_2",
+        "volume": 1.0
+      },
+      {
+        "name": "slfrontier:combat/crit_3",
+        "volume": 1.0
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.combat.crit"
+  },
+  "combat.finisher": {
+    "sounds": [
+      {
+        "name": "slfrontier:combat/finisher_1",
+        "volume": 1.0
+      },
+      {
+        "name": "slfrontier:combat/finisher_2",
+        "volume": 1.0
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.combat.finisher"
+  },
+  "combat.parry": {
+    "sounds": [
+      {
+        "name": "slfrontier:combat/parry_1",
+        "volume": 1.0
+      },
+      {
+        "name": "slfrontier:combat/parry_2",
+        "volume": 1.0
+      },
+      {
+        "name": "slfrontier:combat/parry_3",
+        "volume": 1.0
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.combat.parry"
+  },
+  "combat.parry_fail": {
+    "sounds": [
+      {
+        "name": "slfrontier:combat/parry_fail_1",
+        "volume": 0.6
+      },
+      {
+        "name": "slfrontier:combat/parry_fail_2",
+        "volume": 0.6
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.combat.parry_fail"
+  },
+  "combat.stun": {
+    "sounds": [
+      {
+        "name": "slfrontier:combat/stun_1",
+        "volume": 0.7
+      },
+      {
+        "name": "slfrontier:combat/stun_2",
+        "volume": 0.7
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.combat.stun"
+  },
+  "skill.dash": {
+    "sounds": [
+      {
+        "name": "slfrontier:skill/dash_1",
+        "volume": 0.7
+      },
+      {
+        "name": "slfrontier:skill/dash_2",
+        "volume": 0.7
+      },
+      {
+        "name": "slfrontier:skill/dash_3",
+        "volume": 0.7
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.skill.dash"
+  },
+  "skill.pierce": {
+    "sounds": [
+      {
+        "name": "slfrontier:skill/pierce_1",
+        "volume": 1.0
+      },
+      {
+        "name": "slfrontier:skill/pierce_2",
+        "volume": 1.0
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.skill.pierce"
+  },
+  "skill.cyclone": {
+    "sounds": [
+      {
+        "name": "slfrontier:skill/cyclone_1",
+        "volume": 1.0
+      },
+      {
+        "name": "slfrontier:skill/cyclone_2",
+        "volume": 1.0
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.skill.cyclone"
+  },
+  "skill.moon_wave": {
+    "sounds": [
+      {
+        "name": "slfrontier:skill/moon_wave_1",
+        "volume": 1.0
+      },
+      {
+        "name": "slfrontier:skill/moon_wave_2",
+        "volume": 1.0
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.skill.moon_wave"
+  },
+  "skill.sky_clear": {
+    "sounds": [
+      {
+        "name": "slfrontier:skill/sky_clear",
+        "volume": 1.0
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.skill.sky_clear"
+  },
+  "skill.crescent_slam": {
+    "sounds": [
+      {
+        "name": "slfrontier:skill/crescent_slam_1",
+        "volume": 1.0
+      },
+      {
+        "name": "slfrontier:skill/crescent_slam_2",
+        "volume": 1.0
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.skill.crescent_slam"
+  },
+  "player.skill_ready": {
+    "sounds": [
+      {
+        "name": "slfrontier:player/skill_ready",
+        "volume": 0.5
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.player.skill_ready"
+  },
+  "player.stamina_empty": {
+    "sounds": [
+      {
+        "name": "slfrontier:player/stamina_empty",
+        "volume": 0.6
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.player.stamina_empty"
+  },
+  "player.level_up": {
+    "sounds": [
+      {
+        "name": "slfrontier:player/level_up",
+        "volume": 0.9
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.player.level_up"
+  },
+  "player.skill_learned": {
+    "sounds": [
+      {
+        "name": "slfrontier:player/skill_learned",
+        "volume": 0.9
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.player.skill_learned"
+  },
+  "player.full_dive_in": {
+    "sounds": [
+      {
+        "name": "slfrontier:player/full_dive_in",
+        "volume": 0.8
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.player.full_dive_in"
+  },
+  "player.full_dive_out": {
+    "sounds": [
+      {
+        "name": "slfrontier:player/full_dive_out",
+        "volume": 0.8
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.player.full_dive_out"
+  },
+  "quest.step": {
+    "sounds": [
+      {
+        "name": "slfrontier:quest/step",
+        "volume": 0.7
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.quest.step"
+  },
+  "quest.complete": {
+    "sounds": [
+      {
+        "name": "slfrontier:quest/complete",
+        "volume": 0.9
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.quest.complete"
+  },
+  "world.waypoint": {
+    "sounds": [
+      {
+        "name": "slfrontier:world/waypoint",
+        "volume": 0.9
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.world.waypoint"
+  },
+  "world.discover": {
+    "sounds": [
+      {
+        "name": "slfrontier:world/discover",
+        "volume": 0.8
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.world.discover"
+  },
+  "world.craft_done": {
+    "sounds": [
+      {
+        "name": "slfrontier:world/craft_done",
+        "volume": 0.8
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.world.craft_done"
+  },
+  "boss.telegraph": {
+    "sounds": [
+      {
+        "name": "slfrontier:boss/telegraph_1",
+        "volume": 0.8
+      },
+      {
+        "name": "slfrontier:boss/telegraph_2",
+        "volume": 0.8
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.boss.telegraph"
+  },
+  "boss.phase": {
+    "sounds": [
+      {
+        "name": "slfrontier:boss/phase",
+        "volume": 1.0
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.boss.phase"
+  },
+  "boss.defeated": {
+    "sounds": [
+      {
+        "name": "slfrontier:boss/defeated",
+        "volume": 1.0
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.boss.defeated"
+  },
+  "ui.click": {
+    "sounds": [
+      {
+        "name": "slfrontier:ui/click_1",
+        "volume": 0.5
+      },
+      {
+        "name": "slfrontier:ui/click_2",
+        "volume": 0.5
+      }
+    ]
+  },
+  "ui.hover": {
+    "sounds": [
+      {
+        "name": "slfrontier:ui/hover",
+        "volume": 0.25
+      }
+    ]
+  },
+  "ui.open": {
+    "sounds": [
+      {
+        "name": "slfrontier:ui/open",
+        "volume": 0.5
+      }
+    ]
+  },
+  "ui.close": {
+    "sounds": [
+      {
+        "name": "slfrontier:ui/close",
+        "volume": 0.45
+      }
+    ]
+  },
+  "ui.deny": {
+    "sounds": [
+      {
+        "name": "slfrontier:ui/deny",
+        "volume": 0.5
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.ui.deny"
+  }
+}

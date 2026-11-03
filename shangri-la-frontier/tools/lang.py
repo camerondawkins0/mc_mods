@@ -829,6 +829,41 @@ MISC.update({
 })
 
 
+# Subtitles for the Frontier's own sounds (tools/sfx.py); sounds without one are UI blips.
+SUBTITLES = {
+    "combat.slash": "Blade swishes",
+    "combat.heavy_slash": "Heavy swing",
+    "combat.cross_slash": "Blades cross",
+    "combat.impact": "Blade hits",
+    "combat.crit": "Critical hit",
+    "combat.finisher": "Finishing blow",
+    "combat.parry": "Perfect parry",
+    "combat.parry_fail": "Parry misses",
+    "combat.stun": "Attacker staggered",
+    "skill.dash": "Dash",
+    "skill.pierce": "Drill Piercer",
+    "skill.cyclone": "Cyclone Slash",
+    "skill.moon_wave": "Crescent wave",
+    "skill.sky_clear": "Sky Clear",
+    "skill.crescent_slam": "Crescent Vorpal lands",
+    "player.skill_ready": "Skill ready",
+    "player.stamina_empty": "Out of stamina",
+    "player.level_up": "Level up",
+    "player.skill_learned": "Skill learned",
+    "player.full_dive_in": "Full-dive link opens",
+    "player.full_dive_out": "Full-dive link closes",
+    "quest.step": "Quest updated",
+    "quest.complete": "Quest complete",
+    "world.waypoint": "Waypoint attuned",
+    "world.discover": "New place found",
+    "world.craft_done": "Crafting done",
+    "boss.telegraph": "Boss winds up",
+    "boss.phase": "Boss grows stronger",
+    "boss.defeated": "Boss defeated",
+    "ui.deny": "Not possible",
+}
+
+
 def build():
     lang = dict(MISC)
     lang.update(GUI)
@@ -858,6 +893,8 @@ def build():
     for k, (name, desc) in SKILLS.items():
         lang[f"skill.slfrontier.{k}"] = name
         lang[f"skill.slfrontier.{k}.desc"] = desc
+    for k, text in SUBTITLES.items():
+        lang[f"subtitles.slfrontier.{k}"] = text
     for k, (name, desc) in STATS.items():
         lang[f"stat.slfrontier.{k}"] = name
         lang[f"stat.slfrontier.{k}.desc"] = desc

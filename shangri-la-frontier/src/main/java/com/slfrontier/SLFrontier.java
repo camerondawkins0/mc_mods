@@ -40,6 +40,7 @@ public class SLFrontier {
         com.slfrontier.world.feature.FrontierFeatures.FEATURES.register(modBus);
         com.slfrontier.world.design.DesignRegistries.register(modBus);
         com.slfrontier.registry.ModMenus.MENUS.register(modBus);
+        com.slfrontier.registry.ModSounds.SOUNDS.register(modBus);
         modBus.addListener(ModNetwork::register);
         modBus.addListener(com.slfrontier.network.InventoryNetwork::register);
         modBus.addListener(com.slfrontier.network.OverlayNetwork::register);
