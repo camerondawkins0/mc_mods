@@ -159,8 +159,22 @@ Empire Bee Twinblades, the Battlehorn Helm and Reallocation Tonics.
 ### Bosses
 
 Every boss telegraphs its attacks with markings on the ground (circles fill up until the
-hit lands; cones and lines show where a dash or a wave will go), so fights are about reading
-and dodging — or parrying.
+hit lands; cones and lines show exactly the area that will be hit), so fights are about
+reading and dodging — or parrying:
+
+* **Gold** markings, with a glint of steel, are blows you can **parry**. A perfect parry
+  breaks the attack off and staggers the boss.
+* **Red** markings (eruptions, beams, lightning, Tensei, Night Rend...) can't be parried:
+  dodge them. Trying to parry one wastes the parry.
+* Bosses commit to their attacks: a charge runs its full lane and stuns the boss if it hits
+  a wall, and after their big moves they leave an opening (the Snake reels after a charge, the
+  Mud Digger sits half-buried after erupting, Kirin vents after its laser) — the time to get
+  behind them for weak-point hits.
+* When a boss enters a new phase you hear it, and a line on screen tells you what changed.
+* Walk away (or die) and a boss heals and goes home after about ten seconds, so a fight has to
+  be won in one go. Climbing out of reach doesn't work either: they have a way to come to you.
+* Altar bosses (Lycagon, its Shadow) can be fought again once per in-game day after your
+  first win, for a quarter of the EXP and no Rebirth Tearjewel.
 
 | Boss | Where | Highlights |
 |---|---|---|
@@ -212,6 +226,8 @@ resource pack).
   the blow will land, and a red one means a heavy blow.
 * Dying in the Frontier sends you back to your last waypoint crystal (or Firstia) with a
   temporary **Death Penalty**. A **Rebirth Tearjewel** saves you once.
+* Everyone who fought a monster gets its EXP and quest credit, not just whoever landed the
+  last blow (allies finishing a boss no longer cost you the reward).
 * **You keep your inventory and EXP when you die in the Frontier** (outside it, vanilla's
   `keepInventory` rule applies as usual).
 * Monsters you've hit, that are under your crosshair or that are coming for you show a
@@ -246,7 +262,8 @@ Every weapon is a full 3D model, designed after the anime:
 * **Moonblades (Togetsu)** — talon-curved crescents, pearl-white *Waxing* and gunmetal *Waning*,
   on maroon-corded grips with a red bead and a white hook charm.
 * **Twin Moon** — the two locked into one huge crescent, white outside and black inside.
-* **Tombguard Katana** — Wezaemon's long, slim blade with a red-corded hilt.
+* **Tombguard Katana** — Wezaemon's long, slim blade with a red-corded hilt, forged by Bilac
+  from the fragments Wezaemon and Kirin leave behind.
 
 Twin blades: hold one in each hand — every main-hand hit is followed by an off-hand strike
 (30% of what that blade would deal in the main hand), and the third hit in a row (each within
