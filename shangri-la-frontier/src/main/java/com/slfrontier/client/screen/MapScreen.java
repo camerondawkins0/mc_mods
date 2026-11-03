@@ -143,7 +143,9 @@ public class MapScreen extends Screen {
                 Gfx.fade(Theme.ACCENT), false);
 
         boolean inFrontier = player != null && Frontier.isIn(player);
+        view.underlay = inFrontier;
         view.draw(g);
+        if (inFrontier) view.drawRegionLabels(g, font);
         Gfx.outline(g, new float[]{view.x0, view.y0, view.x1, view.y0, view.x1, view.y1, view.x0, view.y1}, 1f, Theme.BORDER);
         if (!inFrontier) {
             Component msg = Component.translatable("gui.slfrontier.map_unavailable");
@@ -294,7 +296,12 @@ public class MapScreen extends Screen {
         if (!view.contains((float) mx, (float) my)) return null;
         ModNetwork.Marker best = null;
         double bestD = 8 * 8;
-        for (ModNetwork.Marker m : ClientState.markers()) {
+        // The listed waypoints (a town's own crystal is folded into the town) and the objective.
+        List<ModNetwork.Marker> wps = ClientState.waypoints();
+        ModNetwork.Marker quest = ClientState.questMarker();
+        for (int i = 0; i <= wps.size(); i++) {
+            ModNetwork.Marker m = i < wps.size() ? wps.get(i) : quest;
+            if (m == null) continue;
             float[] s = view.toScreen(m.pos().getX() + 0.5, m.pos().getZ() + 0.5);
             double d = (s[0] - mx) * (s[0] - mx) + (s[1] - my) * (s[1] - my);
             if (d < bestD) {

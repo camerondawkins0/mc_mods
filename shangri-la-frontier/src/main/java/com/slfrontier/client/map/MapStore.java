@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.Util;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -20,22 +21,33 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 /**
- * The player's explored map of the Frontier. Chunks around the player are sampled as they
- * load (top block colour + vanilla-map style relief shading) into 128x128-block tiles,
- * which are saved per world under {@code <game dir>/slfrontier/maps/}.
+ * The player's explored map of the Frontier. Chunks are sampled as they load (top block colour +
+ * vanilla-map style relief shading) into 128x128-block tiles, which are saved per world under
+ * {@code <game dir>/slfrontier/maps/}. Saving happens off the render thread; the tiles on disk are
+ * listed once per world so unexplored tiles never touch the disk.
  */
 public final class MapStore {
     public static final int TILE = 128;
-    private static final int RESCAN_TICKS = 20 * 30;
+    /** Chunks near the player are looked at again this often, to catch what was built or dug since. */
+    private static final int RESCAN_TICKS = 20 * 60 * 5;
+    /** How often the area around the player is checked for chunks not yet (or long ago) scanned. */
+    private static final int SWEEP_TICKS = 20 * 5;
     private static final int CHUNKS_PER_TICK = 6;
 
     public static final class Tile {
@@ -44,7 +56,8 @@ public final class MapStore {
         public final byte[] colors = new byte[TILE * TILE];
         public boolean dirty;
         public boolean textureDirty = true;
-        int version;
+        /** Bumped on every change, so textures built from the tile know to refresh. */
+        public int version;
 
         Tile(int tx, int tz) {
             this.tx = tx;
@@ -53,13 +66,19 @@ public final class MapStore {
     }
 
     private static final Map<Long, Tile> TILES = new HashMap<>();
+    /** Tiles saved in this world's folder, listed once on join (plus every tile saved since). */
+    private static final Set<Long> ON_DISK = new HashSet<>();
     private static final Map<Long, Long> SCANNED = new HashMap<>();
     private static final ArrayDeque<ChunkPos> QUEUE = new ArrayDeque<>();
+    private static final Set<Long> QUEUED = new HashSet<>();
     private static final java.util.List<long[]> PINS = new java.util.ArrayList<>();
     private static boolean pinsLoaded;
     @Nullable
     private static Path dir;
+    private static boolean listed;
     private static long ticks;
+    /** Writes run one after another on the IO pool, so two saves of a tile can't cross. */
+    private static CompletableFuture<Void> saving = CompletableFuture.completedFuture(null);
 
     private MapStore() {
     }
@@ -89,6 +108,13 @@ public final class MapStore {
         return mc.gameDirectory.toPath().resolve("slfrontier").resolve("maps").resolve(key);
     }
 
+    /** This world's client-side folder (map tiles, pins, one-time hints), or null before joining. */
+    @Nullable
+    public static Path worldFolder() {
+        if (dir == null) dir = worldDir();
+        return dir;
+    }
+
     public static void onJoin() {
         clearMemory();
         dir = worldDir();
@@ -96,6 +122,12 @@ public final class MapStore {
 
     public static void onLeave() {
         saveAll();
+        // Leaving waits for the last writes, so the next world (or a quit) can't lose them.
+        try {
+            saving.join();
+        } catch (RuntimeException e) {
+            SLFrontier.LOGGER.warn("Could not save the Frontier map", e);
+        }
         clearMemory();
         dir = null;
     }
@@ -104,22 +136,61 @@ public final class MapStore {
         PINS.clear();
         pinsLoaded = false;
         TILES.clear();
+        ON_DISK.clear();
+        listed = false;
         SCANNED.clear();
         QUEUE.clear();
+        QUEUED.clear();
         MapTextures.releaseAll();
+    }
+
+    /** Lists the saved tiles once, instead of asking the disk about every tile the map looks at. */
+    private static void listTiles() {
+        if (listed || dir == null) return;
+        listed = true;
+        try (DirectoryStream<Path> files = Files.newDirectoryStream(dir, "*.map")) {
+            for (Path f : files) {
+                String name = f.getFileName().toString();
+                String[] parts = name.substring(0, name.length() - 4).split("_");
+                if (parts.length != 2) continue;
+                try {
+                    ON_DISK.add(key(Integer.parseInt(parts[0]), Integer.parseInt(parts[1])));
+                } catch (NumberFormatException ignored) {
+                    // not a tile
+                }
+            }
+        } catch (NoSuchFileException ignored) {
+            // nothing explored in this world yet
+        } catch (IOException e) {
+            SLFrontier.LOGGER.warn("Could not list the Frontier map tiles", e);
+        }
     }
 
     // ---- Exploration -----------------------------------------------------------------
 
+    /** A chunk arrived from the server: map it (soon) if it is in the Frontier. */
+    public static void onChunkLoad(LevelChunk chunk) {
+        if (chunk.getLevel() instanceof ClientLevel level && level.dimension() == Frontier.LEVEL) enqueue(chunk.getPos());
+    }
+
+    private static void enqueue(ChunkPos cp) {
+        if (QUEUED.add(cp.pack())) QUEUE.add(cp);
+    }
+
     public static void tick() {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
-        if (level == null || mc.player == null || level.dimension() != Frontier.LEVEL) return;
+        if (level == null || mc.player == null || level.dimension() != Frontier.LEVEL) {
+            QUEUE.clear();
+            QUEUED.clear();
+            return;
+        }
         ticks++;
         if (dir == null) dir = worldDir();
-        if (QUEUE.isEmpty() && ticks % 10 == 0) enqueueAround(mc, level);
+        if (QUEUE.isEmpty() && ticks % SWEEP_TICKS == 0) enqueueAround(mc);
         for (int i = 0; i < CHUNKS_PER_TICK && !QUEUE.isEmpty(); i++) {
             ChunkPos cp = QUEUE.poll();
+            QUEUED.remove(cp.pack());
             LevelChunk chunk = level.getChunkSource().getChunk(cp.x(), cp.z(), false);
             if (chunk != null && !chunk.isEmpty()) {
                 scanChunk(level, chunk);
@@ -129,7 +200,8 @@ public final class MapStore {
         if (ticks % (20 * 60) == 0) saveAll();
     }
 
-    private static void enqueueAround(Minecraft mc, ClientLevel level) {
+    /** Chunks around the player that were never scanned (missed while loading) or not for a while. */
+    private static void enqueueAround(Minecraft mc) {
         int r = Math.min(mc.options.getEffectiveRenderDistance(), 12);
         ChunkPos center = mc.player.chunkPosition();
         for (int d = 0; d <= r; d++) {
@@ -138,7 +210,7 @@ public final class MapStore {
                     if (Math.max(Math.abs(dx), Math.abs(dz)) != d) continue;
                     ChunkPos cp = new ChunkPos(center.x() + dx, center.z() + dz);
                     Long at = SCANNED.get(cp.pack());
-                    if (at == null || ticks - at > RESCAN_TICKS) QUEUE.add(cp);
+                    if (at == null || ticks - at > RESCAN_TICKS) enqueue(cp);
                 }
             }
         }
@@ -164,7 +236,7 @@ public final class MapStore {
                 MapColor color = state.getMapColor(level, pos);
                 int brightness;
                 FluidState fluid = state.getFluidState();
-                if (!fluid.isEmpty() && state.getMapColor(level, pos) == MapColor.WATER) {
+                if (!fluid.isEmpty() && color == MapColor.WATER) {
                     int depth = 0;
                     BlockPos.MutableBlockPos p2 = pos.mutable();
                     while (depth < 16 && !chunk.getBlockState(p2).getFluidState().isEmpty()) {
@@ -173,7 +245,6 @@ public final class MapStore {
                     }
                     double d = depth * 0.1 + ((x + z) & 1) * 0.2;
                     brightness = d < 0.5 ? 2 : d > 0.9 ? 0 : 1;
-                    color = MapColor.WATER;
                 } else {
                     double d = (y - prevHeight) * 0.8 + (((x + z) & 1) - 0.5) * 0.4;
                     brightness = d > 0.6 ? 2 : d < -0.6 ? 0 : 1;
@@ -198,6 +269,7 @@ public final class MapStore {
             t.colors[i] = value;
             t.dirty = true;
             t.textureDirty = true;
+            t.version++;
         }
     }
 
@@ -279,8 +351,9 @@ public final class MapStore {
     @Nullable
     private static Tile load(int tx, int tz) {
         if (dir == null) return null;
+        listTiles();
+        if (!ON_DISK.contains(key(tx, tz))) return null;
         Path f = dir.resolve(tx + "_" + tz + ".map");
-        if (!Files.exists(f)) return null;
         try (InputStream in = Files.newInputStream(f); DataInputStream data = new DataInputStream(new GZIPInputStream(in))) {
             Tile t = new Tile(tx, tz);
             data.readFully(t.colors);
@@ -291,17 +364,32 @@ public final class MapStore {
         }
     }
 
+    private record Snapshot(int tx, int tz, byte[] colors) {
+    }
+
+    /** Copies the changed tiles and writes them on the IO pool; the game carries on meanwhile. */
     public static void saveAll() {
         if (dir == null) return;
+        List<Snapshot> changed = new ArrayList<>();
+        for (Tile t : TILES.values()) {
+            if (t == null || !t.dirty) continue;
+            changed.add(new Snapshot(t.tx, t.tz, t.colors.clone()));
+            t.dirty = false;
+            ON_DISK.add(key(t.tx, t.tz));
+        }
+        if (changed.isEmpty()) return;
+        Path folder = dir;
+        saving = saving.exceptionally(e -> null).thenRunAsync(() -> write(folder, changed), Util.ioPool());
+    }
+
+    private static void write(Path folder, List<Snapshot> tiles) {
         try {
-            Files.createDirectories(dir);
-            for (Tile t : TILES.values()) {
-                if (t == null || !t.dirty) continue;
-                Path f = dir.resolve(t.tx + "_" + t.tz + ".map");
+            Files.createDirectories(folder);
+            for (Snapshot t : tiles) {
+                Path f = folder.resolve(t.tx() + "_" + t.tz() + ".map");
                 try (OutputStream out = Files.newOutputStream(f); DataOutputStream data = new DataOutputStream(new GZIPOutputStream(out))) {
-                    data.write(t.colors);
+                    data.write(t.colors());
                 }
-                t.dirty = false;
             }
         } catch (IOException e) {
             SLFrontier.LOGGER.warn("Could not save the Frontier map", e);

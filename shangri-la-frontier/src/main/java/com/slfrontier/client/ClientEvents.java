@@ -234,6 +234,14 @@ public final class ClientEvents {
         com.slfrontier.client.fx.Impact.clear();
     }
 
+    /** The explored map is drawn from chunks as they arrive (and swept now and then for changes). */
+    @SubscribeEvent
+    public static void onChunkLoad(net.neoforged.neoforge.event.level.ChunkEvent.Load event) {
+        if (event.getLevel().isClientSide() && event.getChunk() instanceof net.minecraft.world.level.chunk.LevelChunk chunk) {
+            MapStore.onChunkLoad(chunk);
+        }
+    }
+
     @SubscribeEvent
     public static void onRenderPlayerPre(RenderPlayerEvent.Pre<?> event) {
         AvatarRenderState state = event.getRenderState();
