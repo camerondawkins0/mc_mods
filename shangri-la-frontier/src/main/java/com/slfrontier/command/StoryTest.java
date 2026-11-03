@@ -140,6 +140,27 @@ public final class StoryTest {
             }
         });
 
+        check(failures, "extra hits", () -> {
+            // An off-hand/skill hit lands on its own and leaves the target's hit immunity as it was.
+            var goblin = ModEntities.GOBLIN.get().create(frontier, EntitySpawnReason.EVENT);
+            if (goblin == null) throw new IllegalStateException("no goblin");
+            goblin.snapTo(player.getX() + 1.5, player.getY(), player.getZ(), 0f, 0f);
+            java.util.Objects.requireNonNull(goblin.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH)).setBaseValue(1000);
+            goblin.setHealth(1000);
+            frontier.addFreshEntity(goblin);
+            try {
+                goblin.hurtServer(frontier, frontier.damageSources().playerAttack(player), 5f);
+                int immunity = goblin.invulnerableTime;
+                float health = goblin.getHealth();
+                com.slfrontier.skill.ExtraHit.deal(goblin, frontier.damageSources().playerAttack(player), 3f,
+                        com.slfrontier.skill.ExtraHit.Kind.OFFHAND);
+                if (goblin.getHealth() >= health) throw new IllegalStateException("the extra hit did no damage");
+                if (goblin.invulnerableTime != immunity) throw new IllegalStateException("the extra hit changed the hit immunity");
+            } finally {
+                goblin.discard();
+            }
+        });
+
         List<Supplier<? extends EntityType<? extends FrontierNpc>>> npcs = List.of(
                 ModEntities.GUIDE, ModEntities.BLACKSMITH, ModEntities.VYSACHE, ModEntities.BILAC,
                 ModEntities.SETSUNA, ModEntities.EMUL, ModEntities.PENCILGON, ModEntities.OIKATZO);
