@@ -49,6 +49,8 @@ public final class Progression {
         // Lycagon's short-lived shadow clones are part of its moveset, not a kill (summoned monsters give
         // nothing either: see FrontierMonster#frontierExp).
         if (killed instanceof com.slfrontier.entity.boss.LycagonShadowEntity shadow && shadow.isClone()) return 0;
+        // Anything a boss called into the fight (bees, wolves) is tagged as a summon.
+        if (com.slfrontier.entity.FrontierBoss.isSummon(killed)) return 0;
         if (killed instanceof LeveledMob leveled) {
             return leveled.frontierExp();
         }

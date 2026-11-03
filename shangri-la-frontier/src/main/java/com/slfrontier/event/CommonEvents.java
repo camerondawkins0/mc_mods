@@ -8,7 +8,6 @@ import com.slfrontier.entity.Stun;
 import com.slfrontier.SLFrontier;
 import com.slfrontier.command.SlfCommand;
 import com.slfrontier.data.PlayerData;
-import com.slfrontier.entity.boss.WezaemonEntity;
 import com.slfrontier.item.FrontierWeapon;
 import com.slfrontier.item.MoonbladeItem;
 import com.slfrontier.item.TwinBladeItem;
