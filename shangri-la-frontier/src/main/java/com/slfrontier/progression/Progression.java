@@ -73,7 +73,7 @@ public final class Progression {
         int left = amount;
         while (left > 0 && data.level() < PlayerData.MAX_LEVEL) {
             int need = PlayerData.expToNext(data.level());
-            int take = Math.min(left, need - data.exp());
+            int take = Math.max(0, Math.min(left, need - data.exp()));
             left -= take;
             data.setExp(data.exp() + take);
             if (collar) data.setCollarExp(data.collarExp() + take);
