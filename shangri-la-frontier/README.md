@@ -181,6 +181,21 @@ kills burst the screen with a flash and speed lines. All of this can be switched
 *Mods → Shangri-La Frontier → Config → Effects*. The flash also follows Minecraft's *Hide
 Lightning Flashes* option, and the punch follows its *FOV Effects* slider.
 
+### Sound
+
+The Frontier has its own sound kit: blade swishes and impacts, a bright tick on critical
+hits, a boom on finishers and kills, the parry clang, a sound for every skill, a glint when a
+boss winds up an attack you can parry, a cue when a boss enters a new phase and a victory
+chord when it falls, chimes for level ups, new skills, quest steps and completions,
+discoveries and waypoint crystals, the full-dive link when you log in and out, a heartbeat at
+low health, a thud when stamina runs dry, a glint when a skill is ready again, and soft clicks
+and sweeps for the Frontier's menus. They follow Minecraft's volume sliders (Players, Hostile
+Creatures, Blocks and Master), and every one has a subtitle.
+
+All of them are synthesised by `tools/sfx.py` (no recorded samples). To change one, drop your
+own `.ogg` over the file of the same name in `assets/slfrontier/sounds/` (in the source or a
+resource pack).
+
 ### Levels, stats and stamina
 
 * EXP comes from defeating monsters in the Frontier (bosses give a lot). Level cap 99.
@@ -376,6 +391,8 @@ tools/
   crafting_data.py  Frontier recipes          inventory.py  item categories
   modpack.py     pins the companion mods; builds the .mrpack and the CurseForge .zip
   gen_assets.py  -> every texture and model     gen_data.py -> lang, loot, tags, worldgen
+  sfx.py         every sound effect, synthesised (sfx_synth.py: oscillators, filters, reverb)
+                 -> assets/slfrontier/sounds/*.ogg, sounds.json and ModSounds.java
   preview.py     quick software renders: `items`, `mobs`, `structure <name>`
   ci_boot_test.py boots a real NeoForge server in CI and exercises everything
 ```
