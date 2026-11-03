@@ -71,7 +71,9 @@ public class WezaemonEntity extends FrontierBoss {
                 .add(Attributes.ARMOR_TOUGHNESS, 4)
                 .add(Attributes.MOVEMENT_SPEED, 0.3)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0.9)
-                .add(Attributes.FOLLOW_RANGE, 48);
+                .add(Attributes.FOLLOW_RANGE, 48)
+                // Iai and Raisho run their whole lane: a one-block rise shouldn't count as a wall.
+                .add(Attributes.STEP_HEIGHT, 1.0);
     }
 
     @Override
