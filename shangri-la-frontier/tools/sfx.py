@@ -257,6 +257,22 @@ def full_dive(v):
     return S.normalize(S.mix((rise, 0.6, 0), (S.onepole_lp(arps, 4000), 0.4, 0), (land, 0.8, dur * 0.8)))
 
 
+def heartbeat(v):
+    """Low health: a deep lub-dub, felt more than heard (the HUD repeats it faster as HP drops)."""
+    S.seed(1650)
+    beat = lambda f, d: S.onepole_lp(S.sine(S.expramp(d, f, f * 0.6)) * S.env(d, 0.004, curve=3), 260)
+    return S.normalize(S.mix((beat(70, 0.16), 1.0, 0), (beat(58, 0.2), 0.75, 0.2)))
+
+
+def parry_glint(v):
+    """A parryable attack is coming: a quick bright glint, like light catching a blade."""
+    S.seed(2550 + v)
+    dur = 0.35
+    ping = S.metal(2960, dur, ratios=(1, 2.0, 3.01), decays=(0.7, 0.4, 0.25)) * S.env(dur, 0.001, curve=3)
+    sweep = S.svf(S.noise(0.12), S.expramp(0.12, 3000, 9000), q=3) * S.env(0.12, 0.08, curve=2)
+    return S.normalize(S.mix((sweep, 0.5, 0), (ping, 1.0, 0.08)))
+
+
 # ---- UI --------------------------------------------------------------------------
 
 def ui_click(v):
@@ -279,6 +295,12 @@ def ui_open(v):
     tone = (S.sine(f) + 0.3 * S.sine(f * 2.01)) * S.env(dur, 0.01, curve=2.5)
     air = S.svf(S.noise(dur), f * 2, q=2) * S.env(dur, 0.02, curve=2)
     return S.normalize(S.mix((tone, 0.6, 0), (air, 0.4, 0))) * 0.6
+
+
+def ui_type(v):
+    """Dialogue text appearing: a tiny soft tick (pitch varies per variant)."""
+    dur = 0.03
+    return S.normalize(S.sine(1300 + 120 * v, dur) * S.env(dur, 0.0008, curve=6)) * 0.3
 
 
 def ui_deny(v):
@@ -342,6 +364,7 @@ SOUNDS = {
     "skill.sky_clear": (sky_clear, 1, "Sky Clear", 1.0),
     "skill.crescent_slam": (crescent_slam, 2, "Crescent Vorpal lands", 1.0),
     "player.skill_ready": (skill_ready, 1, "Skill ready", 0.5),
+    "player.heartbeat": (heartbeat, 1, "Heartbeat", 0.7),
     "player.stamina_empty": (stamina_empty, 1, "Out of stamina", 0.6),
     "player.level_up": (level_up, 1, "Level up", 0.9),
     "player.skill_learned": (skill_learned, 1, "Skill learned", 0.9),
@@ -354,12 +377,14 @@ SOUNDS = {
     "world.craft_done": (craft_done, 1, "Crafting done", 0.8),
     "boss.telegraph": (telegraph, 2, "Boss winds up", 0.8),
     "boss.phase": (boss_phase, 1, "Boss grows stronger", 1.0),
+    "boss.parry_glint": (parry_glint, 2, "Blade glints", 0.9),
     "boss.defeated": (boss_defeated, 1, "Boss defeated", 1.0),
     "ui.click": (ui_click, 2, None, 0.5),
     "ui.hover": (ui_hover, 1, None, 0.25),
     "ui.open": (lambda v: ui_open(0), 1, None, 0.5),
     "ui.close": (lambda v: ui_open(1), 1, None, 0.45),
     "ui.deny": (ui_deny, 1, "Not possible", 0.5),
+    "ui.type": (ui_type, 3, None, 0.25),
 }
 
 

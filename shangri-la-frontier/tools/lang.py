@@ -860,6 +860,8 @@ SUBTITLES = {
     "boss.telegraph": "Boss winds up",
     "boss.phase": "Boss grows stronger",
     "boss.defeated": "Boss defeated",
+    "boss.parry_glint": "Blade glints",
+    "player.heartbeat": "Heartbeat",
     "ui.deny": "Not possible",
 }
 

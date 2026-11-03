@@ -231,6 +231,15 @@
     ],
     "subtitle": "subtitles.slfrontier.player.skill_ready"
   },
+  "player.heartbeat": {
+    "sounds": [
+      {
+        "name": "slfrontier:player/heartbeat",
+        "volume": 0.7
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.player.heartbeat"
+  },
   "player.stamina_empty": {
     "sounds": [
       {
@@ -343,6 +352,19 @@
     ],
     "subtitle": "subtitles.slfrontier.boss.phase"
   },
+  "boss.parry_glint": {
+    "sounds": [
+      {
+        "name": "slfrontier:boss/parry_glint_1",
+        "volume": 0.9
+      },
+      {
+        "name": "slfrontier:boss/parry_glint_2",
+        "volume": 0.9
+      }
+    ],
+    "subtitle": "subtitles.slfrontier.boss.parry_glint"
+  },
   "boss.defeated": {
     "sounds": [
       {
@@ -396,5 +418,21 @@
       }
     ],
     "subtitle": "subtitles.slfrontier.ui.deny"
+  },
+  "ui.type": {
+    "sounds": [
+      {
+        "name": "slfrontier:ui/type_1",
+        "volume": 0.25
+      },
+      {
+        "name": "slfrontier:ui/type_2",
+        "volume": 0.25
+      },
+      {
+        "name": "slfrontier:ui/type_3",
+        "volume": 0.25
+      }
+    ]
   }
 }

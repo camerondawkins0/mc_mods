@@ -29,6 +29,7 @@ public final class ModSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> SKILL_SKY_CLEAR = sound("skill.sky_clear");
     public static final DeferredHolder<SoundEvent, SoundEvent> SKILL_CRESCENT_SLAM = sound("skill.crescent_slam");
     public static final DeferredHolder<SoundEvent, SoundEvent> PLAYER_SKILL_READY = sound("player.skill_ready");
+    public static final DeferredHolder<SoundEvent, SoundEvent> PLAYER_HEARTBEAT = sound("player.heartbeat");
     public static final DeferredHolder<SoundEvent, SoundEvent> PLAYER_STAMINA_EMPTY = sound("player.stamina_empty");
     public static final DeferredHolder<SoundEvent, SoundEvent> PLAYER_LEVEL_UP = sound("player.level_up");
     public static final DeferredHolder<SoundEvent, SoundEvent> PLAYER_SKILL_LEARNED = sound("player.skill_learned");
@@ -41,12 +42,14 @@ public final class ModSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> WORLD_CRAFT_DONE = sound("world.craft_done");
     public static final DeferredHolder<SoundEvent, SoundEvent> BOSS_TELEGRAPH = sound("boss.telegraph");
     public static final DeferredHolder<SoundEvent, SoundEvent> BOSS_PHASE = sound("boss.phase");
+    public static final DeferredHolder<SoundEvent, SoundEvent> BOSS_PARRY_GLINT = sound("boss.parry_glint");
     public static final DeferredHolder<SoundEvent, SoundEvent> BOSS_DEFEATED = sound("boss.defeated");
     public static final DeferredHolder<SoundEvent, SoundEvent> UI_CLICK = sound("ui.click");
     public static final DeferredHolder<SoundEvent, SoundEvent> UI_HOVER = sound("ui.hover");
     public static final DeferredHolder<SoundEvent, SoundEvent> UI_OPEN = sound("ui.open");
     public static final DeferredHolder<SoundEvent, SoundEvent> UI_CLOSE = sound("ui.close");
     public static final DeferredHolder<SoundEvent, SoundEvent> UI_DENY = sound("ui.deny");
+    public static final DeferredHolder<SoundEvent, SoundEvent> UI_TYPE = sound("ui.type");
 
     private static DeferredHolder<SoundEvent, SoundEvent> sound(String name) {
         return SOUNDS.register(name, () -> SoundEvent.createVariableRangeEvent(SLFrontier.id(name)));
