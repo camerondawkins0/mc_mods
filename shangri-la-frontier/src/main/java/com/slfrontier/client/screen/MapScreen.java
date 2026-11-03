@@ -4,6 +4,7 @@ import com.slfrontier.client.ClientState;
 import com.slfrontier.client.KeyBindings;
 import com.slfrontier.client.map.MapStore;
 import com.slfrontier.client.map.MapView;
+import com.slfrontier.client.overlay.QuestPointer;
 import com.slfrontier.client.ui.Gfx;
 import com.slfrontier.client.ui.SlfButton;
 import com.slfrontier.client.ui.Theme;
@@ -220,9 +221,10 @@ public class MapScreen extends Screen {
         }
     }
 
-    private int distance(ModNetwork.Marker m) {
+    /** Distance to a marker, in the HUD's format ("850m", "1.1km"). */
+    private Component distance(ModNetwork.Marker m) {
         LocalPlayer p = Minecraft.getInstance().player;
-        return (int) Math.sqrt(m.pos().distToCenterSqr(p.getX(), m.pos().getY(), p.getZ()));
+        return QuestPointer.distance(Math.sqrt(m.pos().distToCenterSqr(p.getX(), m.pos().getY(), p.getZ())));
     }
 
     private void renderSidebar(GuiGraphicsExtractor g, int mouseX, int mouseY) {
@@ -249,7 +251,7 @@ public class MapScreen extends Screen {
             Gfx.icon(g, Theme.icon(town ? "town" : "waypoint"), sx + 4, y + 4, 10, 16);
             String name = font.plainSubstrByWidth(Component.translatable(m.nameKey()).getString(), sw - 22);
             g.text(font, name, sx + 17, y + 2, Gfx.fade(town ? 0xFFF2D8A0 : Theme.TEXT), false);
-            String dist = distance(m) + "m" + (m.id().equals(d.respawnWaypoint()) ? "  ✚" : "");
+            String dist = distance(m).getString() + (ClientState.isWaypoint(m, d.respawnWaypoint()) ? "  ✚" : "");
             g.text(font, dist, sx + 17, y + 11, Gfx.fade(Theme.TEXT_DIM), false);
             y += rowH;
         }
@@ -264,7 +266,7 @@ public class MapScreen extends Screen {
         if (sel != null) {
             g.text(font, Component.translatable(sel.nameKey()), sx, cy, Gfx.fade(Theme.GOLD), true);
             g.text(font, Component.translatable("gui.slfrontier.distance", distance(sel)), sx, cy + 11, Gfx.fade(Theme.TEXT_DIM), false);
-            if (sel.id().equals(d.respawnWaypoint())) {
+            if (ClientState.isWaypoint(sel, d.respawnWaypoint())) {
                 g.text(font, Component.translatable("gui.slfrontier.respawn_point"), sx, cy + 21, Gfx.fade(Theme.GREEN), false);
             }
         } else {

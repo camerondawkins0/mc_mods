@@ -19,7 +19,12 @@ import com.slfrontier.client.screen.FrontierScreen;
 import com.slfrontier.client.screen.MapScreen;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.CustomizeGuiOverlayEvent;
+import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
+import net.neoforged.neoforge.client.event.RenderHandEvent;
+import net.neoforged.neoforge.client.event.ToastAddEvent;
+import com.slfrontier.client.screen.DialogueScreen;
+import net.minecraft.client.gui.components.toasts.RecipeToast;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import com.slfrontier.data.PlayerData;
 import com.slfrontier.network.ModNetwork;
@@ -69,12 +74,7 @@ public final class ClientEvents {
             com.slfrontier.client.overlay.HudNotice.minimapToggled(SlfConfig.SHOW_MINIMAP.get());
         }
         for (int i = 0; i < KeyBindings.SKILLS.length; i++) {
-            while (KeyBindings.SKILLS[i].consumeClick()) {
-                // Move vector: x is the strafe (left) impulse, y the forward impulse.
-                var move = mc.player.input.getMoveVector();
-                ClientPacketDistributor.sendToServer(new ModNetwork.UseSkill(i, (byte) Math.signum(move.x),
-                        (byte) Math.signum(move.y)));
-            }
+            while (KeyBindings.SKILLS[i].consumeClick()) useSkill(mc, player, i);
         }
 
         if (!Frontier.isIn(player)) return;
@@ -95,6 +95,28 @@ public final class ClientEvents {
             ClientPacketDistributor.sendToServer(new ModNetwork.DoubleJump());
         }
         jumpWasDown = jumpDown;
+    }
+
+    /**
+     * A skill key press. Skills only exist in the Frontier, so outside it the keys do nothing. Inside, a
+     * press the client already knows can't work (empty slot, cooling down, not enough stamina) shakes the
+     * slot at once; the server still decides, and explains cooldowns and stamina itself.
+     */
+    private static void useSkill(Minecraft mc, LocalPlayer player, int slot) {
+        if (!Frontier.isIn(player)) return;
+        PlayerData data = ModAttachments.get(player);
+        Skill skill = data.equipped(slot);
+        if (skill == null || skill.passive) {
+            FrontierHud.skillDenied(slot);
+            if (skill == null) {
+                mc.gui.hud.setOverlayMessage(KeyBindings.text("hud.slfrontier.empty_slot", slot + 1), false);
+            }
+            return;
+        }
+        if (data.cooldown(skill) > 0 || data.stamina() < skill.staminaCost) FrontierHud.skillDenied(slot);
+        // Move vector: x is the strafe (left) impulse, y the forward impulse.
+        var move = player.input.getMoveVector();
+        ClientPacketDistributor.sendToServer(new ModNetwork.UseSkill(slot, (byte) Math.signum(move.x), (byte) Math.signum(move.y)));
     }
 
     @SubscribeEvent
@@ -136,8 +158,24 @@ public final class ClientEvents {
     }
 
     @SubscribeEvent
+    public static void onGuiStart(RenderGuiEvent.Pre event) {
+        FrontierHud.beginFrame();
+    }
+
+    @SubscribeEvent
     public static void onGuiLayer(RenderGuiLayerEvent.Pre event) {
         var name = event.getName();
+        // Dialogue is a cutscene: only chat and subtitles stay up.
+        if (Minecraft.getInstance().gui.screen() instanceof DialogueScreen
+                && !name.equals(VanillaGuiLayers.CHAT) && !name.equals(VanillaGuiLayers.SUBTITLE_OVERLAY)) {
+            event.setCanceled(true);
+            return;
+        }
+        // Effects are chips under the avatar frame in the Frontier; vanilla's icons would sit on the minimap.
+        if (name.equals(VanillaGuiLayers.EFFECTS) && FrontierHud.drawsEffects()) {
+            event.setCanceled(true);
+            return;
+        }
         boolean bar = name.equals(VanillaGuiLayers.CONTEXTUAL_INFO_BAR) || name.equals(VanillaGuiLayers.CONTEXTUAL_INFO_BAR_BACKGROUND);
         if ((name.equals(VanillaGuiLayers.PLAYER_HEALTH) || name.equals(VanillaGuiLayers.ARMOR_LEVEL)
                 || name.equals(VanillaGuiLayers.EXPERIENCE_LEVEL) || bar && showsExperienceBar())
@@ -166,6 +204,19 @@ public final class ClientEvents {
             event.setIncrement(event.getIncrement() + 6);
             event.setCanceled(true);
         }
+        FrontierHud.bossBarDrawn(event.getY(), event.getIncrement());
+    }
+
+    @SubscribeEvent
+    public static void onRenderHand(RenderHandEvent event) {
+        if (Minecraft.getInstance().gui.screen() instanceof DialogueScreen) event.setCanceled(true);
+    }
+
+    /** "New recipes unlocked" points at the vanilla recipe book, which the Frontier doesn't use; it also covers the minimap. */
+    @SubscribeEvent
+    public static void onToast(ToastAddEvent event) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (event.getToast() instanceof RecipeToast && player != null && Frontier.isIn(player)) event.setCanceled(true);
     }
 
     @SubscribeEvent
@@ -177,6 +228,7 @@ public final class ClientEvents {
     public static void onLeave(ClientPlayerNetworkEvent.LoggingOut event) {
         MapStore.onLeave();
         ClientState.reset();
+        FrontierHud.clear();
         FxRenderer.clear();
         DamageNumbers.clear();
         com.slfrontier.client.fx.Impact.clear();

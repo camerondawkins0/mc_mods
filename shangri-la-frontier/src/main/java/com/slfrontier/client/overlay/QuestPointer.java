@@ -373,7 +373,8 @@ public final class QuestPointer {
 
     // ---- Helpers -------------------------------------------------------------------------
 
-    static Component distance(double meters) {
+    /** "850m", or "1.1km" from a kilometre on: the one distance format of the HUD, pointer and map. */
+    public static Component distance(double meters) {
         if (meters < 1000) return Component.translatable("pointer.slfrontier.meters", (int) meters);
         return Component.translatable("pointer.slfrontier.kilometers", String.format(Locale.ROOT, "%.1f", meters / 1000));
     }

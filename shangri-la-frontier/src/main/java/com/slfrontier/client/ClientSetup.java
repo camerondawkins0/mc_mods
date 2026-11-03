@@ -92,6 +92,9 @@ public final class ClientSetup {
         event.registerAboveAll(SLFrontier.id("frontier_hud"), FrontierHud::render);
         // Under every HUD element: the screen flash and speed lines of a big hit.
         event.registerBelowAll(SLFrontier.id("impact"), com.slfrontier.client.fx.Impact::renderOverlay);
+        // Low health: red screen edges that throb with the heartbeat, over the vignette and under the crosshair.
+        event.registerAbove(net.neoforged.neoforge.client.gui.VanillaGuiLayers.CAMERA_OVERLAYS, SLFrontier.id("low_health"),
+                FrontierHud::renderLowHealth);
     }
 
     /** Shader pipelines of the world effects and the quest marker. */
