@@ -26,7 +26,7 @@ public enum SideQuest {
             () -> new ItemStack(ModItems.REBIRTH_TEARJEWEL.get())),
     LILY_OFFERING("lily_offering", "setsuna", Objective.COLLECT, "slfrontier:red_spider_lily", 8, 250, QuestStage.NIGHTSLAYER_FINAL,
             () -> new ItemStack(ModItems.HOLY_WATER.get(), 4)),
-    SEASONED_ADVENTURER("seasoned_adventurer", "frontier_guide", Objective.LEVEL, "", 20, 0, QuestStage.GRAY_ORE,
+    SEASONED_ADVENTURER("seasoned_adventurer", "frontier_guide", Objective.LEVEL, "", 12, 0, QuestStage.GRAY_ORE,
             () -> new ItemStack(ModItems.REBIRTH_TEARJEWEL.get()), () -> new ItemStack(Items.DIAMOND, 3)),
     REDCAP_RAID("redcap_raid", "frontier_blacksmith", Objective.KILL, "slfrontier:redcap_goblin", 5, 300, QuestStage.GRAY_ORE,
             () -> new ItemStack(ModItems.GRAY_ORE_CHUNK.get(), 8), () -> new ItemStack(ModItems.HOLY_WATER.get(), 2)),

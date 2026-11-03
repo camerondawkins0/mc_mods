@@ -32,6 +32,9 @@ import java.util.function.Consumer;
  * Hold use to wind up a crescent cleave; sneak-use to split it back into two blades.
  */
 public class TwinMoonItem extends Item implements FrontierWeapon {
+    /** Custom-data key: the Twin Moon's wear (0..1) when the blades were joined. */
+    static final String JOINED_WEAR = "joined_wear";
+
     public TwinMoonItem(ToolMaterial tier, int damage, float speed, Properties properties) {
         super(properties.sword(tier, damage, speed));
     }
@@ -73,12 +76,36 @@ public class TwinMoonItem extends Item implements FrontierWeapon {
         CustomData data = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
         CompoundTag tag = data.copyTag();
         var ops = level.registryAccess().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE);
-        ItemStack waxing = tag.read("waxing", ItemStack.CODEC, ops).orElseGet(() -> new ItemStack(ModItems.MOONBLADE_WAXING.get()));
-        ItemStack waning = tag.read("waning", ItemStack.CODEC, ops).orElseGet(() -> new ItemStack(ModItems.MOONBLADE_WANING.get()));
+        ItemStack waxing = storedBlade(tag, "waxing", ops, ModItems.MOONBLADE_WAXING.get());
+        ItemStack waning = storedBlade(tag, "waning", ops, ModItems.MOONBLADE_WANING.get());
+        // The wear the Twin Moon gathered since it was joined goes to both blades (no free repair by
+        // splitting and joining again).
+        float gathered = Math.max(0f, MoonbladeItem.wear(stack) - tag.getFloatOr(JOINED_WEAR, 0f));
+        for (ItemStack blade : new ItemStack[]{waxing, waning}) {
+            if (!blade.isDamageableItem()) continue;
+            blade.setDamageValue(Math.min(blade.getMaxDamage() - 1, blade.getDamageValue() + Math.round(gathered * blade.getMaxDamage())));
+        }
         player.setItemInHand(InteractionHand.MAIN_HAND, waxing);
         player.setItemInHand(InteractionHand.OFF_HAND, waning);
         level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.AMETHYST_BLOCK_BREAK, SoundSource.PLAYERS, 1f, 1.2f);
         player.sendOverlayMessage(Component.translatable("message.slfrontier.twin_moon.split").withStyle(ChatFormatting.AQUA));
+    }
+
+    /** One of the two blades stored inside; a fresh one (and a warning in the log) if it can't be read. */
+    private static ItemStack storedBlade(CompoundTag tag, String key, com.mojang.serialization.DynamicOps<net.minecraft.nbt.Tag> ops, Item fallback) {
+        ItemStack blade = tag.read(key, ItemStack.CODEC, ops).orElse(ItemStack.EMPTY);
+        if (blade.isEmpty() || !blade.is(fallback)) {
+            com.slfrontier.SLFrontier.LOGGER.warn("Twin Moon held no readable {} blade ({}); handing out a new one", key, tag.get(key));
+            return new ItemStack(fallback);
+        }
+        return blade;
+    }
+
+    /** The Twin Moon holds both one-of-a-kind Moonblades: it wears down to its last point but never shatters. */
+    @Override
+    public <T extends LivingEntity> int damageItem(ItemStack stack, int amount, @org.jetbrains.annotations.Nullable T entity,
+                                                   Consumer<Item> onBroken) {
+        return MoonbladeItem.neverBreak(stack, amount);
     }
 
     @Override

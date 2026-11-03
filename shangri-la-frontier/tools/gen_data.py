@@ -270,8 +270,9 @@ def gen_loot():
     entity_loot("lycagon", pool([item_entry(ns("nightslayer_fur"), 4, 8)]),
                 pool([item_entry(ns("rebirth_tearjewel"), 1, 2)]),
                 pool([item_entry("minecraft:nether_star")], chance=0.5))
-    entity_loot("wezaemon", pool([item_entry(ns("tombguard_katana"))]),
-                pool([item_entry(ns("tombguard_fragment"), 3, 6)]),
+    # No katana drop: Bilac forges it from his armor (6 fragments, level 16), so the recipe matters.
+    # Wezaemon + Kirin always give enough fragments for the katana and a Rebirth Tearjewel.
+    entity_loot("wezaemon", pool([item_entry(ns("tombguard_fragment"), 6, 9)]),
                 pool([item_entry(ns("rebirth_tearjewel"))]))
     entity_loot("redcap_goblin", pool([item_entry(ns("goblin_tooth"), 1, 2, 1)]),
                 pool([item_entry(ns("gray_ore_chunk"), 1, 2)], chance=0.35))

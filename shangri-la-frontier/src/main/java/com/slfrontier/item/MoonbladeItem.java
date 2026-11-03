@@ -66,7 +66,11 @@ public class MoonbladeItem extends TwinBladeItem {
             var ops = level.registryAccess().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE);
             tag.store("waxing", ItemStack.CODEC, ops, waxingStack);
             tag.store("waning", ItemStack.CODEC, ops, waningStack);
+            // The joined blade is as worn as the more worn of the two; splitting hands the wear it gathers back.
+            float wear = Math.max(wear(waxingStack), wear(waningStack));
+            tag.putFloat(TwinMoonItem.JOINED_WEAR, wear);
             twin.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+            twin.setDamageValue(Math.min(twin.getMaxDamage() - 1, Math.round(wear * twin.getMaxDamage())));
             player.setItemInHand(InteractionHand.MAIN_HAND, twin);
             player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
             level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, 1.5f, 0.8f);
@@ -76,6 +80,22 @@ public class MoonbladeItem extends TwinBladeItem {
             player.sendOverlayMessage(Component.translatable("message.slfrontier.twin_moon.joined").withStyle(ChatFormatting.AQUA));
         }
         return InteractionResult.SUCCESS;
+    }
+
+    /** How worn a blade is, 0 (new) to 1 (spent). */
+    static float wear(ItemStack stack) {
+        return stack.isDamageableItem() ? stack.getDamageValue() / (float) stack.getMaxDamage() : 0f;
+    }
+
+    /** The Moonblades are one of a kind: they wear down to their last point but never shatter. */
+    @Override
+    public <T extends net.minecraft.world.entity.LivingEntity> int damageItem(ItemStack stack, int amount, @org.jetbrains.annotations.Nullable T entity,
+                                                                            java.util.function.Consumer<Item> onBroken) {
+        return neverBreak(stack, amount);
+    }
+
+    static int neverBreak(ItemStack stack, int amount) {
+        return Math.max(0, Math.min(amount, stack.getMaxDamage() - 1 - stack.getDamageValue()));
     }
 
     @Override
