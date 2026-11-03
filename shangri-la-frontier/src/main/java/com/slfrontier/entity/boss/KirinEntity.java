@@ -41,6 +41,7 @@ public class KirinEntity extends FrontierBoss {
     private UUID master;
     private final List<Vec3> marks = new ArrayList<>();
     private Vec3 aim = Vec3.ZERO;
+    private double chargeLength = 8;
 
     public KirinEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level, 50, 900, BossEvent.BossBarColor.WHITE);
@@ -67,21 +68,28 @@ public class KirinEntity extends FrontierBoss {
     }
 
     @Override
+    protected int bossPhase() {
+        return getHealth() < getMaxHealth() * 0.5f ? 2 : 1;
+    }
+
+    @Override
+    protected String phaseHint(int phase) {
+        return phase == 2 ? "message.slfrontier.phase.kirin.2" : null;
+    }
+
+    @Override
     protected int chooseAttack(LivingEntity target, double distance) {
-        int roll = random.nextInt(10);
-        if (getHealth() < getMaxHealth() * 0.5f && roll < 2) return LIGHTNING;
-        if (distance > 8 && roll < 5) return CHARGE;
-        if (roll < 3) return MISSILES;
-        if (distance < 14) return LASER;
-        return CHARGE;
+        int lightning = bossPhase() >= 2 ? 2 : 0;
+        if (distance > 8) return pick(CHARGE, 4, MISSILES, 2, LASER, distance < 14 ? 2 : 0, LIGHTNING, lightning, -1, 1);
+        return pick(LASER, 3, MISSILES, 2, CHARGE, 1, LIGHTNING, lightning);
     }
 
     @Override
     protected int attackLength(int attack) {
         return switch (attack) {
-            case CHARGE -> 30;
+            case CHARGE -> 14;
             case MISSILES -> 40;
-            case LASER -> 34;
+            case LASER -> 30;
             case LIGHTNING -> 44;
             default -> 10;
         };
@@ -92,6 +100,26 @@ public class KirinEntity extends FrontierBoss {
         return 30 + random.nextInt(30);
     }
 
+    /** After the laser its head vents steam for a moment: it stands still, open to a counter. */
+    @Override
+    protected int recoveryAfter(int attack) {
+        return attack == LASER ? 15 : 0;
+    }
+
+    @Override
+    protected void tickRecovery(int attack, int ticksLeft) {
+        if (attack != LASER) return;
+        Vec3 h = head();
+        if (ticksLeft % 3 == 0) particles(ParticleTypes.CLOUD, h.x, h.y, h.z, 4, 0.3, 0.05);
+        if (ticksLeft == 14) playSound(SoundEvents.FIRE_EXTINGUISH, 1.5f, 0.6f);
+    }
+
+    /** Wezaemon looks after his mount: it resets with him, not on its own. */
+    @Override
+    protected boolean canReset() {
+        return master == null;
+    }
+
     private Vec3 head() {
         return position().add(getLookAngle().multiply(1.6, 0, 1.6)).add(0, getBbHeight() * 0.95, 0);
     }
@@ -100,19 +128,19 @@ public class KirinEntity extends FrontierBoss {
     protected void tickAttack(int attack, int tick, LivingEntity target) {
         switch (attack) {
             case CHARGE -> {
-                if (tick == 1 && target != null) {
-                    aim = target.position();
-                    Fx.coneAt(level(), position(), Fx.yawTo(position(), aim), (float) Math.min(18, distanceTo(target) + 4), 16, CYAN, 9);
+                // Gallops down the whole lane it showed; a wall stops it cold.
+                if (tick == 1) {
+                    aim = target != null ? target.position() : position().add(facing().scale(8));
+                    double dx = aim.x - getX(), dz = aim.z - getZ();
+                    chargeLength = Math.min(18, Math.sqrt(dx * dx + dz * dz) + 4);
+                    tellCone(Fx.yawTo(position(), aim), (float) chargeLength, 16, true, 9);
                     playSound(SoundEvents.HORSE_ANGRY, 2f, 0.5f);
                 }
                 if (tick == 10) {
-                    dashToward(aim, 1.5, 0.1);
                     playSound(SoundEvents.IRON_GOLEM_ATTACK, 1.5f, 0.6f);
+                    startCharge(facing(), 1.4, chargeLength, 0.1, 2.2, 1.2f, 1.4, 0);
                 }
-                if (tick >= 11 && tick <= 22) {
-                    if (tick % 3 == 0) particles(ParticleTypes.CLOUD, getX(), getY() + 0.3, getZ(), 4, 0.6, 0.02);
-                    hitAround(2.2, 1.2f, -1, 1.4);
-                }
+                if (tick > 10 && tick % 3 == 0) particles(ParticleTypes.CLOUD, getX(), getY() + 0.3, getZ(), 4, 0.6, 0.02);
             }
             case MISSILES -> {
                 // Mark the ground under (and around) each enemy, then the warheads land.
@@ -122,7 +150,8 @@ public class KirinEntity extends FrontierBoss {
                         marks.add(e.position());
                         marks.add(e.position().add(random.nextGaussian() * 2.5, 0, random.nextGaussian() * 2.5));
                     }
-                    for (Vec3 m : marks) Fx.telegraph(level(), m, 2.4f, MISSILE, 22);
+                    for (Vec3 m : marks) Fx.telegraph(level(), m, 2.4f, tellColor(false), 22);
+                    tellSound(false);
                     playSound(SoundEvents.FIREWORK_ROCKET_LAUNCH, 2f, 0.6f);
                     particles(ParticleTypes.FIREWORK, getX(), getY() + 2.5, getZ(), 20, 0.5, 0.2);
                 }
@@ -133,16 +162,16 @@ public class KirinEntity extends FrontierBoss {
                         if (level() instanceof ServerLevel server) {
                             server.sendParticles(ParticleTypes.EXPLOSION, m.x, m.y + 0.5, m.z, 1, 0, 0, 0, 0);
                         }
-                        hitAt(m, 2.4, 0.9f, 0.6);
+                        hitAt(m, 2.4, 0.9f, 0.6, UNPARRYABLE);
                     }
                     playSound(SoundEvents.GENERIC_EXPLODE.value(), 2f, 1.1f);
                 }
             }
             case LASER -> {
                 // The head sweeps from one side to the other; the beam cuts everything it crosses.
-                if (tick == 1 && target != null) {
-                    aim = target.position();
-                    Fx.coneAt(level(), position(), Fx.yawTo(position(), aim), 14, 90, CYAN, 9);
+                if (tick == 1) {
+                    aim = target != null ? target.position() : position().add(facing().scale(8));
+                    tellCone(Fx.yawTo(position(), aim), 14, 90, false, 9);
                     playSound(SoundEvents.BEACON_ACTIVATE, 2f, 1.6f);
                 }
                 if (tick >= 10 && tick <= 26 && tick % 2 == 0) {
@@ -152,7 +181,7 @@ public class KirinEntity extends FrontierBoss {
                     Vec3 from = head();
                     Vec3 to = from.add(dir.scale(14));
                     Fx.beam(level(), from, to, 0.35f, CYAN, 4);
-                    hitLine(from, to, 0.9, 0.35f, 0.2);
+                    hitLine(from, to, 0.9, 0.35f, 0.2, UNPARRYABLE);
                 }
             }
             case LIGHTNING -> {
@@ -163,7 +192,8 @@ public class KirinEntity extends FrontierBoss {
                             marks.add(e.position().add(random.nextGaussian() * 3, 0, random.nextGaussian() * 3));
                         }
                     }
-                    for (Vec3 m : marks) Fx.telegraph(level(), m, 2.0f, BOLT, 26);
+                    for (Vec3 m : marks) Fx.telegraph(level(), m, 2.0f, tellColor(false), 26);
+                    tellSound(false);
                 }
                 if (tick == 30 && level() instanceof ServerLevel server) {
                     for (Vec3 m : marks) {
@@ -173,7 +203,7 @@ public class KirinEntity extends FrontierBoss {
                             bolt.setVisualOnly(true);
                             server.addFreshEntity(bolt);
                         }
-                        hitAt(m, 2.0, 1.0f, 0.3);
+                        hitAt(m, 2.0, 1.0f, 0.3, UNPARRYABLE);
                     }
                 }
             }

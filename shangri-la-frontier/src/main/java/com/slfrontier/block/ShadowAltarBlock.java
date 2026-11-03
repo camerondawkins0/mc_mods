@@ -1,7 +1,10 @@
 package com.slfrontier.block;
 
 import com.slfrontier.entity.WolfVoice;
+import com.slfrontier.entity.boss.BossAltar;
 import com.slfrontier.entity.boss.LycagonShadowEntity;
+import com.slfrontier.quest.QuestStage;
+import com.slfrontier.registry.ModAttachments;
 import com.slfrontier.fx.Fx;
 import com.slfrontier.registry.ModEntities;
 import com.slfrontier.world.Frontier;
@@ -10,6 +13,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
@@ -25,7 +29,8 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * The broken altar in the Lightless Barrens. Touch it to draw out Lycagon's Shadow, which
- * rises from the dark around it and hunts whoever woke it.
+ * rises from the dark around it and hunts whoever woke it. It only answers players whose story
+ * has reached the Shadow, and a rematch only once per in-game day (see {@link BossAltar}).
  */
 public class ShadowAltarBlock extends Block {
     public ShadowAltarBlock(Properties properties) {
@@ -34,9 +39,14 @@ public class ShadowAltarBlock extends Block {
 
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
-        if (!(level instanceof ServerLevel server)) return InteractionResult.SUCCESS;
+        if (!(level instanceof ServerLevel server) || !(player instanceof ServerPlayer serverPlayer)) return InteractionResult.SUCCESS;
         if (!Frontier.isFrontier(level)) {
             player.sendOverlayMessage(Component.translatable("message.slfrontier.altar.wrong_world").withStyle(ChatFormatting.GRAY));
+            return InteractionResult.CONSUME;
+        }
+        // The shadow only stirs for those the story has brought this far.
+        if (ModAttachments.get(serverPlayer).stage().ordinal() < QuestStage.LYCAGON_SHADOW.ordinal()) {
+            player.sendOverlayMessage(Component.translatable("message.slfrontier.shadow_altar.not_yet").withStyle(ChatFormatting.GRAY));
             return InteractionResult.CONSUME;
         }
         if (!server.getEntitiesOfClass(LycagonShadowEntity.class, new AABB(pos).inflate(64), e -> !e.isClone()).isEmpty()) {
@@ -45,6 +55,16 @@ public class ShadowAltarBlock extends Block {
         }
         LycagonShadowEntity shadow = ModEntities.LYCAGON_SHADOW.get().create(server, EntitySpawnReason.EVENT);
         if (shadow == null) return InteractionResult.FAIL;
+        shadow.configureFor(serverPlayer);
+        // A rematch (someone who already broke it) answers once per in-game day; the story fight can be retried.
+        if (shadow.isRepeatKill()) {
+            if (BossAltar.usedToday(serverPlayer, BossAltar.SHADOW)) {
+                shadow.discard();
+                player.sendOverlayMessage(Component.translatable("message.slfrontier.altar.rested").withStyle(ChatFormatting.GRAY));
+                return InteractionResult.CONSUME;
+            }
+            BossAltar.markUsed(serverPlayer, BossAltar.SHADOW);
+        }
         shadow.snapTo(pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 8.5, 180f, 0f);
         shadow.finalizeSpawn(server, server.getCurrentDifficultyAt(pos), EntitySpawnReason.EVENT, null);
         shadow.setTarget(player);

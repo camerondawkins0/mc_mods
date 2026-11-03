@@ -6,7 +6,9 @@ import net.minecraft.world.level.storage.ValueOutput;
 import com.slfrontier.entity.FrontierBoss;
 import com.slfrontier.entity.mob.ShadowWolfEntity;
 import com.slfrontier.fx.Fx;
+import com.slfrontier.quest.QuestStage;
 import com.slfrontier.quest.Story;
+import com.slfrontier.registry.ModAttachments;
 import com.slfrontier.registry.ModEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -16,6 +18,7 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
@@ -35,7 +38,8 @@ import org.joml.Vector3f;
 /**
  * Lycagon's Shadow, which haunts the Lightless Barrens. It has simple patterns: it rises
  * out of a shadow near its prey, telegraphs and lands one attack, then sinks back into the
- * dark and cannot be harmed until it surfaces again. It is quicker on dark nights.
+ * dark and cannot be harmed until it surfaces again (always somewhere in front of its prey). On
+ * dark nights it spends less time sunk in the dark, but its blows give the same warning.
  *
  * <p>The same entity, in {@link #isClone() clone} mode, is the short-lived shadow that
  * the real Lycagon splits off in its second phase.
@@ -45,12 +49,15 @@ public class LycagonShadowEntity extends FrontierBoss {
     private static final EntityDataAccessor<Boolean> SUBMERGED = SynchedEntityData.defineId(LycagonShadowEntity.class, EntityDataSerializers.BOOLEAN);
     private static final DustParticleOptions AURA = new DustParticleOptions(0x8C33F2, 2.0f);
     private static final int PURPLE = 0xFFB070FF, PINK = 0xFFFF60E0;
+    private static final float BITE_RANGE = 4.5f, BITE_ANGLE = 110, CLAW_RANGE = 5f, CLAW_ANGLE = 160;
 
     private boolean clone;
     private int submergedTicks = 40;
     private int lifetime = -1;
     private boolean summonedWolves;
     private Vec3 aim = Vec3.ZERO;
+    /** Ticks it has stood surfaced with nothing to do. */
+    private int surfacedIdle;
 
     public LycagonShadowEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level, 45, 1800, BossEvent.BossBarColor.PURPLE);
@@ -58,7 +65,7 @@ public class LycagonShadowEntity extends FrontierBoss {
 
     public static AttributeSupplier.Builder createAttributes() {
         return Monster.createMonsterAttributes()
-                .add(Attributes.MAX_HEALTH, 420)
+                .add(Attributes.MAX_HEALTH, 520)
                 .add(Attributes.ATTACK_DAMAGE, 12)
                 .add(Attributes.ARMOR, 6)
                 .add(Attributes.MOVEMENT_SPEED, 0.32)
@@ -81,7 +88,7 @@ public class LycagonShadowEntity extends FrontierBoss {
         return clone;
     }
 
-    /** Makes this a weaker, short-lived clone of the real Lycagon. */
+    /** Makes this a weaker, short-lived clone of the real Lycagon (worth no EXP and no loot). */
     public void makeClone(int lifetimeTicks) {
         clone = true;
         lifetime = lifetimeTicks;
@@ -92,10 +99,44 @@ public class LycagonShadowEntity extends FrontierBoss {
         submergedTicks = 10;
     }
 
-    /** Dark nights (and storms) make the shadow faster. */
+    /** Sets the fight up for the player who woke the altar: a repeat fight if they already broke it. */
+    public void configureFor(ServerPlayer player) {
+        QuestStage stage = ModAttachments.get(player).stage();
+        setRepeatKill(stage.ordinal() > QuestStage.LYCAGON_SHADOW.ordinal() || BossAltar.hasSlain(player, BossAltar.SHADOW));
+    }
+
+    /** A clone is a piece of Lycagon, not a prize: breaking it gives nothing. */
+    @Override
+    public int frontierExp() {
+        return clone ? 0 : super.frontierExp();
+    }
+
+    /** Dark nights (and storms) make the shadow bolder: it spends less time sunk in the dark. */
     private boolean darkNight() {
         return level().isDarkOutside() && (level() instanceof ServerLevel server && server.getMoonBrightness(blockPosition()) < 0.5f
                 || level().isRaining());
+    }
+
+    @Override
+    protected int bossPhase() {
+        return !clone && getHealth() < getMaxHealth() * 0.5f ? 2 : 1;
+    }
+
+    @Override
+    protected String phaseHint(int phase) {
+        return phase == 2 ? "message.slfrontier.phase.lycagon_shadow.2" : null;
+    }
+
+    /** Clones simply fade when their time is up. */
+    @Override
+    protected boolean canReset() {
+        return !clone;
+    }
+
+    @Override
+    protected void onReset() {
+        summonedWolves = false;
+        if (!isSubmerged()) submerge();
     }
 
     @Override
@@ -120,28 +161,38 @@ public class LycagonShadowEntity extends FrontierBoss {
     }
 
     @Override
+    protected int animDelay(int attack) {
+        return attack == BITE ? 3 : attack == CLAW ? 4 : 0;
+    }
+
+    @Override
     protected void tickAttack(int attack, int tick, LivingEntity target) {
-        int warn = darkNight() ? 7 : 10;
+        // Every move gives the same warning on any night: dark nights only shorten its time in the dark.
         switch (attack) {
             case BITE -> {
-                if (tick == 1) Fx.coneAt(level(), position(), getYRot(), 4.5f, 70, PURPLE, warn);
-                if (tick == warn) hitAround(4.5, 1.0f, 0.3, 0.6);
+                if (tick == 1) tellCone(yawToward(target), BITE_RANGE, BITE_ANGLE, true, 10);
+                if (tick == 11) {
+                    coneAttack(BITE_RANGE, BITE_ANGLE, 1.0f, 0.6, 0);
+                    playSound(WolfVoice.GROWL, 1.5f, 0.6f);
+                }
             }
             case CLAW -> {
-                if (tick == 1) Fx.coneAt(level(), position(), getYRot(), 5f, 140, PURPLE, warn + 2);
-                if (tick == warn + 2) {
-                    hitAround(5.0, 1.1f, -0.2, 0.9);
-                    Fx.arc(this, 4.5f, 30, 160, PURPLE, 8);
+                if (tick == 1) tellCone(yawToward(target), CLAW_RANGE, CLAW_ANGLE, true, 12);
+                if (tick == 13) {
+                    coneAttack(CLAW_RANGE, CLAW_ANGLE, 1.1f, 0.9, 0);
+                    Fx.arc(this, 4.5f, 30, CLAW_ANGLE, PURPLE, 8);
+                    playSound(SoundEvents.PLAYER_ATTACK_SWEEP, 1.5f, 0.5f);
                 }
             }
             case POUNCE -> {
-                if (tick == 1 && target != null) {
-                    aim = target.position();
-                    Fx.telegraph(level(), aim, 3.2f, PINK, warn + 4);
+                if (tick == 1) {
+                    aim = target != null ? target.position() : position().add(facing().scale(4));
+                    lockAim(Fx.yawTo(position(), aim));
+                    tellCircle(aim, 3.2f, false, 12);
                 }
-                if (tick == warn) dashToward(aim, 1.2, 0.55);
-                if (tick == warn + 4) {
-                    hitAt(aim, 3.2, 1.3f, 1.0);
+                if (tick == 8) dashToward(aim, 1.2, 0.55);
+                if (tick == 13) {
+                    hitAt(aim, 3.2, 1.3f, 1.0, UNPARRYABLE);
                     Fx.ring(level(), aim, 3.5f, PINK, 10, 0.4f);
                 }
             }
@@ -161,7 +212,9 @@ public class LycagonShadowEntity extends FrontierBoss {
     private void submerge() {
         entityData.set(SUBMERGED, true);
         setInvisible(true);
-        submergedTicks = (darkNight() ? 30 : 50) + random.nextInt(30);
+        surfacedIdle = 0;
+        boolean dark = darkNight();
+        submergedTicks = dark ? 35 + random.nextInt(25) : 50 + random.nextInt(30);
         particles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 1, getZ(), 30, 0.8, 0.02);
         playSound(SoundEvents.ENDERMAN_TELEPORT, 1f, 0.4f);
     }
@@ -173,6 +226,7 @@ public class LycagonShadowEntity extends FrontierBoss {
         lookAt(target, 360, 360);
         entityData.set(SUBMERGED, false);
         setInvisible(false);
+        surfacedIdle = 0;
         server.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 0.5, getZ(), 40, 1.0, 0.2, 1.0, 0.02);
         Fx.ring(server, position(), 2.5f, PURPLE, 10, 0);
         playSound(WolfVoice.GROWL, 2f, 0.5f);
@@ -182,12 +236,19 @@ public class LycagonShadowEntity extends FrontierBoss {
         startAttack(next);
     }
 
-    /** A spot a few blocks from the target, preferring darkness (it steps out of shadows). */
+    /**
+     * A spot a few blocks from the target, preferring darkness (it steps out of shadows), and always
+     * somewhere in front of them: it never rises behind its prey.
+     */
     private Vec3 darkSpotNear(ServerLevel server, LivingEntity target) {
+        Vec3 look = target.getLookAngle().multiply(1, 0, 1);
+        look = look.lengthSqr() < 1e-4 ? new Vec3(0, 0, 1) : look.normalize();
+        double facing = Math.atan2(look.z, look.x);
         Vec3 best = null;
         int bestLight = 99;
         for (int i = 0; i < 10; i++) {
-            double a = random.nextDouble() * Mth.TWO_PI;
+            // Within 70 degrees either side of where the target is looking.
+            double a = facing + (random.nextDouble() - 0.5) * Math.toRadians(140);
             double r = 3.5 + random.nextDouble() * 2.5;
             BlockPos pos = BlockPos.containing(target.getX() + Math.cos(a) * r, target.getY() + 2, target.getZ() + Math.sin(a) * r);
             for (int dy = 0; dy < 6 && server.getBlockState(pos.below()).isAir(); dy++) pos = pos.below();
@@ -198,7 +259,7 @@ public class LycagonShadowEntity extends FrontierBoss {
                 best = Vec3.atBottomCenterOf(pos);
             }
         }
-        return best != null ? best : target.position().add(target.getLookAngle().multiply(-3, 0, -3));
+        return best != null ? best : target.position().add(look.scale(4));
     }
 
     private void summonWolves() {
@@ -212,6 +273,7 @@ public class LycagonShadowEntity extends FrontierBoss {
             wolf.finalizeSpawn(server, server.getCurrentDifficultyAt(blockPosition()), EntitySpawnReason.MOB_SUMMONED, null);
             wolf.setTarget(getTarget());
             server.addFreshEntity(wolf);
+            trackSummon(wolf, true);
         }
     }
 
@@ -233,7 +295,8 @@ public class LycagonShadowEntity extends FrontierBoss {
             return;
         }
         super.customServerAiStep(level);
-        if (attack < 0 && tickCount % 20 == 0) submerge();
+        // Out of moves (it was parried, or its attack ended early): it lingers a moment, then sinks.
+        if (attack < 0 && !isStunned() && !isRecovering() && ++surfacedIdle >= 15) submerge();
     }
 
     @Override
@@ -249,7 +312,10 @@ public class LycagonShadowEntity extends FrontierBoss {
 
     @Override
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
-        if (isSubmerged() && !source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY)) return false;
+        if (isSubmerged() && !source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+            shrugOff(source);
+            return false;
+        }
         return super.hurtServer(level, source, amount);
     }
 
@@ -261,7 +327,10 @@ public class LycagonShadowEntity extends FrontierBoss {
     @Override
     public void die(DamageSource source) {
         super.die(source);
-        if (!clone && level() instanceof ServerLevel server) Story.onLycagonShadowSlain(server, this, source.getEntity());
+        if (!clone && level() instanceof ServerLevel server) {
+            BossAltar.recordKill(server, this, source.getEntity(), BossAltar.SHADOW);
+            Story.onLycagonShadowSlain(server, this, source.getEntity());
+        }
     }
 
     @Override

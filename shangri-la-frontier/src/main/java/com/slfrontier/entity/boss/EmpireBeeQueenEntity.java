@@ -34,6 +34,13 @@ import net.minecraft.world.phys.Vec3;
 public class EmpireBeeQueenEntity extends FrontierBoss {
     private static final int HONEY = 0xFFFFC84A;
     public static final int STING_DIVE = 0, SUMMON = 1, BARRAGE = 2;
+    private static final double DIVE_SPEED = 1.3;
+
+    private Vec3 aim = Vec3.ZERO;
+    private Vec3 diveDir = Vec3.ZERO;
+    private double diveLength;
+    /** Ticks left of a sting dive in flight. */
+    private int diving;
 
     public EmpireBeeQueenEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level, 25, 900, BossEvent.BossBarColor.YELLOW);
@@ -60,11 +67,9 @@ public class EmpireBeeQueenEntity extends FrontierBoss {
 
     @Override
     protected int chooseAttack(LivingEntity target, double distance) {
-        int roll = random.nextInt(10);
-        if (roll < 2 && nearbyBees() < 6) return SUMMON;
-        if (distance > 6 && roll < 6) return BARRAGE;
-        if (distance < 10) return STING_DIVE;
-        return -1;
+        int summon = nearbyBees() < 6 ? 2 : 0;
+        if (distance > 6) return pick(BARRAGE, 4, STING_DIVE, distance < 12 ? 3 : 0, SUMMON, summon, -1, 2);
+        return pick(STING_DIVE, 4, BARRAGE, 1, SUMMON, summon, -1, 2);
     }
 
     private int nearbyBees() {
@@ -74,30 +79,53 @@ public class EmpireBeeQueenEntity extends FrontierBoss {
     @Override
     protected int attackLength(int attack) {
         return switch (attack) {
-            case STING_DIVE -> 28;
+            case STING_DIVE -> 30;
             case SUMMON -> 30;
-            case BARRAGE -> 34;
+            case BARRAGE -> 36;
             default -> 10;
         };
+    }
+
+    /** After a dive she hangs low, catching her breath: close enough to cut. */
+    @Override
+    protected int recoveryAfter(int attack) {
+        return attack == STING_DIVE ? 16 : 0;
+    }
+
+    @Override
+    protected void tickRecovery(int attack, int ticksLeft) {
+        if (ticksLeft % 4 == 0) particles(ParticleTypes.FALLING_HONEY, getX(), getY() + 0.4, getZ(), 3, 0.5, 0);
+    }
+
+    @Override
+    protected void onAttackEnd(int attack, boolean interrupted) {
+        diving = 0;
     }
 
     @Override
     protected void tickAttack(int attack, int tick, LivingEntity target) {
         switch (attack) {
             case STING_DIVE -> {
-                if (tick == 1 && target != null) {
-                    Fx.coneAt(level(), new Vec3(getX(), target.getY(), getZ()), Fx.yawTo(position(), target.position()),
-                            (float) Math.min(12, distanceTo(target) + 3), 24, HONEY, 9);
+                // She shows the lane, then dives down exactly that lane (no re-aiming mid-air).
+                if (tick == 1) {
+                    aim = target != null ? target.position().add(0, target.getBbHeight() * 0.6, 0) : position().add(facing().scale(6));
+                    diveLength = target != null ? Math.min(12, distanceTo(target) + 3) : 6;
+                    float yaw = Fx.yawTo(position(), aim);
+                    lockAim(yaw);
+                    Fx.coneAt(level(), new Vec3(getX(), target != null ? target.getY() : getY(), getZ()), yaw, (float) diveLength, 24,
+                            tellColor(true), 10);
+                    tellSound(true);
                 }
-                if (tick == 10 && target != null) {
-                    Vec3 d = target.getEyePosition().subtract(position()).normalize();
-                    setDeltaMovement(d.scale(1.3));
-                    needsSync = true;
+                if (tick == 11) {
+                    diveDir = aim.subtract(position()).normalize();
+                    diving = (int) Math.ceil(diveLength / DIVE_SPEED);
                     playSound(SoundEvents.BEE_LOOP_AGGRESSIVE, 2f, 0.6f);
                 }
-                if (tick >= 12 && tick <= 22 && hitAround(2.4, 1.0f, -1, 0.5) > 0) {
-                    if (target != null) target.addEffect(new MobEffectInstance(MobEffects.POISON, 120, 1), this);
-                    attackTick = 23;
+                if (tick >= 11 && diving > 0) {
+                    diving--;
+                    setDeltaMovement(diveDir.scale(DIVE_SPEED));
+                    needsSync = true;
+                    if (hitAround(2.4, 1.0f, -1, 0.5) > 0) diving = 0;
                 }
             }
             case SUMMON -> {
@@ -110,21 +138,25 @@ public class EmpireBeeQueenEntity extends FrontierBoss {
                         bee.finalizeSpawn(server, server.getCurrentDifficultyAt(blockPosition()), EntitySpawnReason.MOB_SUMMONED, null);
                         bee.setTarget(target);
                         server.addFreshEntity(bee);
+                        trackSummon(bee, true);
                     }
                     playSound(SoundEvents.BEEHIVE_EXIT, 2f, 0.8f);
                 }
             }
             case BARRAGE -> {
-                if (target != null && tick >= 10 && tick <= 30 && tick % 5 == 0) {
-                    Arrow stinger = new Arrow(level(), this, new ItemStack(Items.ARROW), null);
-                    stinger.pickup = AbstractArrow.Pickup.DISALLOWED;
-                    stinger.setBaseDamage(3.0);
-                    stinger.addEffect(new MobEffectInstance(MobEffects.POISON, 60, 0));
-                    double dx = target.getX() - getX();
-                    double dy = target.getY(0.4) - stinger.getY();
-                    double dz = target.getZ() - getZ();
-                    stinger.shoot(dx, dy + Math.sqrt(dx * dx + dz * dz) * 0.1, dz, 1.8f, 4f);
-                    level().addFreshEntity(stinger);
+                // Three volleys, each shown as a lane first, then a fan of stingers down that lane.
+                if (tick == 1 || tick == 12 || tick == 23) {
+                    aim = target != null ? target.position().add(0, target.getBbHeight() * 0.4, 0) : position().add(facing().scale(8));
+                    float yaw = Fx.yawTo(position(), aim);
+                    lockAim(yaw);
+                    double len = Math.min(20, Math.sqrt(distanceToSqr(aim)) + 4);
+                    Fx.coneAt(level(), new Vec3(getX(), target != null ? target.getY() : getY(), getZ()), yaw, (float) len, 16,
+                            tellColor(true), 10);
+                    tellSound(true);
+                    particles(ParticleTypes.WAX_ON, getX(), getY() + 0.3, getZ(), 6, 0.3, 0.05);
+                }
+                if (tick == 11 || tick == 22 || tick == 33) {
+                    for (int i = -1; i <= 1; i++) shootStinger(aim, i * 6f);
                     playSound(SoundEvents.BEE_STING, 1.5f, 1.2f);
                 }
             }
@@ -133,14 +165,33 @@ public class EmpireBeeQueenEntity extends FrontierBoss {
         }
     }
 
+    /** A stinger toward {@code at}, turned {@code spread} degrees to the side. */
+    private void shootStinger(Vec3 at, float spread) {
+        Arrow stinger = new Arrow(level(), this, new ItemStack(Items.ARROW), null);
+        stinger.pickup = AbstractArrow.Pickup.DISALLOWED;
+        stinger.setBaseDamage(3.0);
+        stinger.addEffect(new MobEffectInstance(MobEffects.POISON, 60, 0));
+        double dx = at.x - getX(), dz = at.z - getZ();
+        double rad = Math.toRadians(spread), cos = Math.cos(rad), sin = Math.sin(rad);
+        double rx = dx * cos - dz * sin, rz = dx * sin + dz * cos;
+        double dy = at.y - stinger.getY();
+        stinger.shoot(rx, dy + Math.sqrt(rx * rx + rz * rz) * 0.1, rz, 1.8f, 1f);
+        level().addFreshEntity(stinger);
+    }
+
+    @Override
+    protected void onHitTarget(LivingEntity target) {
+        if (attack == STING_DIVE) target.addEffect(new MobEffectInstance(MobEffects.POISON, 120, 1), this);
+    }
+
     @Override
     public void aiStep() {
         super.aiStep();
-        // Hover: gently fight gravity so she floats at the target's head height.
-        if (!level().isClientSide()) {
+        // Hover: gently fight gravity so she floats at the target's head height (low while she recovers).
+        if (!level().isClientSide() && diving <= 0) {
             Vec3 m = getDeltaMovement();
             LivingEntity target = getTarget();
-            double wantY = target != null ? target.getY() + 2.5 : getY();
+            double wantY = target != null ? target.getY() + (isRecovering() ? 0.8 : 2.5) : getY();
             double lift = Math.max(-0.05, Math.min(0.08, (wantY - getY()) * 0.05));
             setDeltaMovement(m.x, m.y * 0.6 + lift, m.z);
         }

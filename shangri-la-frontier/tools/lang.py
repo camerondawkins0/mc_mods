@@ -871,6 +871,22 @@ SUBTITLES = {
 }
 
 
+# ---- Boss fights: parry rules, phase cues and altars (boss rework) ----------------------
+# Kept together in one block so it merges cleanly with other edits to this file.
+MISC.update({
+    "message.slfrontier.parry.unparryable": "Can't parry that! Gold telegraphs can be parried; dodge the red ones.",
+    "message.slfrontier.phase.wezaemon.2": "Kirin joins the fight! Parry the Tombguard's Sky Clear to knock his sword away.",
+    "message.slfrontier.phase.wezaemon.3": "A grave aura surrounds him: douse him with Holy Water!",
+    "message.slfrontier.phase.kirin.2": "Kirin is sparking: lightning now strikes the marked spots. Keep moving!",
+    "message.slfrontier.phase.mud_digger.2": "The Mud Digger is desperate! When the swamp shakes, keep jumping, then dodge its eruption.",
+    "message.slfrontier.phase.lycagon.2": "The Nightslayer frenzies: it howls up shadow wolves and splits off clones of itself.",
+    "message.slfrontier.phase.lycagon_shadow.2": "The Shadow howls for its pack: shadow wolves join the hunt!",
+    "message.slfrontier.shadow_altar.not_yet": "The altar is cold. Its shadow stirs only for those who have faced the Tombguard.",
+    "message.slfrontier.altar.rested": "The altar is spent for today. Its shadow will answer you again tomorrow.",
+    "message.slfrontier.altar.nightslayer_rested": "The Nightslayer has already answered you tonight. Come back tomorrow night.",
+})
+
+
 def build():
     lang = dict(MISC)
     lang.update(GUI)

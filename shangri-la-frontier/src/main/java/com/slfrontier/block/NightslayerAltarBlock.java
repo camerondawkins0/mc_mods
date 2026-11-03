@@ -1,6 +1,7 @@
 package com.slfrontier.block;
 
 import com.slfrontier.entity.WolfVoice;
+import com.slfrontier.entity.boss.BossAltar;
 import com.slfrontier.entity.boss.LycagonEntity;
 import com.slfrontier.registry.ModEntities;
 import com.slfrontier.world.Frontier;
@@ -24,7 +25,8 @@ import net.minecraft.world.phys.BlockHitResult;
 
 /**
  * The altar at the heart of the Nightslayer's Den. Touch it after dark to call
- * Lycagon the Nightslayer.
+ * Lycagon the Nightslayer. Once you have slain it, it answers you at most once a night, for
+ * less EXP and no Tearjewels (see {@link BossAltar}).
  */
 public class NightslayerAltarBlock extends Block {
     public NightslayerAltarBlock(Properties properties) {
@@ -50,9 +52,18 @@ public class NightslayerAltarBlock extends Block {
         }
         LycagonEntity lycagon = ModEntities.LYCAGON.get().create(server, EntitySpawnReason.EVENT);
         if (lycagon == null) return InteractionResult.FAIL;
+        lycagon.configureFor(serverPlayer);
+        // A rematch (someone who already slew it) answers once per night; the story fights can be retried.
+        if (lycagon.isRepeatKill()) {
+            if (BossAltar.usedToday(serverPlayer, BossAltar.NIGHTSLAYER)) {
+                lycagon.discard();
+                player.sendOverlayMessage(Component.translatable("message.slfrontier.altar.nightslayer_rested").withStyle(ChatFormatting.GRAY));
+                return InteractionResult.CONSUME;
+            }
+            BossAltar.markUsed(serverPlayer, BossAltar.NIGHTSLAYER);
+        }
         lycagon.snapTo(pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 6.5, 180f, 0f);
         lycagon.finalizeSpawn(server, server.getCurrentDifficultyAt(pos), EntitySpawnReason.EVENT, null);
-        lycagon.configureFor(serverPlayer);
         lycagon.setTarget(player);
         server.addFreshEntity(lycagon);
         server.playSound(null, pos, WolfVoice.HOWL, SoundSource.HOSTILE, 4f, 0.5f);
