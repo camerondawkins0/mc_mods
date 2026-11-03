@@ -168,9 +168,16 @@ public final class MapStore {
 
     // ---- Exploration -----------------------------------------------------------------
 
-    /** A chunk arrived from the server: map it (soon) if it is in the Frontier. */
+    /**
+     * A chunk arrived from the server: map it (soon) if it is in the Frontier. The chunk south of it
+     * shades its top row against this one's heights, so it is redone too if it was mapped without them.
+     */
     public static void onChunkLoad(LevelChunk chunk) {
-        if (chunk.getLevel() instanceof ClientLevel level && level.dimension() == Frontier.LEVEL) enqueue(chunk.getPos());
+        if (!(chunk.getLevel() instanceof ClientLevel level) || level.dimension() != Frontier.LEVEL) return;
+        ChunkPos pos = chunk.getPos();
+        enqueue(pos);
+        ChunkPos south = new ChunkPos(pos.x(), pos.z() + 1);
+        if (SCANNED.containsKey(south.pack())) enqueue(south);
     }
 
     private static void enqueue(ChunkPos cp) {
