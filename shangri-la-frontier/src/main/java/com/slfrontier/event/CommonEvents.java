@@ -360,9 +360,16 @@ public final class CommonEvents {
             }
             Entity attacker = source.getEntity();
             if (data.parryTicks > 0 && (attacker != null || source.getDirectEntity() != null)) {
-                event.setCanceled(true);
-                onParry(player, data, attacker);
-                return;
+                if (com.slfrontier.entity.FrontierBoss.isUnparryable(source)) {
+                    // Eruptions, beams and magic (crimson telegraphs) go straight through a parry, spending it.
+                    data.parryTicks = 0;
+                    Sfx.personal(player, ModSounds.COMBAT_PARRY_FAIL, 1f, 1f);
+                    player.sendOverlayMessage(Component.translatable("message.slfrontier.parry.unparryable").withStyle(ChatFormatting.RED));
+                } else {
+                    event.setCanceled(true);
+                    onParry(player, data, attacker, source.getDirectEntity() == attacker);
+                    return;
+                }
             }
         }
 
@@ -392,7 +399,8 @@ public final class CommonEvents {
         }
     }
 
-    private static void onParry(ServerPlayer player, PlayerData data, Entity attacker) {
+    /** @param melee the attacker struck in person (not with an arrow or other projectile) */
+    private static void onParry(ServerPlayer player, PlayerData data, Entity attacker, boolean melee) {
         ServerLevel level = player.level();
         Sfx.at(player, ModSounds.COMBAT_PARRY, SoundSource.PLAYERS, 1.2f, 0.95f + player.getRandom().nextFloat() * 0.1f);
         level.sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY(1.0), player.getZ(), 16, 0.4, 0.4, 0.4, 0.3);
@@ -401,11 +409,13 @@ public final class CommonEvents {
         Fx.flash(level, player.position().add(player.getLookAngle().scale(0.8)).add(0, 1.3, 0), 1.4f, 0xFFBFE8FF, 6, 0.8f);
         ModNetwork.animate(player, PlayerAnims.PARRY_HIT, 7);
         if (data.hasSkill(Skill.PERFECT_PARRY)) SkillExecutor.countUse(player, data, Skill.PERFECT_PARRY);
-        // A perfect parry knocks a nearby attacker off balance.
-        if (attacker instanceof LivingEntity living && living != player && living.distanceToSqr(player) < 8 * 8) {
+        // A perfect parry knocks a nearby attacker off balance. A boss only reels from a parried blow
+        // (not a parried stinger), and the attack it was making is broken off (Wezaemon's Sky Clear disarms him).
+        if (attacker instanceof com.slfrontier.entity.FrontierBoss boss) {
+            if (melee && boss.distanceToSqr(player) < 8 * 8) boss.onParried(player);
+        } else if (attacker instanceof LivingEntity living && living != player && living.distanceToSqr(player) < 8 * 8) {
             Stun.apply(living, Stun.PARRY_TICKS);
         }
-        if (attacker instanceof WezaemonEntity wezaemon) wezaemon.onParried(player);
         if (data.hasSkill(Skill.REPEL_COUNTER) && attacker instanceof LivingEntity living && living.distanceToSqr(player) < 6 * 6) {
             SkillExecutor.strike(player, living, SkillExecutor.attack(player) * 2f, false);
             living.knockback(1.0, player.getX() - living.getX(), player.getZ() - living.getZ(), living.damageSources().generic(), 0f);

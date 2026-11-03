@@ -17,7 +17,7 @@ import java.util.WeakHashMap;
 
 /**
  * Short stuns: a perfect parry knocks the attacker off balance. A stunned monster stops in its
- * tracks and can't land a hit until it recovers; a boss also pauses its current attack.
+ * tracks and can't land a hit until it recovers; a boss also breaks off the attack it was making.
  */
 public final class Stun {
     /** How long a perfect parry stuns the attacker. */

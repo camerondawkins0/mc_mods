@@ -92,12 +92,17 @@ public class WezaemonEntity extends FrontierBoss {
         return phase();
     }
 
-    /** Called when a player perfectly parries Sky Clear. */
+    /** A perfect parry of Sky Clear knocks his sword away and breaks his stance; any other parry just staggers him. */
+    @Override
     public void onParried(ServerPlayer by) {
-        if (attack != SKY_CLEAR || isDisarmed()) return;
+        if (attack != SKY_CLEAR || isDisarmed()) {
+            super.onParried(by);
+            return;
+        }
         entityData.set(DISARMED, true);
         disarmTicks = 120;
         startAttack(STAGGER);
+        com.slfrontier.entity.Stun.apply(this, com.slfrontier.entity.Stun.PARRY_TICKS);
         playSound(SoundEvents.ANVIL_LAND, 2f, 0.5f);
         Fx.flash(level(), position().add(0, 2, 0), 3f, WHITE, 10, 0.6f);
         by.level().getServer().getPlayerList().broadcastSystemMessage(
@@ -115,6 +120,11 @@ public class WezaemonEntity extends FrontierBoss {
         if (distance > 5 || roll == 4) return IAI;
         if (distance < 4) return TRIPLE;
         return -1;
+    }
+
+    @Override
+    protected boolean canInterrupt(int attack) {
+        return attack != STAGGER;
     }
 
     @Override
