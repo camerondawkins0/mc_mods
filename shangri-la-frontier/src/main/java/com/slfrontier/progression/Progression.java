@@ -46,6 +46,9 @@ public final class Progression {
 
     /** Experience granted for defeating an entity inside the Frontier. */
     public static int expFor(LivingEntity killed) {
+        // Lycagon's short-lived shadow clones are part of its moveset, not a kill (summoned monsters give
+        // nothing either: see FrontierMonster#frontierExp).
+        if (killed instanceof com.slfrontier.entity.boss.LycagonShadowEntity shadow && shadow.isClone()) return 0;
         if (killed instanceof LeveledMob leveled) {
             return leveled.frontierExp();
         }
