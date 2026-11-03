@@ -623,7 +623,7 @@ public final class FrontierHud {
         int tw = Math.max(110, font.width(name) + 16);
         int tx = w / 2 - tw / 2;
         // Below any boss bars (an add during a boss fight), else at the top.
-        int ty = bossBottom > 0 ? bossBottom - 12 : 4;
+        int ty = bossBottom > 0 ? bossBottom - 10 : 4;
         Gfx.chamfer(g, tx, ty, tw, 22, 4, 0, 4, 0, 0xC0101C2C, 0xD0060C16);
         Gfx.outline(g, Gfx.chamferPoints(tx, ty, tw, 22, 4, 0, 4, 0), 1f, 0xFF7A2A36);
         int lvDiff = leveled.frontierLevel() - ModAttachments.get(player).level();
@@ -716,12 +716,12 @@ public final class FrontierHud {
         Gfx.bar(g, bx, by, w, 6, trail, TRAIL_COLOR, Gfx.withAlpha(TRAIL_COLOR, 0.85f), 0xE0050A12, 0);
         Gfx.bar(g, bx, by, w, 6, progress, color, Gfx.lerpColor(color, 0xFF000000, 0.45f), 0, 10);
         Gfx.outline(g, Gfx.chamferPoints(bx - 3, by - 2, w + 6, 10, 3, 0, 3, 0), 1f, Gfx.lerpColor(color, 0xFFFFFFFF, 0.2f));
-        // Phase thresholds: where the fight changes.
+        // Phase thresholds: where the fight changes. A notch through the bar and a tick under it (above would hit the name).
         for (float f : phases(tc.getKey())) {
             float nx = bx + w * f;
             int c = progress > f ? Theme.GOLD : 0x90FFFFFF;
-            Gfx.rectQueued(g, nx - 0.5f, by - 1, nx + 0.5f, by + 7, c);
-            Gfx.tri(g, nx - 2.5f, by - 4, c, nx + 2.5f, by - 4, c, nx, by - 1, c);
+            Gfx.rectQueued(g, nx - 0.5f, by - 2, nx + 0.5f, by + 8, c);
+            Gfx.tri(g, nx, by + 8, c, nx + 2.5f, by + 11, c, nx - 2.5f, by + 11, c);
         }
         Gfx.flush(g);
         return true;
