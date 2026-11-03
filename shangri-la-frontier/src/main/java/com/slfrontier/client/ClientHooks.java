@@ -14,6 +14,11 @@ public final class ClientHooks {
     private ClientHooks() {
     }
 
+    public static void stamina(float value) {
+        var player = Minecraft.getInstance().player;
+        if (player != null) ModAttachments.get(player).setStamina(value);
+    }
+
     public static void handleSync(CompoundTag tag) {
         var player = Minecraft.getInstance().player;
         if (player != null) {

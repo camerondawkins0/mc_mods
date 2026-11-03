@@ -82,6 +82,10 @@ public class PlayerData implements ValueIOSerializable {
     public boolean pierceGlowing;
     public boolean airJumpUsed;
     public int lastSyncedHash;
+    /** Stamina last sent to the client (server side); stamina travels in its own small packet. */
+    public float lastSentStamina = -1;
+    /** Bumped whenever a cooldown is set, so a new cooldown syncs; the countdown itself runs on both sides. */
+    private int cooldownEpoch;
 
     public PlayerData() {
         unlocked.add(Skill.TAP_STEP);
@@ -208,6 +212,7 @@ public class PlayerData implements ValueIOSerializable {
     }
 
     public void setCooldown(Skill skill, int ticks) {
+        cooldownEpoch++;
         if (ticks <= 0) cooldowns.remove(skill);
         else cooldowns.put(skill, ticks);
     }
@@ -536,16 +541,19 @@ public class PlayerData implements ValueIOSerializable {
         load(input.read(MapCodec.assumeMapUnsafe(CompoundTag.CODEC)).orElseGet(CompoundTag::new));
     }
 
-    /** Cheap change detector so the server only syncs when something moved. */
+    /**
+     * Cheap change detector so the server only syncs when something moved. Stamina and the
+     * ticking-down of cooldowns are left out: stamina has its own small packet and both sides
+     * count cooldowns down ({@link #tickCooldowns()}), so neither re-sends the whole state.
+     */
     public int syncHash() {
         int h = level;
         h = 31 * h + exp;
         h = 31 * h + statPoints;
         for (int s : stats) h = 31 * h + s;
-        h = 31 * h + (int) stamina;
         h = 31 * h + unlocked.hashCode();
         for (Skill s : equipped) h = 31 * h + (s == null ? 0 : s.ordinal() + 1);
-        for (Map.Entry<Skill, Integer> e : cooldowns.entrySet()) h = 31 * h + e.getKey().ordinal() * 7 + (e.getValue() + 9) / 10;
+        h = 31 * h + cooldownEpoch;
         h = 31 * h + stage.ordinal();
         h = 31 * h + questProgress;
         h = 31 * h + questStep;

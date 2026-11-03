@@ -57,6 +57,7 @@ public final class ClientEvents {
         if (player == null) return;
 
         MapStore.tick();
+        if (!mc.isPaused()) ModAttachments.get(player).tickCooldowns();
         while (KeyBindings.MENU.consumeClick()) {
             if (mc.gui.screen() == null) mc.gui.setScreen(new FrontierScreen());
         }

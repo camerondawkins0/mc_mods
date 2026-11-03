@@ -44,6 +44,17 @@ public final class ModNetwork {
         }
     }
 
+    /** Just the stamina, sent a few times a second while it changes (the full sync is much bigger). */
+    public record Stamina(float value) implements CustomPacketPayload {
+        public static final Type<Stamina> TYPE = new Type<>(SLFrontier.id("stamina"));
+        public static final StreamCodec<ByteBuf, Stamina> CODEC = ByteBufCodecs.FLOAT.map(Stamina::new, Stamina::value);
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     /** Opens the NPC dialogue screen. Lines and options are translation keys. */
     public record OpenDialogue(int entityId, String speakerKey, List<String> lines, List<String> options)
             implements CustomPacketPayload {
@@ -252,6 +263,8 @@ public final class ModNetwork {
 
         registrar.playToClient(SyncData.TYPE, SyncData.CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientHooks.handleSync(payload.tag())));
+        registrar.playToClient(Stamina.TYPE, Stamina.CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientHooks.stamina(payload.value())));
         registrar.playToClient(OpenDialogue.TYPE, OpenDialogue.CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientHooks.openDialogue(payload)));
         registrar.playToClient(PlayAnimation.TYPE, PlayAnimation.CODEC,
@@ -346,7 +359,18 @@ public final class ModNetwork {
     public static void sync(ServerPlayer player) {
         PlayerData data = ModAttachments.get(player);
         data.lastSyncedHash = data.syncHash();
+        data.lastSentStamina = data.stamina();
         PacketDistributor.sendToPlayer(player, new SyncData(data.save()));
+    }
+
+    /** Sends stamina when it has moved by a point (at most 5 times a second), or reached empty or full. */
+    public static void syncStamina(ServerPlayer player, PlayerData data) {
+        float st = data.stamina();
+        if (st == data.lastSentStamina) return;
+        boolean edge = st <= 0 || st >= data.maxStamina();
+        if (!edge && (Math.abs(st - data.lastSentStamina) < 1 || player.tickCount % 4 != 0)) return;
+        data.lastSentStamina = st;
+        PacketDistributor.sendToPlayer(player, new Stamina(st));
     }
 
     public static void announce(ServerPlayer player, String titleKey, String subtitleKey, int color) {

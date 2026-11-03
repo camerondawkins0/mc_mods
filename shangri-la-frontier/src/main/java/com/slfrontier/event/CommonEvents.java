@@ -239,6 +239,8 @@ public final class CommonEvents {
         }
         if (data.syncHash() != data.lastSyncedHash) {
             ModNetwork.sync(player);
+        } else {
+            ModNetwork.syncStamina(player, data);
         }
     }
 
