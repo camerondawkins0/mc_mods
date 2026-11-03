@@ -10,7 +10,7 @@ import org.jetbrains.annotations.Nullable;
 public enum Skill {
     // id, stamina cost, cooldown ticks, unlock level (0 = special unlock), passive
     TAP_STEP("tap_step", 10, 30, 1, false),
-    SLIDE_STEP("slide_step", 14, 30, 0, false),
+    SLIDE_STEP("slide_step", 20, 30, 0, false),
     DRILL_PIERCER("drill_piercer", 15, 80, 3, false),
     GLOWING_PIERCE("glowing_pierce", 18, 80, 0, false),
     PERFECT_PARRY("perfect_parry", 8, 60, 5, false),
@@ -19,8 +19,8 @@ public enum Skill {
     DOUBLE_JUMP("double_jump", 12, 0, 10, true),
     RABBIT_GUN("rabbit_gun", 20, 200, 0, false),
     MOON_REFLECTION("moon_reflection", 25, 160, 0, false),
-    CRESCENT_VORPAL("crescent_vorpal", 50, 900, 0, false),
-    SKY_CLEAR("sky_clear", 40, 600, 0, false);
+    CRESCENT_VORPAL("crescent_vorpal", 50, 400, 0, false),
+    SKY_CLEAR("sky_clear", 40, 300, 0, false);
 
     public final String id;
     public final int staminaCost;

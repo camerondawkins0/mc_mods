@@ -54,20 +54,34 @@ public final class Progression {
         return killed instanceof Enemy ? base : Math.max(1, base / 3);
     }
 
+    /**
+     * Adds experience. The Vorpal Soul Collar's extra stat points are earned, not snatched: a level
+     * pays 5 points instead of 3 only if most of that level's experience was earned with the collar
+     * carried (picking it up just before a level-up, or a big reward, no longer counts).
+     */
     public static void grantExp(ServerPlayer player, int amount) {
         PlayerData data = ModAttachments.get(player);
         if (data.level() >= PlayerData.MAX_LEVEL || amount <= 0) return;
         boolean collar = hasCollar(player);
         if (collar) amount = Math.max(1, Math.round(amount * 0.7f));
-        int exp = data.exp() + amount;
+        // Saves from before this was tracked: count the level so far as the collar is now.
+        if (data.collarExp() < 0) data.setCollarExp(collar ? data.exp() : 0);
         int levelsGained = 0;
-        while (data.level() < PlayerData.MAX_LEVEL && exp >= PlayerData.expToNext(data.level())) {
-            exp -= PlayerData.expToNext(data.level());
+        int left = amount;
+        while (left > 0 && data.level() < PlayerData.MAX_LEVEL) {
+            int need = PlayerData.expToNext(data.level());
+            int take = Math.min(left, need - data.exp());
+            left -= take;
+            data.setExp(data.exp() + take);
+            if (collar) data.setCollarExp(data.collarExp() + take);
+            if (data.exp() < need) break;
+            boolean collarLevel = data.collarExp() * 2 > need;
             data.setLevel(data.level() + 1);
-            data.addStatPoints(collar ? 5 : 3);
+            data.setCollarExp(0);
+            data.addStatPoints(collarLevel ? 5 : 3);
             levelsGained++;
         }
-        data.setExp(data.level() >= PlayerData.MAX_LEVEL ? 0 : exp);
+        if (data.level() >= PlayerData.MAX_LEVEL) data.setExp(0);
         if (levelsGained > 0) {
             onLevelUp(player, data);
         }

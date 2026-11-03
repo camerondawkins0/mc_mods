@@ -877,6 +877,11 @@ COMBAT_PROGRESSION = {
     "sidequest.slfrontier.solo_killer.desc": "\"Word is you went through the Diremarsh and came back. The Mud Digger has swallowed lone adventurers whole for years. Show me its fin and the bounty is yours.\"",
     "sidequest.slfrontier.solo_killer.objective": "Bring the Mud Digger's fin to the Blacksmith. (Once the Mud Digger is gone for good, he pays the bounty without it.)",
     "sidequest.slfrontier.queens_crown.objective": "Defeat the Empire Bee Queen in her hive. (If she has already fallen, Bilac takes your word for it.)",
+    # Stats and the collar
+    "stat.slfrontier.luc.desc": "Luck: +1% critical chance and +0.5% critical damage per point.",
+    "stat.slfrontier.sta.desc": "Stamina: +2 max stamina and +2% stamina regeneration per point.",
+    "item.slfrontier.vorpal_soul_collar.lore": "While carried: -30% EXP, but a level earned mostly with it carried gives 5 stat points instead of 3.",
+    "skill.slfrontier.slide_step.desc": "Evolved Tap Step: a longer dash with more invincibility. Stamina pauses for a moment after any skill.",
     # Allies' callouts
     "message.slfrontier.ally_says": "<%s> %s",
     "message.slfrontier.pencilgon.pin.1": "Pinned it! Hit it now!",

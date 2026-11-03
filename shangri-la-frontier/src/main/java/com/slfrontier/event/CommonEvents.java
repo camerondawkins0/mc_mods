@@ -218,9 +218,12 @@ public final class CommonEvents {
                 if (stamina <= 0) {
                     player.setSprinting(false);
                 }
+            } else if (data.staminaRegenPause > 0) {
+                // A beat after every skill before stamina comes back, so spamming dashes costs something.
+                data.staminaRegenPause--;
             } else {
                 boolean still = player.getDeltaMovement().horizontalDistanceSqr() < 0.001;
-                stamina += still ? 1.0f : 0.5f;
+                stamina += (still ? 1.0f : 0.5f) * data.staminaRegen();
             }
             data.setStamina(stamina);
 

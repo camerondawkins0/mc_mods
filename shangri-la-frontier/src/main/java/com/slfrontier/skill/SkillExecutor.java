@@ -88,6 +88,7 @@ public final class SkillExecutor {
         if (!used) return false;
         data.iframeTicks = Math.max(data.iframeTicks, skill.castIframes());
         data.setStamina(data.stamina() - skill.staminaCost);
+        data.staminaRegenPause = PlayerData.REGEN_PAUSE;
         data.setCooldown(skill, Math.round(skill.cooldown * Progression.cooldownScale(data)));
         if (skill != Skill.PERFECT_PARRY) {
             countUse(player, data, skill);
@@ -136,6 +137,7 @@ public final class SkillExecutor {
         if (data.stamina() < Skill.DOUBLE_JUMP.staminaCost) return;
         data.airJumpUsed = true;
         data.setStamina(data.stamina() - Skill.DOUBLE_JUMP.staminaCost);
+        data.staminaRegenPause = PlayerData.REGEN_PAUSE;
         Vec3 motion = player.getDeltaMovement();
         double up = 0.62 + data.stat(Stat.AGI) * 0.002;
         push(player, motion.x * 1.2, up, motion.z * 1.2);
@@ -267,7 +269,7 @@ public final class SkillExecutor {
 
     /** The landing half of Crescent Vorpal. */
     public static void crescentSlam(ServerPlayer player) {
-        float damage = attack(player) * 3f;
+        float damage = attack(player) * 5f;
         for (LivingEntity target : around(player, 5)) {
             strike(player, target, damage, true);
             knockAway(player, target, 1.0);
@@ -286,7 +288,7 @@ public final class SkillExecutor {
     }
 
     private static boolean skyClear(ServerPlayer player) {
-        float damage = attack(player) * 2.5f;
+        float damage = attack(player) * 3.5f;
         for (LivingEntity target : around(player, 7)) {
             strike(player, target, damage, false);
             knockAway(player, target, 0.8);
@@ -297,7 +299,10 @@ public final class SkillExecutor {
         Fx.arc(player, 5.8f, 4, 360, 0xFFFFFFFF, 12);
         Fx.ring(player.level(), player.position(), 7.5f, 0xE08FD8FF, 18, 1.0f);
         Fx.pillar(player.level(), player.position(), 1.2f, 18f, 0xC08FD8FF, 20);
-        player.level().getServer().setWeatherParameters(6000, 0, false, false);
+        // The weather is shared by every dimension, so only part the clouds when nobody else is playing
+        // (it would otherwise stop the rain for everyone in the Overworld at every cast).
+        var server = player.level().getServer();
+        if (server.getPlayerCount() <= 1) server.setWeatherParameters(6000, 0, false, false);
         sound(player, ModSounds.SKILL_SKY_CLEAR, 1.4f, 1f);
         sound(player, SoundEvents.WARDEN_SONIC_BOOM, 0.25f, 1.6f);
         ModNetwork.animate(player, PlayerAnims.SKY_CLEAR, 16);

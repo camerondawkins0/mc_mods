@@ -10,8 +10,8 @@ public enum Stat {
     AGI("agi", "Agility: +0.4% movement speed per point"),
     DEX("dex", "Dexterity: +1% attack speed per point"),
     TEC("tec", "Technique: -1% skill cooldowns per point, longer parry window"),
-    LUC("luc", "Luck: +0.5% critical chance per point"),
-    STA("sta", "Stamina: +3 max stamina per point");
+    LUC("luc", "Luck: +1% critical chance and +0.5% critical damage per point"),
+    STA("sta", "Stamina: +2 max stamina and +2% stamina regeneration per point");
 
     public final String key;
     public final String help;

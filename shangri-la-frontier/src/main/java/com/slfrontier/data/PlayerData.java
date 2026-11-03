@@ -35,6 +35,8 @@ public class PlayerData implements ValueIOSerializable {
 
     private int level = 1;
     private int exp = 0;
+    /** Experience toward the current level earned with the Vorpal Soul Collar carried (-1: unknown, older save). */
+    private int collarExp = 0;
     private int statPoints = 0;
     private final int[] stats = new int[Stat.values().length];
     private float stamina = BASE_STAMINA;
@@ -85,6 +87,8 @@ public class PlayerData implements ValueIOSerializable {
     public int pierceTicks;
     public boolean pierceGlowing;
     public boolean airJumpUsed;
+    /** Ticks left before stamina regenerates again (set by every skill use). */
+    public int staminaRegenPause;
     public int lastSyncedHash;
     /** Stamina last sent to the client (server side); stamina travels in its own small packet. */
     public float lastSentStamina = -1;
@@ -117,10 +121,19 @@ public class PlayerData implements ValueIOSerializable {
     public void setLevel(int level) {
         this.level = Mth.clamp(level, 1, MAX_LEVEL);
         this.exp = 0;
+        this.collarExp = 0;
     }
 
     public void setExp(int exp) {
         this.exp = Math.max(0, exp);
+    }
+
+    public int collarExp() {
+        return collarExp;
+    }
+
+    public void setCollarExp(int collarExp) {
+        this.collarExp = collarExp;
     }
 
     public void addStatPoints(int points) {
@@ -153,8 +166,18 @@ public class PlayerData implements ValueIOSerializable {
 
     // ---- Stamina -------------------------------------------------------------------
 
+    /** Per point of STA: max stamina, and faster stamina regeneration (+2%). */
+    public static final float STA_MAX = 2f, STA_REGEN = 0.02f;
+    /** Ticks after any skill before stamina starts coming back. */
+    public static final int REGEN_PAUSE = 20;
+
     public float maxStamina() {
-        return BASE_STAMINA + 3f * stat(Stat.STA);
+        return BASE_STAMINA + STA_MAX * stat(Stat.STA);
+    }
+
+    /** Stamina regeneration multiplier from STA. */
+    public float staminaRegen() {
+        return 1f + STA_REGEN * stat(Stat.STA);
     }
 
     public float stamina() {
@@ -433,6 +456,7 @@ public class PlayerData implements ValueIOSerializable {
         CompoundTag tag = new CompoundTag();
         tag.putInt("level", level);
         tag.putInt("exp", exp);
+        tag.putInt("collarExp", collarExp);
         tag.putInt("statPoints", statPoints);
         tag.putIntArray("stats", stats.clone());
         tag.putFloat("stamina", stamina);
@@ -480,6 +504,7 @@ public class PlayerData implements ValueIOSerializable {
     public void load(CompoundTag tag) {
         level = Mth.clamp(tag.getIntOr("level", 0), 1, MAX_LEVEL);
         exp = tag.getIntOr("exp", 0);
+        collarExp = tag.getIntOr("collarExp", -1);
         statPoints = tag.getIntOr("statPoints", 0);
         int[] saved = tag.getIntArray("stats").orElse(new int[0]);
         for (int i = 0; i < stats.length; i++) stats[i] = i < saved.length ? saved[i] : 0;
