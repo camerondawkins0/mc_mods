@@ -24,6 +24,11 @@ public final class ClientState {
     private ClientState() {
     }
 
+    private static boolean sameName(ModNetwork.Marker a, ModNetwork.Marker b) {
+        return a.nameKey().equals(b.nameKey())
+                || net.minecraft.client.resources.language.I18n.get(a.nameKey()).equals(net.minecraft.client.resources.language.I18n.get(b.nameKey()));
+    }
+
     public static void setMarkers(List<ModNetwork.Marker> list, boolean fastTravelEnabled) {
         markers = List.copyOf(list);
         fastTravel = fastTravelEnabled;
@@ -42,7 +47,8 @@ public final class ClientState {
             if (m.kind() != ModNetwork.Marker.WAYPOINT) continue;
             ModNetwork.Marker town = null;
             for (ModNetwork.Marker t : markers) {
-                if (t.kind() == ModNetwork.Marker.TOWN && t.nameKey().equals(m.nameKey())
+                // Compare what the player reads: a town and its crystal can use different keys for the same name.
+                if (t.kind() == ModNetwork.Marker.TOWN && sameName(t, m)
                         && t.pos().distSqr(m.pos()) < SAME_PLACE * SAME_PLACE && !merged.containsKey(t.id())) {
                     town = t;
                     break;

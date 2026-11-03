@@ -283,7 +283,8 @@ public class FrontierScreen extends Screen {
         py = param(g, px, py, pw, "gui.slfrontier.p.atk", String.format("%.1f", player.getAttributeValue(Attributes.ATTACK_DAMAGE)));
         py = param(g, px, py, pw, "gui.slfrontier.p.crit", String.format("%.0f%% x%.2f", Progression.critChance(player) * 100,
                 Progression.critMultiplier(player)));
-        py = param(g, px, py, pw, "gui.slfrontier.p.cdr", "-" + Math.min(50, d.stat(Stat.TEC)) + "%");
+        int cdr = Math.min(50, d.stat(Stat.TEC));
+        py = param(g, px, py, pw, "gui.slfrontier.p.cdr", cdr == 0 ? "0%" : "-" + cdr + "%");
         py = param(g, px, py, pw, "gui.slfrontier.p.speed", String.format("%.0f%%", player.getAttributeValue(Attributes.MOVEMENT_SPEED) / 0.1 * 100));
         py = param(g, px, py, pw, "gui.slfrontier.p.aspd", String.format("%.2f", player.getAttributeValue(Attributes.ATTACK_SPEED)));
         py = param(g, px, py, pw, "gui.slfrontier.p.parry", String.format("%.2fs", Math.min(20, 10 + d.stat(Stat.TEC) / 5) / 20f));
