@@ -16,8 +16,6 @@ import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -89,8 +87,7 @@ public final class Progression {
     public static void announceSkill(ServerPlayer player, Skill skill) {
         player.sendSystemMessage(Component.translatable("message.slfrontier.skill_learned",
                 Component.translatable(skill.nameKey()).withStyle(ChatFormatting.AQUA)).withStyle(ChatFormatting.GREEN));
-        player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.ENCHANTMENT_TABLE_USE, SoundSource.PLAYERS, 1f, 1.4f);
+        Sfx.personal(player, ModSounds.PLAYER_SKILL_LEARNED, 1f, 1f);
     }
 
     public static boolean hasCollar(Player player) {
