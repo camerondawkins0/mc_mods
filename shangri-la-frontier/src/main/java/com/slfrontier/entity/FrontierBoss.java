@@ -121,6 +121,7 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
     private boolean dirty;
     private final List<UUID> summons = new ArrayList<>();
     private int lastShrug = -100;
+    private boolean repeatKill;
 
     /** Bosses whose bar someone can see, so {@link #sweepBossBars} can clear bars of bosses that stopped ticking. */
     private static final Set<FrontierBoss> SHOWING = Collections.newSetFromMap(new WeakHashMap<>());
@@ -900,9 +901,30 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
         return frontierLevel;
     }
 
+    /** EXP for the kill: a quarter of it when the summoner had already slain this boss (an altar repeat). */
     @Override
     public int frontierExp() {
-        return frontierExp;
+        return repeatKill ? Math.max(1, frontierExp / 4) : frontierExp;
+    }
+
+    /** A repeat fight (woken at an altar by someone who already slew it): less EXP and no Tearjewel. */
+    public void setRepeatKill(boolean repeat) {
+        this.repeatKill = repeat;
+    }
+
+    public boolean isRepeatKill() {
+        return repeatKill;
+    }
+
+    @Override
+    protected void dropFromLootTable(ServerLevel level, DamageSource source, boolean playerKilled) {
+        if (!repeatKill) {
+            super.dropFromLootTable(level, source, playerKilled);
+            return;
+        }
+        getLootTable().ifPresent(table -> dropFromLootTable(level, source, playerKilled, table, stack -> {
+            if (!stack.is(com.slfrontier.registry.ModItems.REBIRTH_TEARJEWEL.get())) spawnAtLocation(level, stack);
+        }));
     }
 
     @Override
@@ -943,6 +965,7 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
         seenPhase = Math.max(1, tag.getIntOr("SeenPhase", bossPhase()));
         home = tag.read("SlfHome", Vec3.CODEC).orElse(null);
         dirty = tag.getBooleanOr("SlfDirty", true);
+        repeatKill = tag.getBooleanOr("SlfRepeat", false);
         summons.clear();
         tag.read("SlfSummons", UUIDUtil.CODEC.listOf()).ifPresent(summons::addAll);
     }
@@ -953,6 +976,7 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
         tag.putInt("SeenPhase", seenPhase);
         if (home != null) tag.store("SlfHome", Vec3.CODEC, home);
         tag.putBoolean("SlfDirty", dirty);
+        if (repeatKill) tag.putBoolean("SlfRepeat", true);
         if (!summons.isEmpty()) tag.store("SlfSummons", UUIDUtil.CODEC.listOf(), List.copyOf(summons));
     }
 
