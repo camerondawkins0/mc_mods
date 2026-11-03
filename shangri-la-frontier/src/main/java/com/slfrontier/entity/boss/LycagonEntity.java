@@ -96,6 +96,11 @@ public class LycagonEntity extends FrontierBoss {
     }
 
     @Override
+    protected int bossPhase() {
+        return phaseTwo() ? 2 : 1;
+    }
+
+    @Override
     protected int chooseAttack(LivingEntity target, double distance) {
         int roll = random.nextInt(12);
         if (phaseTwo() && cloneCooldown <= 0 && mode != Mode.ENCOUNTER) return SHADOW_CLONE;

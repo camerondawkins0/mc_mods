@@ -1,5 +1,7 @@
 package com.slfrontier.world;
 
+import com.slfrontier.registry.ModSounds;
+import com.slfrontier.Sfx;
 import com.slfrontier.SlfConfig;
 import com.slfrontier.data.PlayerData;
 import com.slfrontier.network.ModNetwork;
@@ -89,6 +91,6 @@ public final class MapSync {
         ModNetwork.announce(player, "announce.slfrontier.waypoint", nameKey, 0x7FE7FF);
         player.sendSystemMessage(Component.translatable("message.slfrontier.waypoint_found", Component.translatable(nameKey))
                 .withStyle(ChatFormatting.AQUA));
-        player.level().playSound(null, player.blockPosition(), SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, 1f, 1.2f);
+        Sfx.personal(player, ModSounds.WORLD_DISCOVER, 1f, 1f);
     }
 }

@@ -1,5 +1,7 @@
 package com.slfrontier.progression;
 
+import com.slfrontier.registry.ModSounds;
+import com.slfrontier.Sfx;
 import com.slfrontier.SLFrontier;
 import com.slfrontier.data.PlayerData;
 import com.slfrontier.data.Stat;
@@ -70,8 +72,7 @@ public final class Progression {
     }
 
     private static void onLevelUp(ServerPlayer player, PlayerData data) {
-        player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 1f, 1.2f);
+        Sfx.personal(player, ModSounds.PLAYER_LEVEL_UP, 1f, 1f);
         player.setHealth(player.getMaxHealth());
         data.setStamina(data.maxStamina());
         ModNetwork.announce(player, "announce.slfrontier.level_up", "announce.slfrontier.level_up.sub", 0xFFD34F);

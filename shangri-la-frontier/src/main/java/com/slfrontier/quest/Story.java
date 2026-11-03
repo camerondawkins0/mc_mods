@@ -1,5 +1,7 @@
 package com.slfrontier.quest;
 
+import com.slfrontier.registry.ModSounds;
+import com.slfrontier.Sfx;
 import com.slfrontier.crafting.FrontierCrafting;
 import com.slfrontier.crafting.Station;
 import com.slfrontier.data.PlayerData;
@@ -676,7 +678,7 @@ public final class Story {
         for (ItemStack reward : q.rewards()) give(player, reward);
         if (q.exp > 0) Progression.grantExp(player, q.exp);
         ModNetwork.announce(player, "announce.slfrontier.side_complete", q.titleKey(), 0x7FE7FF);
-        player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.7f, 1.4f);
+        Sfx.personal(player, ModSounds.QUEST_COMPLETE, 1f, 1f);
         ModNetwork.sync(player);
     }
 
@@ -730,7 +732,7 @@ public final class Story {
         player.sendSystemMessage(Component.translatable("message.slfrontier.quest_updated",
                 Component.translatable(stage.titleKey()).withStyle(ChatFormatting.GOLD)).withStyle(ChatFormatting.YELLOW));
         player.sendSystemMessage(Component.translatable(stage.objectiveKey()).withStyle(ChatFormatting.GRAY));
-        player.level().playSound(null, player.blockPosition(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 0.6f, 1.2f);
+        Sfx.personal(player, ModSounds.QUEST_COMPLETE, 1f, 1f);
         ModNetwork.sync(player);
     }
 
@@ -816,7 +818,7 @@ public final class Story {
         while (i < steps.size() - 1 && stepDone(player, data, steps.get(i).id())) i++;
         if (i != data.questStep()) {
             data.setQuestStep(i);
-            if (i > 0) player.level().playSound(null, player.blockPosition(), SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.5f, 1.4f);
+            if (i > 0) Sfx.personal(player, ModSounds.QUEST_STEP, 0.9f, 1f);
             ModNetwork.sync(player);
         }
     }

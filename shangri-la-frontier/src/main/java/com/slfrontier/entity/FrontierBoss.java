@@ -51,6 +51,8 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
     protected int idleTicks;
     /** Ticks left of a stun (a perfect parry): the boss holds still and its attack pauses. */
     private int stunTicks;
+    /** Highest phase announced so far (see {@link #bossPhase()}). Healing back doesn't replay it. */
+    private int seenPhase = 1;
 
     /** Bosses whose bar someone can see, so {@link #sweepBossBars} can clear bars of bosses that stopped ticking. */
     private static final Set<FrontierBoss> SHOWING = Collections.newSetFromMap(new WeakHashMap<>());
@@ -149,6 +151,11 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
         bossEvent.setProgress(getHealth() / getMaxHealth());
+        int phase = bossPhase();
+        if (phase > seenPhase) {
+            seenPhase = phase;
+            onPhaseChange(level, phase);
+        }
         if (stunTicks > 0) {
             stunTicks--;
             getNavigation().stop();
@@ -253,9 +260,23 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
         }
     }
 
+    /** 1 for bosses without phases; phased bosses override this (Wezaemon 1-3, Lycagon 1-2). */
+    protected int bossPhase() {
+        return 1;
+    }
+
+    /** A new phase begins: everyone near hears it and sees the boss flare. */
+    protected void onPhaseChange(ServerLevel level, int phase) {
+        level.playSound(null, getX(), getY(), getZ(), com.slfrontier.registry.ModSounds.BOSS_PHASE, getSoundSource(), 2.5f, 1f);
+        com.slfrontier.fx.Fx.flash(level, position().add(0, getBbHeight() * 0.6, 0), Math.max(2f, getBbWidth() * 1.5f), 0xFFFFE2A0, 10, 0.8f);
+    }
+
     @Override
     public void die(DamageSource source) {
         super.die(source);
+        if (level() instanceof ServerLevel server) {
+            server.playSound(null, getX(), getY(), getZ(), com.slfrontier.registry.ModSounds.BOSS_DEFEATED, getSoundSource(), 3f, 1f);
+        }
         bossEvent.setProgress(0f);
         bossEvent.removeAllPlayers();
     }
@@ -413,6 +434,13 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
     public void readAdditionalSaveData(ValueInput tag) {
         super.readAdditionalSaveData(tag);
         if (hasCustomName()) bossEvent.setName(getDisplayName());
+        seenPhase = Math.max(1, tag.getIntOr("SeenPhase", bossPhase()));
+    }
+
+    @Override
+    public void addAdditionalSaveData(net.minecraft.world.level.storage.ValueOutput tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putInt("SeenPhase", seenPhase);
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.slfrontier.block;
 
+import com.slfrontier.registry.ModSounds;
 import com.mojang.serialization.MapCodec;
 import com.slfrontier.SLFrontier;
 import com.slfrontier.data.PlayerData;
@@ -87,8 +88,9 @@ public class WaypointBlock extends Block {
         level.sendParticles(ParticleTypes.END_ROD, pos.getX() + 0.5, pos.getY() + 1.2, pos.getZ() + 0.5, 40, 0.3, 0.6, 0.3, 0.08);
         if (fresh) {
             MapSync.announceDiscovery(player, wp.nameKey());
+            level.playSound(null, pos, ModSounds.WORLD_WAYPOINT.value(), SoundSource.BLOCKS, 1f, 1f);
         } else {
-            level.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 1f, 1.4f);
+            level.playSound(null, pos, ModSounds.WORLD_WAYPOINT.value(), SoundSource.BLOCKS, 0.8f, 1.1f);
         }
         player.sendOverlayMessage(Component.translatable("message.slfrontier.waypoint_attuned",
                 Component.translatable(wp.nameKey())).withStyle(ChatFormatting.AQUA));

@@ -1,5 +1,6 @@
 package com.slfrontier.skill;
 
+import com.slfrontier.registry.ModSounds;
 import com.slfrontier.data.PlayerData;
 import com.slfrontier.data.Stat;
 import com.slfrontier.entity.npc.EmulEntity;
@@ -123,7 +124,7 @@ public final class SkillExecutor {
         level.sendParticles(STEP_GREEN, player.getX(), player.getY() + 0.3, player.getZ(), 16, 0.25, 0.2, 0.25, 0);
         level.sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY() + 0.1, player.getZ(), 6, 0.3, 0.05, 0.3, 0.02);
         Fx.ring(level, player.position(), power > 1.3 ? 1.6f : 1.1f, 0xC07FFF6A, 10, 0);
-        sound(player, SoundEvents.PLAYER_ATTACK_SWEEP, 0.6f, 1.8f);
+        sound(player, ModSounds.SKILL_DASH, 0.8f, back ? 0.9f : 1.0f);
         ModNetwork.animate(player, back ? PlayerAnims.BACKSTEP : PlayerAnims.DASH, 8);
         return true;
     }
@@ -170,7 +171,7 @@ public final class SkillExecutor {
         if (glowing) Fx.spiral(player, dir, (float) range * 0.8f, 0xFF7FE7FF, 10);
         if (!line.isEmpty()) Fx.flash(player.level(), line.get(0).position().add(0, line.get(0).getBbHeight() * 0.6, 0), 0.9f,
                 glowing ? 0xFFFFE08A : 0xFF9FD0FF, 6, 0.4f);
-        sound(player, SoundEvents.PLAYER_ATTACK_STRONG, 0.8f, glowing ? 1.4f : 1.1f);
+        sound(player, ModSounds.SKILL_PIERCE, 1f, glowing ? 1.12f : 1f);
         ModNetwork.animate(player, PlayerAnims.PIERCE, 11);
         return true;
     }
@@ -195,7 +196,7 @@ public final class SkillExecutor {
         Fx.arc(player, 3.0f, 0, 360, 0xFFFF5A6A, 12);
         Fx.arc(player, 2.4f, 8, 300, 0xFFFFFFFF, 10);
         Fx.ring(player.level(), player.position(), 3.5f, 0xB0FF5A6A, 12, 0.3f);
-        sound(player, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.8f);
+        sound(player, ModSounds.SKILL_CYCLONE, 1f, 1f);
         ModNetwork.animate(player, PlayerAnims.SPIN, 11);
         return true;
     }
@@ -244,8 +245,7 @@ public final class SkillExecutor {
         Fx.arc(player, 2.6f, 35, 150, 0xFFEFF4FF, 12);
         Fx.arc(player, 2.6f, -35, 150, 0xFF8E5BE0, 12);
         Fx.wave(player, 2.2f, 10, 6f, 0xFFDDE6FF, 14);
-        sound(player, SoundEvents.AMETHYST_BLOCK_CHIME, 1.5f, 0.7f);
-        sound(player, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.3f);
+        sound(player, ModSounds.SKILL_MOON_WAVE, 1.2f, 1f);
         ModNetwork.animate(player, PlayerAnims.CRESCENT, 12);
         return true;
     }
@@ -280,7 +280,8 @@ public final class SkillExecutor {
         Fx.ring(player.level(), player.position(), 5.5f, 0xFFEFF4FF, 16, 1.4f);
         Fx.ring(player.level(), player.position(), 4.2f, 0xFF8E5BE0, 18, 0);
         Fx.flash(player.level(), player.position().add(0, 0.5, 0), 2.5f, 0xFFDDE6FF, 8, 0);
-        sound(player, SoundEvents.DRAGON_FIREBALL_EXPLODE, 0.8f, 1.3f);
+        sound(player, ModSounds.SKILL_CRESCENT_SLAM, 1.3f, 1f);
+        sound(player, SoundEvents.DRAGON_FIREBALL_EXPLODE, 0.35f, 1.3f);
         ModNetwork.animate(player, PlayerAnims.SLAM, 12);
     }
 
@@ -297,7 +298,8 @@ public final class SkillExecutor {
         Fx.ring(player.level(), player.position(), 7.5f, 0xE08FD8FF, 18, 1.0f);
         Fx.pillar(player.level(), player.position(), 1.2f, 18f, 0xC08FD8FF, 20);
         player.level().getServer().setWeatherParameters(6000, 0, false, false);
-        sound(player, SoundEvents.WARDEN_SONIC_BOOM, 0.6f, 1.6f);
+        sound(player, ModSounds.SKILL_SKY_CLEAR, 1.4f, 1f);
+        sound(player, SoundEvents.WARDEN_SONIC_BOOM, 0.25f, 1.6f);
         ModNetwork.animate(player, PlayerAnims.SKY_CLEAR, 16);
         return true;
     }
@@ -412,6 +414,10 @@ public final class SkillExecutor {
             double y = player.getY() + 1.0 + Math.sin(i / 30.0 * Math.PI) * 0.6;
             player.level().sendParticles(i % 2 == 0 ? first : second, x, y, z, 2, 0.05, 0.05, 0.05, 0);
         }
+    }
+
+    private static void sound(ServerPlayer player, net.minecraft.core.Holder<net.minecraft.sounds.SoundEvent> sound, float volume, float pitch) {
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(), sound, SoundSource.PLAYERS, volume, pitch);
     }
 
     private static void sound(ServerPlayer player, net.minecraft.sounds.SoundEvent sound, float volume, float pitch) {

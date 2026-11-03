@@ -316,9 +316,7 @@ public final class FrontierCrafting {
                 particles(level, ParticleTypes.CRIT, at, 10, 0.3, 0.2);
             }
         }
-        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSoundPacket(
-                net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.wrapAsHolder(SoundEvents.EXPERIENCE_ORB_PICKUP), SoundSource.PLAYERS,
-                player.getX(), player.getY(), player.getZ(), 0.6f, 1.3f, player.getRandom().nextLong()));
+        com.slfrontier.Sfx.personal(player, com.slfrontier.registry.ModSounds.WORLD_CRAFT_DONE, 0.9f, 1f);
     }
 
     private static void sound(ServerLevel level, Vec3 at, SoundEvent sound, float volume, float pitch) {

@@ -1,5 +1,7 @@
 package com.slfrontier.world;
 
+import com.slfrontier.registry.ModSounds;
+import com.slfrontier.Sfx;
 import com.slfrontier.data.PlayerData;
 import com.slfrontier.network.ModNetwork;
 import com.slfrontier.network.OverlayNetwork;
@@ -44,7 +46,7 @@ public final class FrontierTravel {
         BlockPos target = data.hasFrontierPos() ? BlockPos.of(data.frontierPos()) : spawn;
         OverlayNetwork.travel(player, OverlayNetwork.LOGIN, OverlayNetwork.placeName(frontier, target), target);
         player.teleportTo(frontier, target.getX() + 0.5, target.getY(), target.getZ() + 0.5, java.util.Set.of(), player.getYRot(), player.getXRot(), true);
-        frontier.playSound(null, target, SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 1f, 1.6f);
+        Sfx.personal(player, ModSounds.PLAYER_FULL_DIVE_IN, 1f, 1f);
         ModNetwork.announce(player, "announce.slfrontier.login", "announce.slfrontier.login.sub", 0x7FE7FF);
         if (data.stage() == QuestStage.NOT_STARTED) {
             Story.advance(player, QuestStage.MEET_GUIDE);
@@ -75,6 +77,7 @@ public final class FrontierTravel {
         }
         player.teleportTo(dest, x, y, z, java.util.Set.of(), player.getYRot(), player.getXRot(), true);
         ModNetwork.announce(player, "announce.slfrontier.logout", "announce.slfrontier.logout.sub", 0xAAAAAA);
+        Sfx.personal(player, ModSounds.PLAYER_FULL_DIVE_OUT, 1f, 1f);
     }
 
     public static void toFastera(ServerPlayer player) {

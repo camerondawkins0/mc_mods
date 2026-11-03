@@ -403,10 +403,10 @@ def build(preview=False):
 
 
 def write_registry():
-    """ModSounds.java: one SoundEvent per entry in SOUNDS, named after it (combat.parry -> PARRY)."""
+    """ModSounds.java: one SoundEvent per entry in SOUNDS, named after it (combat.parry -> COMBAT_PARRY)."""
     lines = []
     for name in SOUNDS:
-        const = name.split(".", 1)[1].upper()
+        const = name.replace(".", "_").upper()
         lines.append(f'    public static final DeferredHolder<SoundEvent, SoundEvent> {const} = sound("{name}");')
     src = f"""package com.slfrontier.registry;
 

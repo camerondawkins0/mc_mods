@@ -87,6 +87,11 @@ public class WezaemonEntity extends FrontierBoss {
         return f > 0.66f ? 1 : f > 0.33f ? 2 : 3;
     }
 
+    @Override
+    protected int bossPhase() {
+        return phase();
+    }
+
     /** Called when a player perfectly parries Sky Clear. */
     public void onParried(ServerPlayer by) {
         if (attack != SKY_CLEAR || isDisarmed()) return;

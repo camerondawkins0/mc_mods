@@ -1,5 +1,7 @@
 package com.slfrontier.event;
 
+import com.slfrontier.registry.ModSounds;
+import com.slfrontier.Sfx;
 import com.slfrontier.entity.WolfVoice;
 import com.slfrontier.entity.Stun;
 
@@ -301,8 +303,7 @@ public final class CommonEvents {
         Fx.arc(player, 2.2f, -52, 150, 0xFF9FD0FF, 8);
         Fx.flash(level, target.position().add(0, target.getBbHeight() * 0.6, 0), 1.6f, 0xFFE8F4FF, 7, 0.6f);
         level.sendParticles(ParticleTypes.SWEEP_ATTACK, target.getX(), target.getY(0.6), target.getZ(), 2, 0.3, 0.2, 0.3, 0);
-        level.playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 1f, 0.75f);
-        level.playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.PLAYERS, 0.8f, 1.2f);
+        Sfx.at(player, ModSounds.COMBAT_CROSS_SLASH, SoundSource.PLAYERS, 1.1f, 1f);
         target.knockback(0.5, player.getX() - target.getX(), player.getZ() - target.getZ(), target.damageSources().generic(), 0f);
         ModNetwork.animate(player, PlayerAnims.CROSS_SLASH, 9);
     }
@@ -390,8 +391,7 @@ public final class CommonEvents {
 
     private static void onParry(ServerPlayer player, PlayerData data, Entity attacker) {
         ServerLevel level = player.level();
-        level.playSound(null, player.blockPosition(), SoundEvents.SHIELD_BLOCK.value(), SoundSource.PLAYERS, 1f, 1.4f);
-        level.playSound(null, player.blockPosition(), SoundEvents.ANVIL_PLACE, SoundSource.PLAYERS, 0.4f, 1.8f);
+        Sfx.at(player, ModSounds.COMBAT_PARRY, SoundSource.PLAYERS, 1.2f, 0.95f + player.getRandom().nextFloat() * 0.1f);
         level.sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY(1.0), player.getZ(), 16, 0.4, 0.4, 0.4, 0.3);
         player.sendOverlayMessage(Component.translatable("message.slfrontier.parry").withStyle(ChatFormatting.AQUA));
         data.parryTicks = Math.min(data.parryTicks, 4);

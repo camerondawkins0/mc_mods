@@ -1,5 +1,7 @@
 package com.slfrontier.entity;
 
+import com.slfrontier.registry.ModSounds;
+import com.slfrontier.Sfx;
 import com.slfrontier.fx.Fx;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -43,7 +45,7 @@ public final class Stun {
                 0xFFFFE070, ticks, 0);
         level.sendParticles(ParticleTypes.CRIT, target.getX(), top, target.getZ(), 12, target.getBbWidth() * 0.3, 0.1,
                 target.getBbWidth() * 0.3, 0.15);
-        level.playSound(null, target.blockPosition(), SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.HOSTILE, 0.8f, 0.7f);
+        Sfx.at(target, ModSounds.COMBAT_STUN, SoundSource.HOSTILE, 0.9f, 1f);
     }
 
     public static boolean isStunned(Entity entity) {
