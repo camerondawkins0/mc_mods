@@ -4,6 +4,7 @@ import com.slfrontier.SlfConfig;
 import com.slfrontier.client.ClientAnims;
 import com.slfrontier.entity.FrontierBoss;
 import com.slfrontier.network.ModNetwork;
+import com.slfrontier.registry.ModSounds;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -60,6 +61,13 @@ public final class Impact {
         boolean sharp = (f & (ModNetwork.Hit.CRIT | ModNetwork.Hit.WEAK)) != 0;
 
         FLASH.put(hit.entityId(), now);
+        if (victim != null) {
+            // The feel of the hit, for the attacker: finishers and kills boom, criticals and weak points tick.
+            var sound = kill || (f & ModNetwork.Hit.FINISHER) != 0 ? ModSounds.COMBAT_FINISHER : sharp ? ModSounds.COMBAT_CRIT : ModSounds.COMBAT_IMPACT;
+            float volume = sound == ModSounds.COMBAT_IMPACT ? (big ? 0.9f : 0.55f) : 0.9f;
+            float pitch = 0.94f + mc.level.getRandom().nextFloat() * 0.12f;
+            com.slfrontier.client.ClientSfx.local(victim.getX(), victim.getY(0.6), victim.getZ(), sound, volume, pitch);
+        }
         int stop = kill && (big || boss) ? 4 : kill || big ? 3 : sharp ? 2 : 0;
         float fov = kill && (big || boss) ? 0.08f : kill || big ? 0.055f : sharp ? 0.03f : 0f;
         float burst = big ? (kill ? 1f : 0.7f) : kill && boss ? 1f : 0f;

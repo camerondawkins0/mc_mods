@@ -56,6 +56,9 @@ public final class FrontierHud {
     private static int pendingTicks;
     private static int regionTicks;
     private static long clientTicks;
+    /** Out-of-stamina cue: plays once per drain, at most every 3 s. */
+    private static boolean staminaDrained;
+    private static long staminaCueTick = -1000;
 
     private FrontierHud() {
     }
@@ -81,10 +84,19 @@ public final class FrontierHud {
         for (int i = 0; i < PlayerData.SKILL_SLOTS; i++) {
             Skill s = data.equipped(i);
             int cd = s == null ? 0 : data.cooldown(s);
-            if (lastCooldown[i] > 0 && cd == 0) readyFlash[i] = 10;
+            if (lastCooldown[i] > 0 && cd == 0) {
+                readyFlash[i] = 10;
+                if (s.cooldown >= 40) com.slfrontier.client.ClientSfx.ui(com.slfrontier.registry.ModSounds.PLAYER_SKILL_READY, 1f, 0.8f);
+            }
             if (readyFlash[i] > 0) readyFlash[i]--;
             lastCooldown[i] = cd;
         }
+        boolean drained = data.stamina() < 1f;
+        if (drained && !staminaDrained && clientTicks - staminaCueTick > 60) {
+            staminaCueTick = clientTicks;
+            com.slfrontier.client.ClientSfx.ui(com.slfrontier.registry.ModSounds.PLAYER_STAMINA_EMPTY, 1f, 1f);
+        }
+        staminaDrained = drained;
         // Region titles: show the area name once the player has been in a new biome for a moment.
         Holder<Biome> here = player.level().getBiome(player.blockPosition());
         ResourceKey<Biome> key = here.unwrapKey().orElse(null);

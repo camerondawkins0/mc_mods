@@ -50,6 +50,11 @@ public class SlfButton extends AbstractButton {
     }
 
     @Override
+    public void playDownSound(net.minecraft.client.sounds.SoundManager soundManager) {
+        com.slfrontier.client.ClientSfx.ui(com.slfrontier.registry.ModSounds.UI_CLICK, style == Style.TAB ? 1.15f : 1f, 1f);
+    }
+
+    @Override
     public void onPress(InputWithModifiers input) {
         onPress.accept(this);
     }

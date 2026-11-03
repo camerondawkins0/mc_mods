@@ -8,7 +8,6 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -80,7 +79,7 @@ public class KatanaItem extends Item implements FrontierWeapon {
             Vec3 p = start.add(dir.scale(range * i / 20));
             server.sendParticles(ParticleTypes.SWEEP_ATTACK, p.x, p.y, p.z, 1, 0, 0, 0, 0);
         }
-        level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 1.2f, 1.6f);
+        level.playSound(null, player.getX(), player.getY(), player.getZ(), com.slfrontier.registry.ModSounds.COMBAT_HEAVY_SLASH, SoundSource.PLAYERS, 1.2f, 1.25f);
         // The draw releases a flying crescent of wind (like Wezaemon's Tachikaze).
         com.slfrontier.fx.Fx.arc(player, 2.2f, 8, 170, 0xFFBFE8FF, 9);
         com.slfrontier.fx.Fx.wave(player, 1.8f, 5, (float) range, 0xFF8FD8FF, 12);

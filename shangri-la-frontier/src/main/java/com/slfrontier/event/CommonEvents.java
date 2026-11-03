@@ -317,6 +317,7 @@ public final class CommonEvents {
                 || target.distanceToSqr(player) > 5 * 5) return;
         float damage = (float) (weaponDamage(off) * 0.6);
         player.swing(InteractionHand.OFF_HAND, true);
+        Sfx.at(player, ModSounds.COMBAT_SLASH, SoundSource.PLAYERS, 0.7f, 1.05f + player.getRandom().nextFloat() * 0.1f);
         target.invulnerableTime = 0;
         target.hurtOrSimulate(player.damageSources().playerAttack(player), damage);
         off.hurtAndBreak(1, player, EquipmentSlot.OFFHAND);

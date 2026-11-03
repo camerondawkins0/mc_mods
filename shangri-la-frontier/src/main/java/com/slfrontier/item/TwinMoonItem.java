@@ -102,7 +102,7 @@ public class TwinMoonItem extends Item implements FrontierWeapon {
         }
         server.sendParticles(ParticleTypes.SWEEP_ATTACK, player.getX() + look.x * 2, player.getY() + 1, player.getZ() + look.z * 2, 5, 1, 0.2, 1, 0);
         server.sendParticles(ParticleTypes.END_ROD, player.getX() + look.x * 2, player.getY() + 1, player.getZ() + look.z * 2, 30, 1.5, 0.3, 1.5, 0.02);
-        level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 1.2f, 0.6f);
+        level.playSound(null, player.getX(), player.getY(), player.getZ(), com.slfrontier.registry.ModSounds.COMBAT_HEAVY_SLASH, SoundSource.PLAYERS, 1.3f, 0.85f);
         player.swing(InteractionHand.MAIN_HAND, true);
         player.getCooldowns().addCooldown(stack, 20);
         stack.hurtAndBreak(2, player, net.minecraft.world.entity.EquipmentSlot.MAINHAND);
