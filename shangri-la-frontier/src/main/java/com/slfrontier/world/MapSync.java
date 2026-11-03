@@ -87,8 +87,9 @@ public final class MapSync {
 
     public static void announceDiscovery(ServerPlayer player, String nameKey) {
         ModNetwork.announce(player, "announce.slfrontier.waypoint", nameKey, 0x7FE7FF);
-        player.sendSystemMessage(Component.translatable("message.slfrontier.waypoint_found", Component.translatable(nameKey))
-                .withStyle(ChatFormatting.AQUA));
+        // The map key is a keybind component: each client shows its own binding.
+        player.sendSystemMessage(Component.translatable("message.slfrontier.waypoint_found", Component.translatable(nameKey),
+                Component.keybind("key.slfrontier.map")).withStyle(ChatFormatting.AQUA));
         Sfx.personal(player, ModSounds.WORLD_DISCOVER, 1f, 1f);
     }
 }

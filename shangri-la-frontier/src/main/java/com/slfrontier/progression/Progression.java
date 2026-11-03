@@ -76,8 +76,9 @@ public final class Progression {
         player.setHealth(player.getMaxHealth());
         data.setStamina(data.maxStamina());
         ModNetwork.announce(player, "announce.slfrontier.level_up", "announce.slfrontier.level_up.sub", 0xFFD34F);
-        player.sendSystemMessage(Component.translatable("message.slfrontier.level_up", data.level(), data.statPoints())
-                .withStyle(ChatFormatting.GOLD));
+        // The menu key is a keybind component: each client shows its own binding.
+        player.sendSystemMessage(Component.translatable("message.slfrontier.level_up", data.level(), data.statPoints(),
+                Component.keybind("key.slfrontier.menu")).withStyle(ChatFormatting.GOLD));
         for (Skill skill : Skill.values()) {
             if (skill.unlockLevel > 0 && skill.unlockLevel <= data.level() && data.unlock(skill)) {
                 announceSkill(player, skill);

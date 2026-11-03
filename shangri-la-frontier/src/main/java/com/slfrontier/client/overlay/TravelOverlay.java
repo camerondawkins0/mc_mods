@@ -58,7 +58,9 @@ public final class TravelOverlay {
             int pick = pickTip(tips + facts);
             this.lore = pick >= tips;
             this.tip = pick < 0 ? Component.empty()
-                    : Component.translatable(lore ? "travel.slfrontier.lore." + (pick - tips + 1) : "travel.slfrontier.tip." + (pick + 1));
+                    : lore ? Component.translatable("travel.slfrontier.lore." + (pick - tips + 1))
+                    // Tips that mention keys name them as bound.
+                    : com.slfrontier.client.KeyBindings.text("travel.slfrontier.tip." + (pick + 1));
         }
 
         long age() {

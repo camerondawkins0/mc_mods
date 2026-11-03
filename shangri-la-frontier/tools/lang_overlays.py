@@ -2,10 +2,11 @@
 
 Merged into en_us.json by lang.build(). Travel tips and lore facts are numbered from 1;
 the travel screen picks a random one and finds how many there are by probing the keys.
+Tips name keys by position (KeyBindings.textArgs): %1$s menu, %2$s map, %3$s minimap, %4$s-%7$s skills.
 """
 
 TIPS = [
-    "Your four skill slots sit on Z, X, C and V. Drag skills into them on the Skills tab of the avatar menu (K).",
+    "Your four skill slots sit on %4$s, %5$s, %6$s and %7$s. Drag skills into them on the Skills tab of the avatar menu (%1$s).",
     "Sprinting and skills drain stamina. Standing still refills it twice as fast as walking.",
     "With no stamina left you can't sprint. Keep a little in reserve for a dodge.",
     "Perfect Parry opens a short window: any blow that lands inside it is nullified. Trigger it just before the hit.",
@@ -28,10 +29,10 @@ TIPS = [
     "A Reallocation Tonic refunds every stat point you've spent, so you can rebuild your avatar from scratch.",
     "Right-click a Waypoint Crystal to attune to it. You can fast travel to it, and you'll respawn at the last one you attuned.",
     "Towns become waypoints the moment you walk into them.",
-    "Open the map with M, pick a waypoint and press Fast Travel. It won't work mid-fight or with a boss on your tail, and it needs a short recharge.",
+    "Open the map with %2$s, pick a waypoint and press Fast Travel. It won't work mid-fight or with a boss on your tail, and it needs a short recharge.",
     "On the map, scroll to zoom toward the cursor, drag to pan and right-click to drop a pin.",
-    "N shows or hides the minimap. If it ever disappears, you probably pressed N.",
-    "K opens your avatar menu: Status, Skills, Quests and the Map.",
+    "%3$s shows or hides the minimap. If it ever disappears, you probably pressed %3$s.",
+    "%1$s opens your avatar menu: Status, Skills, Quests and the Map.",
     "Pick a side quest on the Quests tab to track it in the HUD.",
     "Follow the gold beam: it stands over your current story objective. The Frontier Compass points the same way.",
     "Dying in the Frontier sends you back to your last attuned crystal with a Death Penalty: slower and weaker for two minutes.",

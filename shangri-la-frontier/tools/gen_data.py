@@ -44,9 +44,9 @@ def ns(x):
 
 def gen_lang():
     entries = lang.build()
-    # Escape stray percent signs so Minecraft's formatter leaves them alone.
+    # Escape stray percent signs so Minecraft's formatter leaves them alone (%s and positional %1$s stay).
     def escape(text):
-        return re.sub(r"%%|%s|%", lambda m: m.group(0) if m.group(0) in ("%%", "%s") else "%%", text)
+        return re.sub(r"%%|%(?:\d+\$)?s|%", lambda m: m.group(0) if m.group(0) != "%" else "%%", text)
 
     fixed = {k: escape(v) for k, v in entries.items()}
     write(os.path.join(ASSETS, "lang/en_us.json"), dict(sorted(fixed.items())))

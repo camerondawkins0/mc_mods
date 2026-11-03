@@ -3,6 +3,7 @@ package com.slfrontier.client;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.slfrontier.SLFrontier;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
 public final class KeyBindings {
@@ -22,6 +23,33 @@ public final class KeyBindings {
     public static final KeyMapping MINIMAP =
             new KeyMapping("key.slfrontier.minimap", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_N, CATEGORY);
 
+    private static Object[] textArgs;
+
     private KeyBindings() {
+    }
+
+    /**
+     * The current key names, as translation arguments for text that mentions the Frontier's keys. Lang
+     * strings pick them by position: %1$s menu, %2$s map, %3$s minimap, %4$s..%7$s skill slots 1-4.
+     * Keybind components resolve when drawn, so rebinding a key updates text already on screen.
+     */
+    public static Object[] textArgs() {
+        if (textArgs == null) {
+            textArgs = new Object[]{key(MENU), key(MAP), key(MINIMAP), key(SKILLS[0]), key(SKILLS[1]), key(SKILLS[2]), key(SKILLS[3])};
+        }
+        return textArgs;
+    }
+
+    /** A translatable text followed by {@link #textArgs()} (after any arguments of its own). */
+    public static Component text(String key, Object... args) {
+        if (args.length == 0) return Component.translatable(key, textArgs());
+        Object[] keys = textArgs();
+        Object[] all = java.util.Arrays.copyOf(args, args.length + keys.length);
+        System.arraycopy(keys, 0, all, args.length, keys.length);
+        return Component.translatable(key, all);
+    }
+
+    private static Component key(KeyMapping mapping) {
+        return Component.keybind(mapping.getName());
     }
 }
