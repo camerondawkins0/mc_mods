@@ -37,7 +37,8 @@ import java.util.UUID;
  */
 public class WoodmageEntity extends FrontierBoss {
     public static final int ROOTS = 0, CHAINS = 1, BOLT = 2, GRASP = 3;
-    private static final int ROOT = 0xFFB07A3A, BLUE = 0xFF4AA8FF, RED = 0xFFFF4A4A;
+    private static final int ROOT = 0xFFB07A3A, BLUE = 0xFF4AA8FF, GUARD = 0xFFBFF4FF;
+    private static final float CHAIN_RANGE = 5.5f, CHAIN_ANGLE = 220;
 
     private final List<Vec3> marks = new ArrayList<>();
     private Vec3 aim = Vec3.ZERO;
@@ -64,11 +65,9 @@ public class WoodmageEntity extends FrontierBoss {
 
     @Override
     protected int chooseAttack(LivingEntity target, double distance) {
-        int roll = random.nextInt(10);
-        if (roll < 3) return ROOTS;
-        if (distance < 5 && roll < 7) return CHAINS;
-        if (distance > 6 && roll < 6) return GRASP;
-        return BOLT;
+        if (distance < 5) return pick(CHAINS, 4, ROOTS, 2, BOLT, 1);
+        if (distance <= 6) return pick(ROOTS, 2, BOLT, 3, -1, 1);
+        return pick(GRASP, 3, BOLT, 3, ROOTS, 2);
     }
 
     @Override
@@ -86,18 +85,31 @@ public class WoodmageEntity extends FrontierBoss {
         return position().add(getLookAngle().multiply(0.9, 0, 0.9)).add(0, getBbHeight() * 0.95, 0);
     }
 
+    /** Its guard drops while it casts: a pale light rises around it and its bark cracks open. */
+    private void guardDown(int duration) {
+        Fx.pillar(level(), position(), 0.9f, getBbHeight() + 0.6f, GUARD, duration);
+        Fx.ring(level(), position(), 1.4f, GUARD, 10, 0);
+        level().playSound(null, getX(), getY(), getZ(), SoundEvents.SHIELD_BREAK, getSoundSource(), 1.2f, 0.7f);
+    }
+
     @Override
     protected void tickAttack(int attack, int tick, LivingEntity target) {
+        if (isCasting() && tick % 4 == 0) {
+            particles(ParticleTypes.ENCHANT, getX(), getY() + 1.4, getZ(), 6, 0.6, 0.4);
+            particles(ParticleTypes.WAX_OFF, getX(), getY() + 1.0, getZ(), 2, 0.5, 0.02);
+        }
         switch (attack) {
             case ROOTS -> {
                 // Spears of roots erupt under everyone in reach.
+                if (tick == 1) guardDown(attackLength(ROOTS));
                 if (tick == 6) {
                     marks.clear();
                     for (LivingEntity e : enemiesNear(18)) {
                         marks.add(e.position());
                         marks.add(e.position().add(random.nextGaussian() * 2, 0, random.nextGaussian() * 2));
                     }
-                    for (Vec3 m : marks) Fx.telegraph(level(), m, 1.8f, ROOT, 20);
+                    for (Vec3 m : marks) Fx.telegraph(level(), m, 1.8f, tellColor(false), 20);
+                    tellSound(false);
                 }
                 if (tick == 26 && level() instanceof ServerLevel server) {
                     BlockParticleOption wood = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.DARK_OAK_LOG.defaultBlockState());
@@ -109,23 +121,24 @@ public class WoodmageEntity extends FrontierBoss {
                             e.setDeltaMovement(e.getDeltaMovement().add(0, 0.7, 0));
                             e.hurtMarked = true;
                         }
-                        hitAt(m, 1.8, 1.0f, 0);
+                        hitAt(m, 1.8, 1.0f, 0, UNPARRYABLE);
                     }
                     playSound(SoundEvents.ROOTED_DIRT_BREAK, 2f, 0.5f);
                 }
             }
             case CHAINS -> {
-                if (tick == 1) Fx.coneAt(level(), position(), getYRot(), 5.5f, 220, RED, 9);
-                if (tick == 10) {
-                    hitAround(5.5, 1.0f, -0.6, 1.0);
-                    Fx.arc(this, 5f, 15, 220, 0xFF9AA0AA, 8);
+                if (tick == 1) tellCone(yawToward(target), CHAIN_RANGE, CHAIN_ANGLE, true, 10);
+                if (tick == 11) {
+                    coneAttack(CHAIN_RANGE, CHAIN_ANGLE, 1.0f, 1.0, 0);
+                    Fx.arc(this, 5f, 15, CHAIN_ANGLE, 0xFF9AA0AA, 8);
                     playSound(SoundEvents.CHAIN_BREAK, 2f, 0.6f);
                 }
             }
             case BOLT -> {
-                if (tick == 1 && target != null) {
-                    aim = target.getEyePosition();
-                    Fx.coneAt(level(), position(), Fx.yawTo(position(), target.position()), 16, 10, BLUE, 11);
+                if (tick == 1) {
+                    guardDown(attackLength(BOLT));
+                    aim = target != null ? target.getEyePosition() : orb().add(facing().scale(16));
+                    tellCone(Fx.yawTo(position(), aim), 16, 10, false, 11);
                     playSound(SoundEvents.EVOKER_PREPARE_ATTACK, 1.5f, 1.2f);
                 }
                 if (tick == 12) {
@@ -134,15 +147,15 @@ public class WoodmageEntity extends FrontierBoss {
                     Vec3 to = from.add(dir.scale(16));
                     Fx.beam(level(), from, to, 0.45f, BLUE, 8);
                     Fx.flash(level(), from, 1.5f, BLUE, 6, 0);
-                    hitLine(from, to, 1.0, 1.2f, 0.5);
+                    hitLine(from, to, 1.0, 1.2f, 0.5, UNPARRYABLE);
                     playSound(SoundEvents.ILLUSIONER_CAST_SPELL, 1.5f, 1.2f);
                 }
             }
             case GRASP -> {
-                // The chains seize the target and drag it in.
-                if (tick == 1 && target != null) {
-                    aim = target.position();
-                    Fx.coneAt(level(), position(), Fx.yawTo(position(), aim), 16, 12, RED, 12);
+                // The chains seize the target and drag it in (no damage, so nothing to parry: dodge it).
+                if (tick == 1) {
+                    aim = target != null ? target.position() : position().add(facing().scale(8));
+                    tellCone(Fx.yawTo(position(), aim), 16, 12, false, 12);
                 }
                 if (tick == 13 && target != null && target.position().distanceTo(aim) < 2.5 && target.distanceTo(this) < 17) {
                     Vec3 pull = position().subtract(target.position()).normalize().scale(1.6);

@@ -35,11 +35,13 @@ import java.util.List;
  * tail, slithers through the arena and opens its tail hair like a flower to spray poison.
  */
 public class RavenousSnakeEntity extends FrontierBoss {
-    public static final int BITE = 0, TAIL = 1, POISON = 2, CHARGE = 3;
-    private static final int GREEN = 0xFF8AE070, VENOM = 0xFFB040E0, WARN = 0xFFFFD04A;
+    public static final int BITE = 0, TAIL = 1, POISON = 2, CHARGE = 3, REAR = 4;
+    private static final int GREEN = 0xFF8AE070, VENOM = 0xFFB040E0;
+    private static final float BITE_RANGE = 5f, BITE_ANGLE = 80;
 
     private final List<Vec3> marks = new ArrayList<>();
     private Vec3 aim = Vec3.ZERO;
+    private double chargeLength = 8;
 
     /** Where it rose from the river: it never strays far from the bridge (null when summoned elsewhere). */
     @Nullable
@@ -113,22 +115,33 @@ public class RavenousSnakeEntity extends FrontierBoss {
 
     @Override
     protected int chooseAttack(LivingEntity target, double distance) {
-        int roll = random.nextInt(10);
-        if (roll < 2) return POISON;
-        if (distance > 7 && roll < 6) return CHARGE;
-        if (distance < 5) return roll < 6 ? BITE : TAIL;
-        return -1;
+        if (distance < 5) return pick(BITE, 5, TAIL, 3, POISON, 2);
+        if (distance <= 7) return pick(POISON, 2, CHARGE, 2, -1, 4);
+        return pick(CHARGE, 5, POISON, 2, -1, 2);
+    }
+
+    /** Someone perched out of reach: it rears up and lunges at them. */
+    @Override
+    protected int gapCloser(LivingEntity target, double distance) {
+        double dx = target.getX() - getX(), dz = target.getZ() - getZ();
+        return dx * dx + dz * dz < 9 * 9 ? REAR : -1;
     }
 
     @Override
     protected int attackLength(int attack) {
         return switch (attack) {
-            case BITE -> 16;
+            case BITE -> 18;
             case TAIL -> 24;
             case POISON -> 36;
-            case CHARGE -> 22;
+            case CHARGE -> 12;
+            case REAR -> 26;
             default -> 10;
         };
+    }
+
+    @Override
+    protected int animSlot(int attack) {
+        return attack == REAR ? BITE + 1 : attack + 1;
     }
 
     @Override
@@ -136,19 +149,38 @@ public class RavenousSnakeEntity extends FrontierBoss {
         return 25 + random.nextInt(25);
     }
 
+    /** Dizzy after a charge, winded after a lunge: the moments to strike back. */
+    @Override
+    protected int recoveryAfter(int attack) {
+        return switch (attack) {
+            case CHARGE -> 25;
+            case REAR -> 14;
+            default -> 0;
+        };
+    }
+
+    @Override
+    protected void tickRecovery(int attack, int ticksLeft) {
+        if (attack == CHARGE && ticksLeft % 5 == 0) {
+            double a = tickCount * 0.6;
+            particles(ParticleTypes.CRIT, getX() + Math.cos(a) * 0.8, getY() + getBbHeight() + 0.3, getZ() + Math.sin(a) * 0.8, 3, 0.1, 0.05);
+            if (ticksLeft == 20) playSound(SoundEvents.RAVAGER_STUNNED, 1f, 1.4f);
+        }
+    }
+
     @Override
     protected void tickAttack(int attack, int tick, LivingEntity target) {
         switch (attack) {
             case BITE -> {
-                if (tick == 1) Fx.coneAt(level(), position(), getYRot(), 5.5f, 40, WARN, 8);
-                if (tick == 9) {
-                    dashToward(position().add(getLookAngle()), 0.6, 0.05);
-                    hitAround(5.0, 1.0f, 0.5, 0.5);
+                if (tick == 1) tellCone(yawToward(target), BITE_RANGE, BITE_ANGLE, true, 10);
+                if (tick == 11) {
+                    coneAttack(BITE_RANGE, BITE_ANGLE, 1.0f, 0.5, 0);
+                    dashToward(position().add(facing()), 0.6, 0.05);
                     playSound(SoundEvents.EVOKER_FANGS_ATTACK, 1.5f, 0.8f);
                 }
             }
             case TAIL -> {
-                if (tick == 1) Fx.telegraph(level(), position(), 6f, WARN, 12);
+                if (tick == 1) tellCircle(position(), 6f, true, 12);
                 if (tick == 13) {
                     hitAround(6.0, 0.9f, -1, 1.1);
                     Fx.arc(this, 6f, 0, 360, GREEN, 10);
@@ -160,7 +192,8 @@ public class RavenousSnakeEntity extends FrontierBoss {
                 if (tick == 4) {
                     marks.clear();
                     for (LivingEntity e : enemiesNear(20)) marks.add(e.position());
-                    for (Vec3 m : marks) Fx.telegraph(level(), m, 3f, VENOM, 20);
+                    for (Vec3 m : marks) Fx.telegraph(level(), m, 3f, tellColor(false), 20);
+                    tellSound(false);
                     playSound(SoundEvents.SPIDER_AMBIENT, 1.5f, 0.6f);
                 }
                 if (tick == 24 && level() instanceof ServerLevel server) {
@@ -179,16 +212,41 @@ public class RavenousSnakeEntity extends FrontierBoss {
                 }
             }
             case CHARGE -> {
-                if (tick == 1 && target != null) {
-                    aim = target.position();
-                    Fx.coneAt(level(), position(), Fx.yawTo(position(), aim), (float) Math.min(16, distanceTo(target) + 4), 18, WARN, 8);
+                // Slithers along the whole lane it showed; a wall leaves it reeling.
+                if (tick == 1) {
+                    chargeLength = target != null ? Math.min(16, horizontalDistanceTo(target) + 4) : 8;
+                    tellCone(yawToward(target), (float) chargeLength, 18, true, 9);
                 }
-                if (tick == 8) dashToward(aim, 1.3, 0.05);
-                if (tick >= 9 && tick <= 18) hitAround(2.4, 1.1f, -1, 1.0);
+                if (tick == 10) {
+                    startCharge(facing(), 1.2, chargeLength, 0.05, 2.0, 1.1f, 1.0, 0);
+                    playSound(SoundEvents.SNIFFER_DIGGING, 2f, 0.7f);
+                }
+            }
+            case REAR -> {
+                // Rears up and lunges at prey that climbed out of reach.
+                if (tick == 1) {
+                    aim = target != null ? target.position() : position().add(facing().scale(3));
+                    lockAim(Fx.yawTo(position(), aim));
+                    tellCircle(aim, 2.4f, true, 12);
+                    playSound(SoundEvents.SNIFFER_IDLE, 1.5f, 0.6f);
+                }
+                if (tick == 13) {
+                    Vec3 to = aim.subtract(position());
+                    double rise = Math.max(0, to.y);
+                    setDeltaMovement(to.x * 0.12, 0.55 + Math.min(0.6, rise * 0.12), to.z * 0.12);
+                    needsSync = true;
+                    hitAt(aim, 2.4, 1.0f, 0.8, 0);
+                    playSound(SoundEvents.EVOKER_FANGS_ATTACK, 1.5f, 0.7f);
+                }
             }
             default -> {
             }
         }
+    }
+
+    private double horizontalDistanceTo(LivingEntity e) {
+        double dx = e.getX() - getX(), dz = e.getZ() - getZ();
+        return Math.sqrt(dx * dx + dz * dz);
     }
 
     @Override

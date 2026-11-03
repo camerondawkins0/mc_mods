@@ -51,10 +51,12 @@ public class WezaemonEntity extends FrontierBoss {
     private static final DustParticleOptions SKY = new DustParticleOptions(0x8CD9FF, 1.6f);
     private static final int CYAN = 0xFF8FE8FF, WHITE = 0xFFEFFAFF, THUNDER = 0xFFFFF07A, GRAVE = 0xFF6A9CFF;
 
+    private static final float CUT_RANGE = 4f, CUT_ANGLE = 160, TENSEI_RANGE = 18, TENSEI_ANGLE = 30;
+
     private int disarmTicks;
+    private double iaiLength = 8, raishoLength = 6;
     private int tenseiCooldown = 200;
     private boolean kirinSummoned;
-    private Vec3 dashDir = Vec3.ZERO;
     private Vec3 aim = Vec3.ZERO;
 
     public WezaemonEntity(EntityType<? extends Monster> type, Level level) {
@@ -63,10 +65,10 @@ public class WezaemonEntity extends FrontierBoss {
 
     public static AttributeSupplier.Builder createAttributes() {
         return Monster.createMonsterAttributes()
-                .add(Attributes.MAX_HEALTH, 750)
+                .add(Attributes.MAX_HEALTH, 950)
                 .add(Attributes.ATTACK_DAMAGE, 14)
-                .add(Attributes.ARMOR, 16)
-                .add(Attributes.ARMOR_TOUGHNESS, 8)
+                .add(Attributes.ARMOR, 10)
+                .add(Attributes.ARMOR_TOUGHNESS, 4)
                 .add(Attributes.MOVEMENT_SPEED, 0.3)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0.9)
                 .add(Attributes.FOLLOW_RANGE, 48);
@@ -110,16 +112,25 @@ public class WezaemonEntity extends FrontierBoss {
     }
 
     @Override
+    protected String phaseHint(int phase) {
+        return phase >= 2 ? "message.slfrontier.phase.wezaemon." + phase : null;
+    }
+
+    @Override
     protected int chooseAttack(LivingEntity target, double distance) {
         if (isDisarmed()) return -1;
-        int roll = random.nextInt(12);
-        if (phase() == 3 && tenseiCooldown <= 0 && distance < 12) return TENSEI;
-        if (phase() >= 2 && roll < 3 && distance < 7) return SKY_CLEAR;
-        if (phase() >= 2 && roll == 3 && distance < 14) return RAISHO;
-        if (distance > 6 && distance < 16 && roll < 7) return TACHIKAZE;
-        if (distance > 5 || roll == 4) return IAI;
-        if (distance < 4) return TRIPLE;
-        return -1;
+        int phase = phase();
+        if (phase == 3 && tenseiCooldown <= 0 && distance < 12) return TENSEI;
+        boolean p2 = phase >= 2;
+        if (distance < 4) return pick(TRIPLE, 4, IAI, 1, SKY_CLEAR, p2 ? 2 : 0, RAISHO, p2 ? 1 : 0);
+        if (distance <= 6) return pick(IAI, 3, -1, 3, SKY_CLEAR, p2 ? 2 : 0, RAISHO, p2 ? 1 : 0, TACHIKAZE, 1);
+        return pick(TACHIKAZE, distance < 16 ? 4 : 0, IAI, distance < 14 ? 3 : 0, RAISHO, p2 && distance < 14 ? 2 : 0, -1, 2);
+    }
+
+    /** Someone perched out of his reach: the wind blade is aimed straight at them. */
+    @Override
+    protected int gapCloser(LivingEntity target, double distance) {
+        return distance < 20 && !isDisarmed() ? TACHIKAZE : -1;
     }
 
     @Override
@@ -130,12 +141,12 @@ public class WezaemonEntity extends FrontierBoss {
     @Override
     protected int attackLength(int attack) {
         return switch (attack) {
-            case IAI -> 28;
+            case IAI -> 16;
             case TRIPLE -> 32;
             case SKY_CLEAR -> 42;
             case STAGGER -> 100;
             case TACHIKAZE -> 26;
-            case RAISHO -> 32;
+            case RAISHO -> 38;
             case TENSEI -> 52;
             default -> 10;
         };
@@ -145,38 +156,51 @@ public class WezaemonEntity extends FrontierBoss {
         return position().add(0, getBbHeight() * 0.55, 0);
     }
 
+    private double flatDistance(Vec3 to) {
+        double dx = to.x - getX(), dz = to.z - getZ();
+        return Math.sqrt(dx * dx + dz * dz);
+    }
+
+    /** Shows the next cut of the triple combo (each cut its own gold cone; one glint for the whole string). */
+    private void tellCut(LivingEntity target, int duration, boolean sound) {
+        float yaw = yawToward(target);
+        lockAim(yaw);
+        Fx.coneAt(level(), position(), yaw, CUT_RANGE, CUT_ANGLE, tellColor(true), duration);
+        if (sound) tellSound(true);
+    }
+
     @Override
     protected void tickAttack(int attack, int tick, LivingEntity target) {
         switch (attack) {
             case IAI -> {
-                if (tick == 1 && target != null) {
-                    aim = target.position();
-                    Fx.coneAt(level(), position(), Fx.yawTo(position(), aim), (float) Math.min(14, distanceTo(target) + 3), 22, CYAN, 11);
+                // Iaijutsu: a dash the whole length of the lane he showed; if you're still close, the triple cut follows.
+                if (tick == 1) {
+                    aim = target != null ? target.position() : position().add(facing().scale(6));
+                    iaiLength = Math.min(14, flatDistance(aim) + 3);
+                    tellCone(Fx.yawTo(position(), aim), (float) iaiLength, 22, true, 11);
                 }
                 if (tick < 12 && tick % 3 == 0) particles(ParticleTypes.ENCHANTED_HIT, getX(), getY() + 1.2, getZ(), 6, 0.4, 0.1);
                 if (tick == 12) {
-                    Vec3 d = aim.subtract(position());
-                    dashDir = new Vec3(d.x, 0, d.z).normalize();
-                    setDeltaMovement(dashDir.x * 1.8, 0.05, dashDir.z * 1.8);
-                    needsSync = true;
                     playSound(SoundEvents.PLAYER_ATTACK_SWEEP, 2f, 1.5f);
                     Fx.arcAt(level(), chest(), Fx.yawTo(position(), aim), 3.2f, 8, 200, WHITE, 8);
+                    startCharge(facing(), 1.6, iaiLength, 0.05, 2.2, 1.3f, 0.8, 0);
                 }
-                if (tick >= 13 && tick <= 18) {
-                    particles(ParticleTypes.SWEEP_ATTACK, getX(), getY() + 1.2, getZ(), 1, 0.2, 0);
-                    hitAround(2.5, 1.3f, -1, 0.8);
-                }
+                if (tick == 13) particles(ParticleTypes.SWEEP_ATTACK, getX(), getY() + 1.2, getZ(), 2, 0.3, 0);
+                if (tick == 16 && target != null && distanceTo(target) < 5) followWith(TRIPLE, 4);
             }
             case TRIPLE -> {
-                if (tick == 8 || tick == 16 || tick == 24) {
-                    hitAround(4.0, 0.7f, 0.2, 0.4);
-                    float tilt = tick == 8 ? 35 : tick == 16 ? -35 : 80;
-                    Fx.arc(this, 3.6f, tilt, 170, WHITE, 8);
+                // Three cuts nine ticks apart; each lands (the hurt cooldown doesn't swallow the combo).
+                if (tick == 1) tellCut(target, 9, true);
+                if (tick == 10 || tick == 19 || tick == 28) {
+                    coneAttack(CUT_RANGE, CUT_ANGLE, 0.7f, 0.4, COMBO);
+                    float tilt = tick == 10 ? 35 : tick == 19 ? -35 : 80;
+                    Fx.arc(this, 3.6f, tilt, CUT_ANGLE, WHITE, 8);
                     playSound(SoundEvents.PLAYER_ATTACK_SWEEP, 1.5f, 1.2f);
+                    if (tick < 28) tellCut(target, 9, false);
                 }
             }
             case SKY_CLEAR -> {
-                if (tick == 1) Fx.telegraph(level(), position(), 7.2f, CYAN, 31);
+                if (tick == 1) tellCircle(position(), 7.2f, true, 31);
                 if (tick % 6 == 0 && tick < 30) ring(SKY, 7, 40, 0.15);
                 if (tick == 2) {
                     for (ServerPlayer p : playersNear(20)) {
@@ -195,45 +219,49 @@ public class WezaemonEntity extends FrontierBoss {
                 if (tick % 10 == 0) particles(ParticleTypes.CRIT, getX(), getY() + 2.6, getZ(), 6, 0.4, 0.1);
             }
             case TACHIKAZE -> {
-                // A wide draw that releases a flying blade of wind along a line.
-                if (tick == 1 && target != null) {
-                    aim = target.position();
-                    Fx.coneAt(level(), position(), Fx.yawTo(position(), aim), 16, 14, CYAN, 10);
+                // A wide draw that releases a flying blade of wind, aimed in 3D: a pillar is no refuge.
+                if (tick == 1) {
+                    aim = target != null ? target.position().add(0, target.getBbHeight() * 0.5, 0) : chest().add(facing().scale(16));
+                    tellCone(Fx.yawTo(position(), aim), 16, 14, true, 10);
+                    Vec3 dir = aim.subtract(chest()).normalize();
+                    Fx.beam(level(), chest(), chest().add(dir.scale(16)), 0.08f, tellColor(true), 10);
                 }
                 if (tick == 11) {
                     float yaw = Fx.yawTo(position(), aim);
-                    Vec3 dir = Vec3.directionFromRotation(0, yaw);
+                    Vec3 dir = aim.subtract(chest()).normalize();
+                    Vec3 end = chest().add(dir.scale(16));
                     Fx.waveAt(level(), chest(), yaw, 3.2f, 0, 16, CYAN, 14, 0.3f);
-                    hitLine(chest(), chest().add(dir.scale(16)), 1.6, 1.1f, 0.9);
+                    if (Math.abs(dir.y) > 0.15) Fx.beam(level(), chest(), end, 0.5f, CYAN, 6);
+                    hitLine(chest(), end, 1.6, 1.1f, 0.9);
                     playSound(SoundEvents.BREEZE_WIND_CHARGE_BURST.value(), 2f, 0.8f);
                 }
             }
             case RAISHO -> {
-                // Thunder step: three zig-zag dashes, each ending in a thrust.
-                if (target != null && (tick == 1 || tick == 11 || tick == 21)) {
-                    aim = target.position();
-                    Fx.coneAt(level(), position(), Fx.yawTo(position(), aim), 8, 18, THUNDER, 7);
+                // Thunder step: three zig-zag dashes, each shown for 8 ticks, each ending in a thrust.
+                if (tick == 1 || tick == 13 || tick == 25) {
+                    Vec3 at = target != null ? target.position() : position().add(facing().scale(6));
+                    Vec3 to = at.subtract(position());
+                    Vec3 side = new Vec3(-to.z, 0, to.x);
+                    side = side.lengthSqr() > 1e-6 ? side.normalize().scale(tick == 13 ? -0.9 : 0.9) : Vec3.ZERO;
+                    aim = at.add(side);
+                    raishoLength = Math.min(8, flatDistance(aim) + 1.5);
+                    tellCone(Fx.yawTo(position(), aim), (float) raishoLength, 18, true, 8);
                 }
-                if (target != null && (tick == 7 || tick == 17 || tick == 27)) {
-                    Vec3 to = aim.subtract(position());
-                    Vec3 side = new Vec3(-to.z, 0, to.x).normalize().scale(tick == 17 ? -2.2 : 2.2);
-                    Vec3 goal = aim.add(side.scale(0.4));
-                    dashToward(goal, 1.6, 0.1);
+                if (tick == 9 || tick == 21 || tick == 33) {
                     Fx.flash(level(), chest(), 1.6f, THUNDER, 6, 0.25f);
                     Fx.pillar(level(), position(), 0.5f, 4f, THUNDER, 8);
                     playSound(SoundEvents.TRIDENT_THUNDER.value(), 0.8f, 1.6f);
+                    startCharge(facing(), 1.6, raishoLength, 0.1, 2.2, 0.8f, 0.5, 0);
                 }
-                if ((tick >= 8 && tick <= 10) || (tick >= 18 && tick <= 20) || (tick >= 28 && tick <= 30)) {
-                    if (hitAround(2.6, 0.8f, 0.0, 0.5) > 0) particles(ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 1.5, getZ(), 12, 0.6, 0.2);
-                }
+                if (tick == 10 || tick == 22 || tick == 34) particles(ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 1.5, getZ(), 12, 0.6, 0.2);
             }
             case TENSEI -> {
-                // Raise the sword to the heavens, then split the ground in front of him.
+                // Raise the sword to the heavens, then split the ground in front of him. It can't be parried.
                 if (tick == 1) {
                     tenseiCooldown = 360;
                     aim = target != null ? target.position() : position().add(getLookAngle());
-                    Fx.coneAt(level(), position(), Fx.yawTo(position(), aim), 18, 40, GRAVE, 39);
-                    Fx.telegraph(level(), position(), 4f, GRAVE, 39);
+                    tellCone(Fx.yawTo(position(), aim), TENSEI_RANGE, TENSEI_ANGLE, false, 39);
+                    Fx.telegraph(level(), position(), 4.5f, tellColor(false), 39);
                     for (ServerPlayer p : playersNear(24)) {
                         p.sendOverlayMessage(Component.translatable("message.slfrontier.wezaemon.tensei").withStyle(ChatFormatting.BLUE, ChatFormatting.BOLD));
                     }
@@ -242,10 +270,9 @@ public class WezaemonEntity extends FrontierBoss {
                 if (tick < 40 && tick % 4 == 0) particles(ParticleTypes.SOUL_FIRE_FLAME, getX(), getY() + 3, getZ(), 6, 0.6, 0.05);
                 if (tick == 40) {
                     float yaw = Fx.yawTo(position(), aim);
-                    Vec3 dir = Vec3.directionFromRotation(0, yaw);
-                    hitAround(4.5, 1.8f, -1, 1.4);
-                    hitLine(position().add(0, 1, 0), position().add(0, 1, 0).add(dir.scale(18)), 2.2, 2.4f, 1.6);
-                    Fx.waveAt(level(), chest(), yaw, 4.5f, 90, 18, GRAVE, 16, 1.2f);
+                    hitAround(4.5, 1.8f, -1, 1.4, UNPARRYABLE);
+                    coneAttack(TENSEI_RANGE, TENSEI_ANGLE, 1.9f, 1.6, UNPARRYABLE);
+                    Fx.waveAt(level(), chest(), yaw, 4.5f, 90, TENSEI_RANGE, GRAVE, 16, 1.2f);
                     Fx.arc(this, 5f, 90, 180, WHITE, 10);
                     Fx.flash(level(), chest(), 5f, GRAVE, 10, 0);
                     Fx.ring(level(), position(), 6f, GRAVE, 16, 0);
@@ -268,12 +295,22 @@ public class WezaemonEntity extends FrontierBoss {
         kirin.setMaster(this);
         kirin.setTarget(getTarget());
         server.addFreshEntity(kirin);
+        trackSummon(kirin, false);
         Fx.pillar(server, kirin.position(), 1.5f, 10f, CYAN, 20);
         Fx.ring(server, kirin.position(), 5f, CYAN, 16, 0.5f);
         playSound(SoundEvents.IRON_GOLEM_REPAIR, 2f, 0.6f);
+        // The phase cue holds the action bar; the arrival goes to chat.
         for (ServerPlayer p : playersNear(32)) {
-            p.sendOverlayMessage(Component.translatable("message.slfrontier.wezaemon.kirin").withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD));
+            p.sendSystemMessage(Component.translatable("message.slfrontier.wezaemon.kirin").withStyle(ChatFormatting.AQUA));
         }
+    }
+
+    @Override
+    protected void onReset() {
+        kirinSummoned = false;
+        tenseiCooldown = 200;
+        disarmTicks = 0;
+        entityData.set(DISARMED, false);
     }
 
     @Override
@@ -295,9 +332,10 @@ public class WezaemonEntity extends FrontierBoss {
             if (hasEffect(ModEffects.DRENCHED)) {
                 server.sendParticles(ParticleTypes.FALLING_WATER, getX(), getY() + 2, getZ(), 10, 0.5, 0.5, 0.5, 0);
             } else {
+                // The grave aura: magic, so a parry can't turn it aside. Only Holy Water quiets it.
                 ring(ParticleTypes.SOUL_FIRE_FLAME, 5, 24, 0.3);
                 for (ServerPlayer p : playersNear(5)) {
-                    if (!p.isCreative()) p.hurtOrSimulate(damageSources().indirectMagic(this, this), 3f);
+                    if (!p.isCreative()) p.hurtOrSimulate(unparryable(damageSources().indirectMagic(this, this)), 3f);
                 }
             }
         }
