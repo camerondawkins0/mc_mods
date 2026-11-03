@@ -93,11 +93,11 @@ RECIPES = [
     recipe("ducusram", "forge", "weapon", "ducusram", [("marsh_dagger", 1), ("gray_ore_chunk", 3)], level=8, time=70, npc="bilac"),
     recipe("battlehorn_helm", "forge", "armor", "battlehorn_helm", [("quad_beetle_shell", 2)], level=12, time=70, npc="bilac"),
     recipe("empire_bee_twinblades", "forge", "weapon", "empire_bee_twinblades",
-           [("empire_bee_queen_crown", 1), ("empire_bee_stinger", 4)], count=2, level=20, time=90, npc="bilac"),
+           [("empire_bee_queen_crown", 1), ("empire_bee_stinger", 4)], count=2, level=10, time=90, npc="bilac"),
     recipe("reallocation_tonic", "forge", "consumable", "reallocation_tonic", [("prismatic_shard", 4)], time=50, npc="bilac"),
     recipe("tombguard_katana", "forge", "weapon", "tombguard_katana",
            [("tombguard_fragment", 6), ("gray_steel_ingot", 2), ("leather_grip", 1)],
-           level=40, time=120, stage="LYCAGON_SHADOW", npc="bilac"),
+           level=16, time=120, stage="LYCAGON_SHADOW", npc="bilac"),
 
     # ---- Alchemy ------------------------------------------------------------------------
     recipe("healing_potion", "alchemy", "consumable", "healing_potion", [("minecraft:glass_bottle", 1), ("frontier_herb", 2)]),
@@ -116,7 +116,7 @@ RECIPES = [
     recipe("greater_healing_potion", "alchemy", "consumable", "greater_healing_potion",
            [("healing_potion", 1), ("prismatic_shard", 1), ("frontier_herb", 2)], level=15, time=60),
     recipe("rebirth_tearjewel", "alchemy", "gear", "rebirth_tearjewel",
-           [("prismatic_shard", 4), ("tombguard_fragment", 2), ("nightslayer_fur", 1)], level=35, time=120, stage="LYCAGON_SHADOW"),
+           [("prismatic_shard", 4), ("tombguard_fragment", 2), ("nightslayer_fur", 1)], level=15, time=120, stage="LYCAGON_SHADOW"),
 ]
 
 ITEM_TAGS = {

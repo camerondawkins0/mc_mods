@@ -11,7 +11,6 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
@@ -36,15 +35,25 @@ public class GoblinEntity extends FrontierMonster {
                 .add(Attributes.FOLLOW_RANGE, 24);
     }
 
+    /** A quick swing, and (two times in five) an overhead chop: a longer tell for a heavier blow. */
+    static final WindupMeleeGoal.Attack SWING = WindupMeleeGoal.Attack.swing(10, 6, 2.2f);
+    static final WindupMeleeGoal.Attack CHOP = new WindupMeleeGoal.Attack(14, 6, 1.6f, 2.4f, 70, 0, true);
+
     @Override
     protected void registerGoals() {
         goalSelector.addGoal(0, new FloatGoal(this));
-        goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.1, false));
+        goalSelector.addGoal(2, new WindupMeleeGoal(this, 1.1, SWING, CHOP, 0.4f));
         goalSelector.addGoal(5, new WaterAvoidingRandomStrollGoal(this, 0.8));
         goalSelector.addGoal(6, new LookAtPlayerGoal(this, Player.class, 8f));
         goalSelector.addGoal(7, new RandomLookAroundGoal(this));
-        targetSelector.addGoal(1, new HurtByTargetGoal(this));
+        targetSelector.addGoal(1, new HurtByTargetGoal(this, GoblinEntity.class).setAlertOthers());
         targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
+    }
+
+    /** Goblins raise the alarm: one that spots you brings the rest of the camp. */
+    @Override
+    protected double alertRadius() {
+        return 14;
     }
 
     @Override

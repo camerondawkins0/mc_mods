@@ -34,6 +34,7 @@ import java.util.function.Supplier;
  */
 public final class ColosseumTrial {
     private static final double ARENA_RADIUS = 30;
+    private static final String FOE_TAG = "slfrontier_colosseum_foe";
     private static final int BREAK_SECONDS = 5;
 
     private static final List<List<Supplier<? extends EntityType<? extends Mob>>>> ROUNDS = List.of(
@@ -47,6 +48,8 @@ public final class ColosseumTrial {
         int round = -1;
         int countdown = 3;
         final List<UUID> foes = new ArrayList<>();
+        final java.util.Set<UUID> slain = new java.util.HashSet<>();
+        int missingSeconds;
 
         Trial(UUID player, BlockPos centre) {
             this.player = player;
@@ -91,10 +94,18 @@ public final class ColosseumTrial {
             return false;
         }
         if (trial.round >= 0) {
+            // Only a foe seen dying counts: one that is merely not loaded (another world was opened in
+            // the same game, a restart) does not clear the round.
             trial.foes.removeIf(id -> {
                 Entity e = level.getEntity(id);
-                return e == null || !e.isAlive();
+                return trial.slain.contains(id) || e != null && !e.isAlive();
             });
+            // A foe that vanished without dying (discarded) while the arena stays loaded: after a few
+            // seconds it no longer holds the round up.
+            boolean vanished = !trial.foes.isEmpty() && level.isLoaded(trial.centre)
+                    && trial.foes.stream().allMatch(id -> level.getEntity(id) == null);
+            trial.missingSeconds = vanished ? trial.missingSeconds + 1 : 0;
+            if (trial.missingSeconds >= 5) trial.foes.clear();
             if (!trial.foes.isEmpty()) return true;
             // Round cleared.
             if (trial.round == ROUNDS.size() - 1) {
@@ -127,16 +138,45 @@ public final class ColosseumTrial {
                     0, 0);
             mob.finalizeSpawn(level, level.getCurrentDifficultyAt(trial.centre), EntitySpawnReason.EVENT, null);
             mob.setTarget(player);
+            // Persistent for the trial, and tagged so a foe left over from a trial that no longer runs
+            // (the server stopped mid-round) is cleared away when its chunk loads again.
             mob.setPersistenceRequired();
+            mob.addTag(FOE_TAG);
+            trial.foes.add(mob.getUUID());
             level.addFreshEntity(mob);
             level.sendParticles(ParticleTypes.CLOUD, mob.getX(), mob.getY() + 0.5, mob.getZ(), 12, 0.3, 0.3, 0.3, 0.02);
-            trial.foes.add(mob.getUUID());
         }
         level.playSound(null, trial.centre, SoundEvents.RAID_HORN.value(), SoundSource.HOSTILE, 1.5f, last ? 0.7f : 1.1f);
         ModNetwork.announce(player, last ? "announce.slfrontier.colosseum_final" : "announce.slfrontier.colosseum_round",
                 last ? "entity.slfrontier.woodmage" : "announce.slfrontier.colosseum_round.sub", 0xFFD34F);
         player.sendOverlayMessage(Component.translatable("message.slfrontier.colosseum.round", trial.round + 1, ROUNDS.size())
                 .withStyle(ChatFormatting.YELLOW));
+    }
+
+    /** A trial foe died: it counts toward clearing its round. */
+    public static void onDeath(Entity entity) {
+        if (!entity.entityTags().contains(FOE_TAG)) return;
+        for (Trial trial : ACTIVE.values()) {
+            if (trial.foes.contains(entity.getUUID())) trial.slain.add(entity.getUUID());
+        }
+    }
+
+    /** Whether an entity is a trial foe whose trial is no longer running (it should go). */
+    public static boolean isOrphanFoe(Entity entity) {
+        if (!entity.entityTags().contains(FOE_TAG)) return false;
+        for (Trial trial : ACTIVE.values()) {
+            if (trial.foes.contains(entity.getUUID())) return false;
+        }
+        return true;
+    }
+
+    /** The server is stopping: every trial ends and its foes leave the arena. */
+    public static void shutdown(MinecraftServer server) {
+        ServerLevel level = server.getLevel(Frontier.LEVEL);
+        if (level != null) {
+            for (Trial trial : ACTIVE.values()) forfeit(level, trial, null);
+        }
+        ACTIVE.clear();
     }
 
     private static void forfeit(ServerLevel level, Trial trial, ServerPlayer player) {

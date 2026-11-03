@@ -107,8 +107,9 @@ public class EmulEntity extends FrontierNpc {
         if (target == null || !target.isAlive() || player.tickCount - player.getLastHurtMobTimestamp() > 200) {
             target = player.getLastHurtByMob();
         }
+        // She only casts at what she can actually see (no Magic Edge through walls or the ground).
         if (target != null && target.isAlive() && target != player && spellCooldown == 0 && distanceToSqr(target) < 16 * 16
-                && target instanceof Mob) {
+                && target instanceof Mob && hasLineOfSight(target)) {
             int level = ModAttachments.get(player).level();
             castMagicEdge(target, 4f + level / 5f);
             spellCooldown = 40;
@@ -126,13 +127,10 @@ public class EmulEntity extends FrontierNpc {
             server.sendParticles(MAGIC, p.x, p.y, p.z, 2, 0.05, 0.05, 0.05, 0);
         }
         server.sendParticles(ParticleTypes.ENCHANTED_HIT, to.x, to.y, to.z, 12, 0.3, 0.3, 0.3, 0.2);
-        target.invulnerableTime = 0;
         ServerPlayer player = ownerPlayer();
-        if (player != null) {
-            target.hurtOrSimulate(damageSources().indirectMagic(this, player), damage);
-        } else {
-            target.hurtOrSimulate(damageSources().magic(), damage);
-        }
+        // An extra hit: it leaves the target's hit immunity alone, so it never eats her partner's next swing.
+        com.slfrontier.skill.ExtraHit.deal(target, player != null ? damageSources().indirectMagic(this, player) : damageSources().magic(),
+                damage, com.slfrontier.skill.ExtraHit.Kind.ALLY);
         server.playSound(null, getX(), getY(), getZ(), SoundEvents.EVOKER_CAST_SPELL, SoundSource.NEUTRAL, 0.8f, 1.6f);
     }
 

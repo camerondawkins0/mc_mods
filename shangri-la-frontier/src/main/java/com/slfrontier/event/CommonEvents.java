@@ -38,6 +38,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -76,6 +77,11 @@ public final class CommonEvents {
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             Progression.applyStats(player);
+            // Loading clamped the health to the base maximum before VIT's bonus was back: restore it.
+            PlayerData data = ModAttachments.get(player);
+            if (Frontier.isIn(player) && player.isAlive() && data.savedHealth() > player.getHealth()) {
+                player.setHealth(Math.min(data.savedHealth(), player.getMaxHealth()));
+            }
             ModNetwork.sync(player);
         }
     }
@@ -83,14 +89,22 @@ public final class CommonEvents {
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            rememberHealth(player);
+            PendingSlam.clear(player);
             Story.forget(player);
             MapSync.forget(player);
         }
     }
 
+    /** Notes the avatar's health in the Frontier, for {@link #onLogin}. */
+    private static void rememberHealth(ServerPlayer player) {
+        if (Frontier.isIn(player) && player.isAlive()) ModAttachments.get(player).setSavedHealth(player.getHealth());
+    }
+
     @SubscribeEvent
     public static void onChangeDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            PendingSlam.clear(player);
             Progression.applyStats(player);
             ModNetwork.sync(player);
             if (Frontier.isIn(player) && player.level().getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL) {
@@ -137,15 +151,43 @@ public final class CommonEvents {
         return list;
     }
 
+    /** Data version of Minecraft 1.21.1, which version 0.2 of the mod ran on. */
+    private static final int LEGACY_DATA_VERSION = 3955;
+
     private static void loadItems(Player player, net.minecraft.nbt.ListTag list) {
         var ops = player.registryAccess().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE);
         var inventory = player.getInventory();
         inventory.clearContent();
         for (int i = 0; i < list.size(); i++) {
             net.minecraft.nbt.CompoundTag entry = list.getCompoundOrEmpty(i);
-            int slot = entry.getIntOr("Slot", -1);
-            if (slot >= 0 && slot < inventory.getContainerSize()) {
-                entry.read("Item", ItemStack.CODEC, ops).ifPresent(stack -> inventory.setItem(slot, stack));
+            if (entry.contains("Item")) {
+                int slot = entry.getIntOr("Slot", -1);
+                if (slot >= 0 && slot < inventory.getContainerSize()) {
+                    entry.read("Item", ItemStack.CODEC, ops).ifPresent(stack -> inventory.setItem(slot, stack));
+                }
+                continue;
+            }
+            // Kept at a death under version 0.2 (Minecraft 1.21.1): Inventory.save's layout, a byte slot
+            // (armor 100-103, off hand 150) with the stack's fields alongside, in 1.21.1's item format.
+            int raw = entry.getIntOr("Slot", -1) & 0xFF;
+            int slot = raw < 36 ? raw : raw >= 100 && raw <= 103 ? 36 + raw - 100 : raw == 150 ? 40 : -1;
+            net.minecraft.nbt.CompoundTag stackTag = entry.copy();
+            stackTag.remove("Slot");
+            ItemStack stack = ItemStack.EMPTY;
+            try {
+                var fixed = net.minecraft.util.datafix.DataFixers.getDataFixer().update(net.minecraft.util.datafix.fixes.References.ITEM_STACK,
+                        new com.mojang.serialization.Dynamic<>(net.minecraft.nbt.NbtOps.INSTANCE, (net.minecraft.nbt.Tag) stackTag),
+                        LEGACY_DATA_VERSION, net.minecraft.SharedConstants.getCurrentVersion().dataVersion().version());
+                stack = ItemStack.CODEC.parse(ops, fixed.getValue()).result().orElse(ItemStack.EMPTY);
+            } catch (RuntimeException e) {
+                SLFrontier.LOGGER.warn("Could not upgrade an item kept at death: {}", stackTag, e);
+            }
+            if (stack.isEmpty()) {
+                SLFrontier.LOGGER.warn("Dropped an unreadable item kept at death (slot {}): {}", raw, stackTag);
+            } else if (slot >= 0 && slot < inventory.getContainerSize() && inventory.getItem(slot).isEmpty()) {
+                inventory.setItem(slot, stack);
+            } else if (!inventory.add(stack)) {
+                player.drop(stack, false);
             }
         }
     }
@@ -188,6 +230,8 @@ public final class CommonEvents {
         }
         data.setStamina(data.maxStamina());
         Progression.applyStats(player);
+        // A new avatar body starts whole: full health including VIT's bonus.
+        if (Frontier.isIn(player)) player.setHealth(player.getMaxHealth());
         ModNetwork.sync(player);
     }
 
@@ -217,9 +261,12 @@ public final class CommonEvents {
                 if (stamina <= 0) {
                     player.setSprinting(false);
                 }
+            } else if (data.staminaRegenPause > 0) {
+                // A beat after every skill before stamina comes back, so spamming dashes costs something.
+                data.staminaRegenPause--;
             } else {
                 boolean still = player.getDeltaMovement().horizontalDistanceSqr() < 0.001;
-                stamina += still ? 1.0f : 0.5f;
+                stamina += (still ? 1.0f : 0.5f) * data.staminaRegen();
             }
             data.setStamina(stamina);
 
@@ -231,6 +278,8 @@ public final class CommonEvents {
             Progression.applyStats(player);
         }
         if (player.tickCount % 20 == 0) {
+            rememberHealth(player);
+            if (!data.curseOverflow().isEmpty()) returnCurseOverflow(player, data);
             Story.tickSideQuests(player);
             if (inFrontier && player.tickCount % 200 == 0) FrontierTravel.registerTownWaypoints(player.level());
             if (inFrontier && player.tickCount % 40 == 0) com.slfrontier.world.Landmarks.tick(player.level());
@@ -244,19 +293,42 @@ public final class CommonEvents {
         }
     }
 
-    /** Lycagon's Mark: the body and legs cannot hold armor while in the Frontier. */
+    /**
+     * Lycagon's Mark: the body and legs cannot hold armor while in the Frontier. Armor that doesn't
+     * fit in the bag is kept safe (not dropped where it could be lost) and handed back when there's room.
+     */
     private static void enforceCurse(ServerPlayer player) {
         boolean removed = false;
         for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.CHEST, EquipmentSlot.LEGS}) {
             ItemStack stack = player.getItemBySlot(slot);
             if (stack.isEmpty()) continue;
             player.setItemSlot(slot, ItemStack.EMPTY);
-            if (!player.getInventory().add(stack)) player.drop(stack, false);
+            if (!player.getInventory().add(stack)) {
+                ModAttachments.get(player).curseOverflow().add(stack);
+                player.sendSystemMessage(Component.translatable("message.slfrontier.curse_armor_kept", stack.getHoverName())
+                        .withStyle(ChatFormatting.GRAY));
+            }
             removed = true;
         }
         if (removed) {
             player.sendOverlayMessage(Component.translatable("message.slfrontier.curse_armor").withStyle(ChatFormatting.DARK_RED));
             player.level().playSound(null, player.blockPosition(), WolfVoice.GROWL, SoundSource.PLAYERS, 0.8f, 0.5f);
+        }
+    }
+
+    /** Hands back armor the Mark took off as soon as the bag has room for it. */
+    private static void returnCurseOverflow(ServerPlayer player, PlayerData data) {
+        var it = data.curseOverflow().iterator();
+        while (it.hasNext()) {
+            ItemStack stack = it.next();
+            if (stack.isEmpty()) {
+                it.remove();
+                continue;
+            }
+            Component name = stack.getHoverName();
+            if (!player.getInventory().add(stack)) break;
+            it.remove();
+            player.sendSystemMessage(Component.translatable("message.slfrontier.curse_armor_returned", name).withStyle(ChatFormatting.GRAY));
         }
     }
 
@@ -288,6 +360,7 @@ public final class CommonEvents {
             } else {
                 data.offhandTargetId = target.getId();
                 data.offhandDelay = 4;
+                data.offhandFinisher = false;
             }
         }
     }
@@ -295,11 +368,18 @@ public final class CommonEvents {
     /** Ticks between twin-blade hits that still count as one combo (forgiving enough for some lag). */
     private static final int COMBO_WINDOW = 40;
 
-    /** Third hit in a row: both blades cut an X together (instead of the off-hand follow-up) for +20% damage. */
+    /**
+     * Third hit in a row: both blades cut an X together for +20% damage: this swing's main-hand hit
+     * and the off-hand blade right behind it (instead of the usual follow-up a beat later).
+     */
     private static void crossSlash(ServerPlayer player, PlayerData data, LivingEntity target) {
         data.comboStage = 0;
-        data.finisherPending = true;
-        data.offhandTargetId = -1;
+        // Only this swing on this target is the finisher; a hit that never lands lets it lapse.
+        data.finisherTargetId = target.getId();
+        data.finisherTick = player.level().getGameTime();
+        data.offhandTargetId = target.getId();
+        data.offhandDelay = 2;
+        data.offhandFinisher = true;
         ServerLevel level = player.level();
         Fx.arc(player, 2.2f, 52, 150, 0xFFEAF4FF, 8);
         Fx.arc(player, 2.2f, -52, 150, 0xFF9FD0FF, 8);
@@ -310,23 +390,36 @@ public final class CommonEvents {
         ModNetwork.animate(player, PlayerAnims.CROSS_SLASH, 9);
     }
 
+    /** The off-hand blade's share of what it would deal in the main hand (strength included). */
+    public static final float OFFHAND_SHARE = 0.3f;
+
+    /**
+     * The off-hand blade's follow-up. It is an extra hit on top of the main-hand swing (see
+     * {@link com.slfrontier.skill.ExtraHit}): it no longer resets the target's hit immunity, so the
+     * next main-hand swing lands in full and every swing deals main hand + off hand.
+     */
     private static void tickOffhand(ServerPlayer player, PlayerData data) {
         if (data.offhandTargetId < 0 || --data.offhandDelay > 0) return;
         Entity entity = player.level().getEntity(data.offhandTargetId);
+        boolean finisher = data.offhandFinisher;
         data.offhandTargetId = -1;
+        data.offhandFinisher = false;
         ItemStack off = player.getOffhandItem();
-        if (!(entity instanceof LivingEntity target) || !target.isAlive() || !(off.getItem() instanceof TwinBladeItem)
+        if (!player.isAlive() || !(entity instanceof LivingEntity target) || !target.isAlive() || !(off.getItem() instanceof TwinBladeItem)
                 || target.distanceToSqr(player) > 5 * 5) return;
-        float damage = (float) (weaponDamage(off) * 0.6);
+        double strength = ModAttachments.get(player).stat(com.slfrontier.data.Stat.STR) * Progression.STR_DAMAGE;
+        float damage = (float) ((weaponDamage(off) + strength) * OFFHAND_SHARE);
         player.swing(InteractionHand.OFF_HAND, true);
         Sfx.at(player, ModSounds.COMBAT_SLASH, SoundSource.PLAYERS, 0.7f, 1.05f + player.getRandom().nextFloat() * 0.1f);
-        target.invulnerableTime = 0;
-        target.hurtOrSimulate(player.damageSources().playerAttack(player), damage);
+        com.slfrontier.skill.ExtraHit.deal(target, player.damageSources().playerAttack(player), damage,
+                com.slfrontier.skill.ExtraHit.Kind.OFFHAND, finisher);
         off.hurtAndBreak(1, player, EquipmentSlot.OFFHAND);
         player.level().sendParticles(ParticleTypes.SWEEP_ATTACK, target.getX(), target.getY(0.6), target.getZ(), 1, 0, 0, 0, 0);
-        Fx.arc(player, 1.6f, -40, 120, 0xFFD8E8FF, 6);
-        player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_WEAK, SoundSource.PLAYERS, 0.8f, 1.4f);
-        ModNetwork.animate(player, PlayerAnims.OFFHAND, 6);
+        if (!finisher) {
+            Fx.arc(player, 1.6f, -40, 120, 0xFFD8E8FF, 6);
+            player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_WEAK, SoundSource.PLAYERS, 0.8f, 1.4f);
+            ModNetwork.animate(player, PlayerAnims.OFFHAND, 6);
+        }
     }
 
     private static double weaponDamage(ItemStack stack) {
@@ -373,27 +466,39 @@ public final class CommonEvents {
             }
         }
 
-        // Offensive bonuses for the player's own attacks.
-        if (source.getEntity() instanceof ServerPlayer player && source.getDirectEntity() == player && Frontier.isIn(player)) {
+        // Offensive bonuses for the player's own blade hits (main hand and off hand). Skills roll their
+        // own crits and weak points in SkillExecutor.strike, so they are left alone here.
+        com.slfrontier.skill.ExtraHit.Kind extra = com.slfrontier.skill.ExtraHit.current();
+        if (source.getEntity() instanceof ServerPlayer player && source.getDirectEntity() == player && Frontier.isIn(player)
+                && extra != com.slfrontier.skill.ExtraHit.Kind.SKILL) {
+            boolean offhand = extra == com.slfrontier.skill.ExtraHit.Kind.OFFHAND;
             float amount = event.getAmount();
-            ItemStack weapon = player.getMainHandItem();
-            if (weapon.getItem() instanceof MoonbladeItem moon) amount *= moon.timeBonus(player.level());
+            ItemStack weapon = offhand ? player.getOffhandItem() : player.getMainHandItem();
+            amount *= Progression.weaponBonus(weapon, player.level());
             boolean weak = weapon.getItem() instanceof FrontierWeapon && SkillExecutor.isBehind(player, victim);
             if (weak) amount *= 1.25f;
-            boolean crit = player.getRandom().nextFloat() < Progression.critChance(player);
+            boolean crit = player.getRandom().nextFloat() < Progression.critChance(player, weapon);
             if (crit) {
-                amount *= 1.5f;
+                amount *= Progression.critMultiplier(player);
                 player.level().sendParticles(ParticleTypes.CRIT, victim.getX(), victim.getY(0.6), victim.getZ(), 10, 0.3, 0.3, 0.3, 0.3);
             }
             HitFlags.mark(victim, crit, weak);
             PlayerData attackerData = ModAttachments.get(player);
-            if (attackerData.finisherPending) {
-                attackerData.finisherPending = false;
+            boolean finisher = offhand ? com.slfrontier.skill.ExtraHit.isFinisher()
+                    : attackerData.finisherTargetId == victim.getId() && attackerData.finisherTick == player.level().getGameTime();
+            if (!offhand) attackerData.finisherTargetId = -1;
+            if (finisher) {
                 amount *= 1.2f;
                 HitFlags.add(victim, HitFlags.FINISHER);
             }
             if (weapon.is(ModItems.EMPIRE_BEE_TWINBLADES.get())) {
                 victim.addEffect(new MobEffectInstance(MobEffects.POISON, 60, 0), player);
+            }
+            if (!offhand) {
+                // Hit immunity follows the swing: a full-strength swing always lands, however fast the
+                // blade (vanilla's fixed ten ticks wasted every other swing above two swings a second).
+                int earliestFullSwing = (int) Math.ceil(player.getCurrentItemAttackStrengthDelay() - 0.5f);
+                event.getContainer().setPostAttackInvulnerabilityTicks(Mth.clamp(10 + earliestFullSwing - 1, 10, 20));
             }
             event.setAmount(amount);
         }
@@ -431,7 +536,15 @@ public final class CommonEvents {
         int flags = HitFlags.take(victim);
         if (victim.level().isClientSide() || !(event.getSource().getEntity() instanceof ServerPlayer player) || victim == player) return;
         if (!Frontier.isIn(player) || event.getHealthDamage() <= 0) return;
-        if (victim.isDeadOrDying()) flags |= HitFlags.KILL;
+        com.slfrontier.progression.KillCredit.record(victim, player);
+        if (victim.isDeadOrDying()) {
+            flags |= HitFlags.KILL;
+        } else if (victim instanceof com.slfrontier.entity.FrontierMonster
+                && ((flags & HitFlags.FINISHER) != 0 || (flags & (HitFlags.CRIT | HitFlags.WEAK)) == (HitFlags.CRIT | HitFlags.WEAK))) {
+            // A cross-slash finisher or a critical blow to a weak point staggers a regular monster
+            // (and interrupts whatever it was winding up).
+            Stun.apply(victim, 8);
+        }
         PacketDistributor.sendToPlayer(player, new ModNetwork.Hit(victim.getId(), event.getHealthDamage(), flags));
     }
 
@@ -455,6 +568,7 @@ public final class CommonEvents {
                 player.sendOverlayMessage(Component.translatable("message.slfrontier.tearjewel").withStyle(ChatFormatting.LIGHT_PURPLE));
                 return;
             }
+            PendingSlam.clear(player);
             if (Frontier.isIn(player)) {
                 PlayerData data = ModAttachments.get(player);
                 data.setFlag("died_in_frontier", true);
@@ -464,9 +578,31 @@ public final class CommonEvents {
             return;
         }
 
-        if (event.getSource().getEntity() instanceof ServerPlayer killer && Frontier.isIn(killer)) {
-            Progression.grantExp(killer, Progression.expFor(dead));
-            Story.onKill(killer, dead);
+        com.slfrontier.quest.ColosseumTrial.onDeath(dead);
+        // The hive's queen is part of its template and never comes back: remember it for the whole world.
+        if (dead.getType() == com.slfrontier.registry.ModEntities.EMPIRE_BEE_QUEEN.get() && dead.level() instanceof ServerLevel server) {
+            com.slfrontier.quest.WorldStory.set(server, com.slfrontier.quest.WorldStory.BEE_QUEEN_SLAIN);
+        }
+
+        // Everyone who fought it shares the kill (the last blow may be an ally's, Emul's or a friend's).
+        int exp = Progression.expFor(dead);
+        for (ServerPlayer player : com.slfrontier.progression.KillCredit.creditFor(dead, event.getSource().getEntity())) {
+            Progression.grantExp(player, exp);
+            Story.onKill(player, dead);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onServerStopping(net.neoforged.neoforge.event.server.ServerStoppingEvent event) {
+        Story.resetTimers();
+        com.slfrontier.quest.ColosseumTrial.shutdown(event.getServer());
+    }
+
+    /** A Colosseum foe whose trial no longer runs (the game stopped mid-round) leaves when it loads again. */
+    @SubscribeEvent
+    public static void onEntityJoin(net.neoforged.neoforge.event.entity.EntityJoinLevelEvent event) {
+        if (!event.getLevel().isClientSide() && com.slfrontier.quest.ColosseumTrial.isOrphanFoe(event.getEntity())) {
+            event.setCanceled(true);
         }
     }
 }

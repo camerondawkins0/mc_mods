@@ -50,6 +50,8 @@ public final class FastTravel {
     }
 
     public static void request(ServerPlayer player, String id) {
+        // A request from the death screen (or a dead avatar's open map) is simply ignored.
+        if (!player.isAlive()) return;
         Component refusal = refusal(player, id);
         if (refusal != null) {
             player.sendOverlayMessage(refusal.copy().withStyle(ChatFormatting.RED));

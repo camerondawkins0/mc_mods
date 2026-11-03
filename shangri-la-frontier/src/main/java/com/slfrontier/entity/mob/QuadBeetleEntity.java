@@ -1,6 +1,7 @@
 package com.slfrontier.entity.mob;
 
 import com.slfrontier.entity.FrontierMonster;
+import com.slfrontier.entity.Stun;
 import com.slfrontier.fx.Fx;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
@@ -15,7 +16,6 @@ import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Monster;
@@ -51,11 +51,19 @@ public class QuadBeetleEntity extends FrontierMonster {
     protected void registerGoals() {
         goalSelector.addGoal(0, new FloatGoal(this));
         goalSelector.addGoal(1, new ChargeGoal());
-        goalSelector.addGoal(3, new MeleeAttackGoal(this, 1.0, false));
+        // A horn toss with a wide sweep in front of it.
+        goalSelector.addGoal(3, new WindupMeleeGoal(this, 1.0, new WindupMeleeGoal.Attack(12, 6, 1f, 2.9f, 120, 0, false), null, 0));
         goalSelector.addGoal(5, new WaterAvoidingRandomStrollGoal(this, 0.6));
         goalSelector.addGoal(6, new LookAtPlayerGoal(this, Player.class, 10f));
         targetSelector.addGoal(1, new HurtByTargetGoal(this));
         targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
+    }
+
+    /** A stunned beetle stays put: no sliding on the momentum of a charge or a horn toss. */
+    @Override
+    protected void customServerAiStep(ServerLevel level) {
+        super.customServerAiStep(level);
+        if (Stun.isStunned(this)) setDeltaMovement(0, Math.min(0, getDeltaMovement().y), 0);
     }
 
     /** Lowers its horn, then charges in a straight line. */
@@ -75,7 +83,7 @@ public class QuadBeetleEntity extends FrontierMonster {
                 cooldown--;
                 return false;
             }
-            return target != null && onGround() && distanceTo(target) > 4 && distanceTo(target) < 14;
+            return target != null && onGround() && !Stun.isStunned(QuadBeetleEntity.this) && distanceTo(target) > 4 && distanceTo(target) < 14;
         }
 
         @Override
@@ -93,7 +101,7 @@ public class QuadBeetleEntity extends FrontierMonster {
 
         @Override
         public boolean canContinueToUse() {
-            return ticks < 40;
+            return ticks < 40 && !Stun.isStunned(QuadBeetleEntity.this);
         }
 
         @Override
@@ -123,7 +131,16 @@ public class QuadBeetleEntity extends FrontierMonster {
                 level().playSound(null, getX(), getY(), getZ(), SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 0.6f, 0.6f);
                 ticks = 40;
             }
-            if (horizontalCollision) ticks = 40;
+            if (horizontalCollision && ticks < 40) {
+                // Horns first into a wall: it reels for two seconds, an opening to punish the charge.
+                ticks = 40;
+                Stun.apply(QuadBeetleEntity.this, 40);
+                if (level() instanceof ServerLevel server) {
+                    server.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, getBlockStateOn()), getX() + direction.x * 1.2,
+                            getY() + 0.8, getZ() + direction.z * 1.2, 24, 0.4, 0.4, 0.4, 0.15);
+                }
+                level().playSound(null, getX(), getY(), getZ(), SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 0.8f, 0.5f);
+            }
         }
 
         @Override

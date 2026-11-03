@@ -12,8 +12,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
-import net.minecraft.world.entity.ai.goal.LeapAtTargetGoal;
-import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Monster;
@@ -34,14 +32,23 @@ public class ShadowWolfEntity extends FrontierMonster {
                 .add(Attributes.FOLLOW_RANGE, 32);
     }
 
+    /** A snapping bite, and now and then a pounce down a telegraphed lane. */
+    static final WindupMeleeGoal.Attack BITE = WindupMeleeGoal.Attack.swing(10, 8, 2.1f);
+    static final WindupMeleeGoal.Attack POUNCE = new WindupMeleeGoal.Attack(12, 4, 1.4f, 1.9f, 50, 0.9, true);
+
     @Override
     protected void registerGoals() {
         goalSelector.addGoal(0, new FloatGoal(this));
-        goalSelector.addGoal(2, new LeapAtTargetGoal(this, 0.4f));
-        goalSelector.addGoal(3, new MeleeAttackGoal(this, 1.2, true));
+        goalSelector.addGoal(3, new WindupMeleeGoal(this, 1.2, BITE, POUNCE, 0.3f));
         goalSelector.addGoal(5, new WaterAvoidingRandomStrollGoal(this, 0.8));
-        targetSelector.addGoal(1, new HurtByTargetGoal(this));
+        targetSelector.addGoal(1, new HurtByTargetGoal(this, ShadowWolfEntity.class).setAlertOthers());
         targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, false));
+    }
+
+    /** Shadow wolves hunt as a pack: one that finds you howls the others in. */
+    @Override
+    protected double alertRadius() {
+        return 20;
     }
 
     @Override

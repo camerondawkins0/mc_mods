@@ -1,6 +1,7 @@
 package com.slfrontier.entity.mob;
 
 import com.slfrontier.entity.FrontierMonster;
+import com.slfrontier.entity.Stun;
 import com.slfrontier.registry.ModEntities;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -14,7 +15,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
@@ -33,7 +33,7 @@ public class RedcapGoblinEntity extends FrontierMonster {
     private int feintCooldown = 40;
 
     public RedcapGoblinEntity(EntityType<? extends Monster> type, Level level) {
-        super(type, level, 12, 30);
+        super(type, level, 12, 55);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -45,10 +45,19 @@ public class RedcapGoblinEntity extends FrontierMonster {
                 .add(Attributes.FOLLOW_RANGE, 28);
     }
 
+    /** After the feint's hop, a lunge down a telegraphed lane, 8 ticks after it lands. */
+    static final WindupMeleeGoal.Attack LUNGE = new WindupMeleeGoal.Attack(8, 2, 1.3f, 1.9f, 50, 0.9, true);
+
+    private WindupMeleeGoal melee;
+    /** Hopped back and waiting to land (then it lunges). */
+    private boolean feinting;
+    private int hopTick;
+
     @Override
     protected void registerGoals() {
         goalSelector.addGoal(0, new FloatGoal(this));
-        goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.2, false));
+        melee = new WindupMeleeGoal(this, 1.2, GoblinEntity.SWING, null, 0);
+        goalSelector.addGoal(2, melee);
         goalSelector.addGoal(5, new WaterAvoidingRandomStrollGoal(this, 0.8));
         goalSelector.addGoal(6, new LookAtPlayerGoal(this, Player.class, 8f));
         goalSelector.addGoal(7, new RandomLookAroundGoal(this));
@@ -57,20 +66,34 @@ public class RedcapGoblinEntity extends FrontierMonster {
     }
 
     @Override
+    protected double alertRadius() {
+        return 12;
+    }
+
+    @Override
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
         LivingEntity target = getTarget();
+        if (target == null || Stun.isStunned(this)) {
+            // A staggered Redcap loses its footing: no hop, no lunge until it recovers.
+            feinting = false;
+            return;
+        }
         if (feintCooldown > 0) feintCooldown--;
-        // The feint: a hop back just before it would be in reach, then a sudden lunge.
-        if (target != null && feintCooldown == 0 && onGround() && distanceTo(target) < 3.2) {
+        // The feint: a hop back just before it would be in reach...
+        if (!feinting && feintCooldown == 0 && onGround() && !melee.isWindingUp() && distanceTo(target) < 3.2) {
             Vec3 away = position().subtract(target.position()).normalize();
             setDeltaMovement(away.x * 0.6, 0.35, away.z * 0.6);
             needsSync = true;
-            feintCooldown = 60 + random.nextInt(40);
-        } else if (target != null && feintCooldown == 50 && distanceTo(target) < 7) {
-            Vec3 to = target.position().subtract(position()).normalize();
-            setDeltaMovement(to.x * 0.9, 0.25, to.z * 0.9);
-            needsSync = true;
+            feinting = true;
+            hopTick = tickCount;
+            feintCooldown = 80 + random.nextInt(40);
+        } else if (feinting && onGround() && tickCount - hopTick > 2) {
+            // ...and once it lands, a lunge down a lane it marks on the ground (or nothing, if the target is gone).
+            feinting = false;
+            if (distanceTo(target) < 7) melee.forceAttack(target, LUNGE);
+        } else if (feinting && tickCount - hopTick > 40) {
+            feinting = false;
         }
     }
 
@@ -84,6 +107,7 @@ public class RedcapGoblinEntity extends FrontierMonster {
                 if (friend != null) {
                     friend.snapTo(getX() + random.nextGaussian() * 2, getY(), getZ() + random.nextGaussian() * 2, getYRot(), 0);
                     friend.finalizeSpawn(server, server.getCurrentDifficultyAt(blockPosition()), EntitySpawnReason.REINFORCEMENT, null);
+                    friend.setFrontierLevel(frontierLevel());
                     friend.calledForHelp = true;
                     friend.setTarget(getTarget());
                     server.addFreshEntity(friend);

@@ -16,7 +16,6 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.control.FlyingMoveControl;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
-import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomFlyingGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ai.navigation.FlyingPathNavigation;
@@ -54,7 +53,8 @@ public class EmpireBeeEntity extends FrontierMonster {
     @Override
     protected void registerGoals() {
         goalSelector.addGoal(0, new FloatGoal(this));
-        goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.3, true));
+        // The sting dive: the abdomen curls under for a beat before it strikes.
+        goalSelector.addGoal(2, new WindupMeleeGoal(this, 1.3, WindupMeleeGoal.Attack.swing(12, 12, 2.2f), null, 0).hovering(1.5));
         goalSelector.addGoal(6, new WaterAvoidingRandomFlyingGoal(this, 1.0));
         targetSelector.addGoal(1, new HurtByTargetGoal(this).setAlertOthers());
         targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));

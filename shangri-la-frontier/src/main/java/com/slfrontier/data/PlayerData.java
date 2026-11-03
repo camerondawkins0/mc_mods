@@ -15,11 +15,15 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.neoforge.common.util.ValueIOSerializable;
 import org.jetbrains.annotations.Nullable;
 
+import net.minecraft.world.item.ItemStack;
+
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -35,6 +39,8 @@ public class PlayerData implements ValueIOSerializable {
 
     private int level = 1;
     private int exp = 0;
+    /** Experience toward the current level earned with the Vorpal Soul Collar carried (-1: unknown, older save). */
+    private int collarExp = 0;
     private int statPoints = 0;
     private final int[] stats = new int[Stat.values().length];
     private float stamina = BASE_STAMINA;
@@ -66,6 +72,14 @@ public class PlayerData implements ValueIOSerializable {
     private double returnX, returnY, returnZ;
     private boolean hasFrontierPos = false;
     private long frontierPos;
+    /**
+     * Health in the Frontier as last seen (-1: unknown). VIT's bonus health is a transient modifier, so
+     * on loading a player vanilla clamps their health to the base maximum before the stats are put
+     * back; login restores it from here.
+     */
+    private float savedHealth = -1;
+    /** Body and leg armor Lycagon's Mark took off that didn't fit in the bag; handed back when there's room. */
+    private final List<ItemStack> curseOverflow = new ArrayList<>();
 
     // Transient combat state (server side only, never saved)
     public int parryTicks;
@@ -74,13 +88,19 @@ public class PlayerData implements ValueIOSerializable {
     private byte moveStrafe, moveForward;
     public int offhandTargetId = -1;
     public int offhandDelay;
+    /** The pending off-hand hit is the second blade of a cross-slash. */
+    public boolean offhandFinisher;
     /** Twin-blade combo: hits landed in a row (the third is a cross-slash finisher). */
     public int comboStage;
     public long comboLastHit = -1000;
-    public boolean finisherPending;
+    /** The cross-slash's main-hand hit: only on this target and this tick (a hit that never lands lapses). */
+    public int finisherTargetId = -1;
+    public long finisherTick = -1;
     public int pierceTicks;
     public boolean pierceGlowing;
     public boolean airJumpUsed;
+    /** Ticks left before stamina regenerates again (set by every skill use). */
+    public int staminaRegenPause;
     public int lastSyncedHash;
     /** Stamina last sent to the client (server side); stamina travels in its own small packet. */
     public float lastSentStamina = -1;
@@ -113,10 +133,19 @@ public class PlayerData implements ValueIOSerializable {
     public void setLevel(int level) {
         this.level = Mth.clamp(level, 1, MAX_LEVEL);
         this.exp = 0;
+        this.collarExp = 0;
     }
 
     public void setExp(int exp) {
         this.exp = Math.max(0, exp);
+    }
+
+    public int collarExp() {
+        return collarExp;
+    }
+
+    public void setCollarExp(int collarExp) {
+        this.collarExp = collarExp;
     }
 
     public void addStatPoints(int points) {
@@ -149,8 +178,18 @@ public class PlayerData implements ValueIOSerializable {
 
     // ---- Stamina -------------------------------------------------------------------
 
+    /** Per point of STA: max stamina, and faster stamina regeneration (+2%). */
+    public static final float STA_MAX = 2f, STA_REGEN = 0.02f;
+    /** Ticks after any skill before stamina starts coming back. */
+    public static final int REGEN_PAUSE = 20;
+
     public float maxStamina() {
-        return BASE_STAMINA + 3f * stat(Stat.STA);
+        return BASE_STAMINA + STA_MAX * stat(Stat.STA);
+    }
+
+    /** Stamina regeneration multiplier from STA. */
+    public float staminaRegen() {
+        return 1f + STA_REGEN * stat(Stat.STA);
     }
 
     public float stamina() {
@@ -403,6 +442,18 @@ public class PlayerData implements ValueIOSerializable {
         return frontierPos;
     }
 
+    public float savedHealth() {
+        return savedHealth;
+    }
+
+    public void setSavedHealth(float health) {
+        this.savedHealth = health;
+    }
+
+    public List<ItemStack> curseOverflow() {
+        return curseOverflow;
+    }
+
     public boolean hasReturn() {
         return hasReturn;
     }
@@ -429,6 +480,7 @@ public class PlayerData implements ValueIOSerializable {
         CompoundTag tag = new CompoundTag();
         tag.putInt("level", level);
         tag.putInt("exp", exp);
+        tag.putInt("collarExp", collarExp);
         tag.putInt("statPoints", statPoints);
         tag.putIntArray("stats", stats.clone());
         tag.putFloat("stamina", stamina);
@@ -470,12 +522,14 @@ public class PlayerData implements ValueIOSerializable {
         tag.putDouble("returnZ", returnZ);
         tag.putBoolean("hasFrontierPos", hasFrontierPos);
         tag.putLong("frontierPos", frontierPos);
+        tag.putFloat("savedHealth", savedHealth);
         return tag;
     }
 
     public void load(CompoundTag tag) {
         level = Mth.clamp(tag.getIntOr("level", 0), 1, MAX_LEVEL);
         exp = tag.getIntOr("exp", 0);
+        collarExp = tag.getIntOr("collarExp", -1);
         statPoints = tag.getIntOr("statPoints", 0);
         int[] saved = tag.getIntArray("stats").orElse(new int[0]);
         for (int i = 0; i < stats.length; i++) stats[i] = i < saved.length ? saved[i] : 0;
@@ -528,17 +582,22 @@ public class PlayerData implements ValueIOSerializable {
         returnZ = tag.getDoubleOr("returnZ", 0d);
         hasFrontierPos = tag.getBooleanOr("hasFrontierPos", false);
         frontierPos = tag.getLongOr("frontierPos", 0L);
+        savedHealth = tag.getFloatOr("savedHealth", -1f);
     }
 
     /** Saved with the player in the same flat layout as before, so older saves keep loading. */
     @Override
     public void serialize(ValueOutput output) {
         output.store(save());
+        // Items need the registries, so they go through the output's own (registry-aware) codec ops.
+        if (!curseOverflow.isEmpty()) output.store("curseOverflow", ItemStack.CODEC.listOf(), List.copyOf(curseOverflow));
     }
 
     @Override
     public void deserialize(ValueInput input) {
         load(input.read(MapCodec.assumeMapUnsafe(CompoundTag.CODEC)).orElseGet(CompoundTag::new));
+        curseOverflow.clear();
+        input.read("curseOverflow", ItemStack.CODEC.listOf()).ifPresent(curseOverflow::addAll);
     }
 
     /**

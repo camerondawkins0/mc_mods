@@ -281,7 +281,8 @@ public class FrontierScreen extends Screen {
         int py = y0 + 14;
         py = param(g, px, py, pw, "gui.slfrontier.p.hp", String.format("%.0f", player.getMaxHealth()));
         py = param(g, px, py, pw, "gui.slfrontier.p.atk", String.format("%.1f", player.getAttributeValue(Attributes.ATTACK_DAMAGE)));
-        py = param(g, px, py, pw, "gui.slfrontier.p.crit", String.format("%.1f%%", Progression.critChance(player) * 100));
+        py = param(g, px, py, pw, "gui.slfrontier.p.crit", String.format("%.0f%% x%.2f", Progression.critChance(player) * 100,
+                Progression.critMultiplier(player)));
         py = param(g, px, py, pw, "gui.slfrontier.p.cdr", "-" + Math.min(50, d.stat(Stat.TEC)) + "%");
         py = param(g, px, py, pw, "gui.slfrontier.p.speed", String.format("%.0f%%", player.getAttributeValue(Attributes.MOVEMENT_SPEED) / 0.1 * 100));
         py = param(g, px, py, pw, "gui.slfrontier.p.aspd", String.format("%.2f", player.getAttributeValue(Attributes.ATTACK_SPEED)));

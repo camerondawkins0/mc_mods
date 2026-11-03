@@ -199,11 +199,17 @@ resource pack).
 ### Levels, stats and stamina
 
 * EXP comes from defeating monsters in the Frontier (bosses give a lot). Level cap 99.
-* Each level gives **3 stat points** (5 with the Vorpal Soul Collar, which costs 30% EXP).
+* Each level gives **3 stat points** (5 for a level earned mostly with the Vorpal Soul Collar
+  carried, which costs 30% EXP).
 * Stats: **VIT** health, **STR** damage, **AGI** speed and jump height (up to about 1.8
   blocks, so no leaping over walls), **DEX** attack speed,
-  **TEC** cooldowns/parry window, **LUC** critical chance, **STA** stamina.
-* Sprinting and skills use **stamina**; it refills when you stop.
+  **TEC** cooldowns/parry window, **LUC** critical chance and damage, **STA** stamina and
+  its regeneration.
+* Sprinting and skills use **stamina**; it refills when you stop (a second after your last skill).
+* Monsters are stronger the further you travel: level 2-12 around Firstia, the Diremarsh and
+  the Grotto, up to 14-22 in the Thirdrema Highlands, the Hidden Garden, the Northern Peaks
+  and the Lightless Barrens. They wind up before they strike: a cone on the ground shows where
+  the blow will land, and a red one means a heavy blow.
 * Dying in the Frontier sends you back to your last waypoint crystal (or Firstia) with a
   temporary **Death Penalty**. A **Rebirth Tearjewel** saves you once.
 * **You keep your inventory and EXP when you die in the Frontier** (outside it, vanilla's
@@ -242,12 +248,13 @@ Every weapon is a full 3D model, designed after the anime:
 * **Twin Moon** — the two locked into one huge crescent, white outside and black inside.
 * **Tombguard Katana** — Wezaemon's long, slim blade with a red-corded hilt.
 
-Twin blades: hold one in each hand — every main-hand hit is followed by an off-hand strike,
-and the third hit in a row (each within two seconds of the last) is a **cross-slash**: both
-blades cut an X together for +20% damage.
+Twin blades: hold one in each hand — every main-hand hit is followed by an off-hand strike
+(30% of what that blade would deal in the main hand), and the third hit in a row (each within
+two seconds of the last) is a **cross-slash**: both blades cut an X together for +20% damage
+and stagger a regular monster.
 Waxing is +20% by day, Waning +20% by night; **sneak + use** with both in hand to join them
-into the Twin Moon (hold use to charge a cleave; sneak + use with an empty off hand to
-split). The katana: hold use to draw, release for an iaijutsu dash-cut. Attacks from behind
+into the Twin Moon, +10% day and night (hold use to charge a cleave; sneak + use with an empty
+off hand to split). The katana: hold use to draw, release for an iaijutsu dash-cut. Attacks from behind
 hit weak points (+25%), and Luck gives critical hits. Skills and big swings play keyframed
 body animations (in first and third person) with slash arcs, shockwaves, spirals and
 damage numbers.

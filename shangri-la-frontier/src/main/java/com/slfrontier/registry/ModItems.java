@@ -68,7 +68,7 @@ public final class ModItems {
     public static final DeferredItem<Item> MARSH_DAGGER = ITEMS.registerItem("marsh_dagger",
             p -> new TwinBladeItem(ModTiers.MARSH, 2, -1.8f, 0.03f, "lore.slfrontier.marsh_dagger", p));
     public static final DeferredItem<Item> DUCUSRAM = ITEMS.registerItem("ducusram",
-            p -> new TwinBladeItem(ModTiers.MARSH, 4, -2.0f, 0.05f, "lore.slfrontier.ducusram", p), p -> p.rarity(Rarity.UNCOMMON));
+            p -> new TwinBladeItem(ModTiers.MARSH, 6, -2.0f, 0.05f, "lore.slfrontier.ducusram", p), p -> p.rarity(Rarity.UNCOMMON));
     public static final DeferredItem<Item> VORPAL_CHOPPERS = ITEMS.registerItem("vorpal_choppers",
             p -> new TwinBladeItem(ModTiers.VORPAL, 3, -1.6f, 0.12f, "lore.slfrontier.vorpal_choppers", p), p -> p.rarity(Rarity.UNCOMMON));
     public static final DeferredItem<Item> EMPIRE_BEE_TWINBLADES = ITEMS.registerItem("empire_bee_twinblades",
@@ -78,7 +78,7 @@ public final class ModItems {
     public static final DeferredItem<Item> MOONBLADE_WANING = ITEMS.registerItem("moonblade_waning",
             p -> new MoonbladeItem(ModTiers.MOON, 4, -1.8f, false, p), p -> p.rarity(Rarity.EPIC));
     public static final DeferredItem<Item> TWIN_MOON = ITEMS.registerItem("twin_moon",
-            p -> new TwinMoonItem(ModTiers.MOON, 10, -2.9f, p), p -> p.stacksTo(1).rarity(Rarity.EPIC));
+            p -> new TwinMoonItem(ModTiers.MOON, 16, -2.4f, p), p -> p.stacksTo(1).rarity(Rarity.EPIC));
     public static final DeferredItem<Item> TOMBGUARD_KATANA = ITEMS.registerItem("tombguard_katana",
             p -> new KatanaItem(ModTiers.TOMBGUARD, 6, -2.3f, p), p -> p.rarity(Rarity.EPIC));
 

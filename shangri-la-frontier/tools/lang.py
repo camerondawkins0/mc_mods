@@ -886,6 +886,38 @@ MISC.update({
     "message.slfrontier.altar.nightslayer_rested": "The Nightslayer has already answered you tonight. Come back tomorrow night.",
 })
 
+# ---- Combat, progression and story fixes ---------------------------------------------------
+# One block so parallel edits to this file stay apart; applied last in build(), so a key
+# here overrides the same key above.
+COMBAT_PROGRESSION = {
+    # Story soft-lock fixes
+    "message.slfrontier.mud_digger_gone": "The lair is silent: the Mud Digger has already been slain. The road to Thirdrema is open.",
+    "dialogue.slfrontier.option.lost_choppers": "I lost one of the Vorpal Choppers...",
+    "message.slfrontier.choppers_replaced": "Vysache sighs and hands you a new pair of Vorpal Choppers. \"Don't make a habit of it.\"",
+    "sidequest.slfrontier.solo_killer.desc": "\"Word is you went through the Diremarsh and came back. The Mud Digger has swallowed lone adventurers whole for years. Show me its fin and the bounty is yours.\"",
+    "sidequest.slfrontier.solo_killer.objective": "Bring the Mud Digger's fin to the Blacksmith. (Once the Mud Digger is gone for good, he pays the bounty without it.)",
+    "sidequest.slfrontier.queens_crown.objective": "Defeat the Empire Bee Queen in her hive. (If she has already fallen, Bilac takes your word for it.)",
+    # Gates
+    "sidequest.slfrontier.seasoned_adventurer.desc": "\"Every pioneer who makes a name for themselves passes level 12 sooner or later. Come back when you have.\"",
+    "sidequest.slfrontier.seasoned_adventurer.objective": "Reach level 12.",
+    # Stats and the collar
+    "stat.slfrontier.luc.desc": "Luck: +1% critical chance and +0.5% critical damage per point.",
+    "stat.slfrontier.sta.desc": "Stamina: +2 max stamina and +2% stamina regeneration per point.",
+    "item.slfrontier.vorpal_soul_collar.lore": "While carried: -30% EXP, but a level earned mostly with it carried gives 5 stat points instead of 3.",
+    "skill.slfrontier.slide_step.desc": "Evolved Tap Step: a longer dash with more invincibility. Stamina pauses for a moment after any skill.",
+    # Lycagon's Mark keeps armor that didn't fit
+    "message.slfrontier.curse_armor_kept": "Your bag is full: %s is kept safe and comes back as soon as there's room.",
+    "message.slfrontier.curse_armor_returned": "%s is back in your bag.",
+    # Allies' callouts
+    "message.slfrontier.ally_says": "<%s> %s",
+    "message.slfrontier.pencilgon.pin.1": "Pinned it! Hit it now!",
+    "message.slfrontier.pencilgon.pin.2": "Got its footing! Go, go, go!",
+    "message.slfrontier.pencilgon.pin.3": "Hold still, you big lug... Now's your chance!",
+    "message.slfrontier.oikatzo.taunt.1": "Hey! Over here! Is that all you've got?",
+    "message.slfrontier.oikatzo.taunt.2": "My grandma hits harder than that!",
+    "message.slfrontier.oikatzo.taunt.3": "Look at me when I'm punching you!",
+}
+
 
 def build():
     lang = dict(MISC)
@@ -933,4 +965,5 @@ def build():
     lang.update(lang_inventory.STRINGS)
     lang.update(lang_overlays.STRINGS)
     lang.update(lang_crafting.STRINGS)
+    lang.update(COMBAT_PROGRESSION)
     return lang
