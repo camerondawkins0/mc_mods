@@ -46,6 +46,11 @@ public class TwinMoonItem extends Item implements FrontierWeapon {
         return 0.1f;
     }
 
+    /** Waxing and Waning shine together: +10% damage by day and by night. */
+    public float damageBonus() {
+        return 1.1f;
+    }
+
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);

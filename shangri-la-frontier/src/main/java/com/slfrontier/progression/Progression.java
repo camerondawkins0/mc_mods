@@ -36,6 +36,10 @@ public final class Progression {
     private static final Identifier DEX_ID = SLFrontier.id("stat_dex");
     private static final Identifier LUC_ID = SLFrontier.id("stat_luc");
     private static final Identifier MASK_ID = SLFrontier.id("bird_mask_agility");
+    /** Attack damage per point of STR (the off-hand blade gets its share too). */
+    public static final double STR_DAMAGE = 0.25;
+    /** Per point of LUC: critical chance, and critical damage on top of x1.5. */
+    public static final float LUC_CRIT_CHANCE = 0.01f, LUC_CRIT_DAMAGE = 0.005f;
 
     private Progression() {
     }
@@ -142,7 +146,7 @@ public final class Progression {
         PlayerData data = ModAttachments.get(player);
         boolean active = Frontier.isIn(player);
         set(player, Attributes.MAX_HEALTH, VIT_ID, active ? data.stat(Stat.VIT) * 1.0 : 0, AttributeModifier.Operation.ADD_VALUE);
-        set(player, Attributes.ATTACK_DAMAGE, STR_ID, active ? data.stat(Stat.STR) * 0.25 : 0, AttributeModifier.Operation.ADD_VALUE);
+        set(player, Attributes.ATTACK_DAMAGE, STR_ID, active ? data.stat(Stat.STR) * STR_DAMAGE : 0, AttributeModifier.Operation.ADD_VALUE);
         set(player, Attributes.MOVEMENT_SPEED, AGI_ID, active ? Math.min(0.6, data.stat(Stat.AGI) * 0.004) : 0, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
         set(player, Attributes.JUMP_STRENGTH, AGI_JUMP_ID, active ? Math.min(JUMP_CAP, data.stat(Stat.AGI) * JUMP_PER_AGI) : 0,
                 AttributeModifier.Operation.ADD_VALUE);
@@ -169,14 +173,31 @@ public final class Progression {
         instance.addOrUpdateTransientModifier(new AttributeModifier(id, amount, op));
     }
 
-    /** Critical hit chance from Luck plus weapon bonuses (0..1). */
+    /** Critical hit chance from Luck plus the main-hand weapon's bonus (0..1). */
     public static float critChance(Player player) {
+        return critChance(player, player.getMainHandItem());
+    }
+
+    /** Critical hit chance of a hit with {@code weapon} (the off-hand blade rolls with its own bonus). */
+    public static float critChance(Player player, ItemStack weapon) {
         PlayerData data = ModAttachments.get(player);
-        float chance = 0.05f + data.stat(Stat.LUC) * 0.005f;
-        if (player.getMainHandItem().getItem() instanceof com.slfrontier.item.FrontierWeapon weapon) {
-            chance += weapon.critBonus();
+        float chance = 0.05f + data.stat(Stat.LUC) * LUC_CRIT_CHANCE;
+        if (weapon.getItem() instanceof com.slfrontier.item.FrontierWeapon frontier) {
+            chance += frontier.critBonus();
         }
         return Math.min(chance, 0.75f);
+    }
+
+    /** How much a critical hit multiplies damage: x1.5, plus a little per point of Luck. */
+    public static float critMultiplier(Player player) {
+        return 1.5f + ModAttachments.get(player).stat(Stat.LUC) * LUC_CRIT_DAMAGE;
+    }
+
+    /** A weapon's own damage bonus right now: a Moonblade in its hour, the Twin Moon always. */
+    public static float weaponBonus(ItemStack weapon, net.minecraft.world.level.Level level) {
+        if (weapon.getItem() instanceof com.slfrontier.item.MoonbladeItem moon) return moon.timeBonus(level);
+        if (weapon.getItem() instanceof com.slfrontier.item.TwinMoonItem twin) return twin.damageBonus();
+        return 1f;
     }
 
     /** Cooldown multiplier from Technique. */

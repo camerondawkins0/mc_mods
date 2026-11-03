@@ -62,7 +62,7 @@ public final class SkillExecutor {
             actionbar(player, Component.translatable("message.slfrontier.outside_frontier"));
             return false;
         }
-        if (!data.hasSkill(skill) || skill.passive || player.isSpectator()) return false;
+        if (!data.hasSkill(skill) || skill.passive || player.isSpectator() || !player.isAlive()) return false;
         if (data.cooldown(skill) > 0) {
             actionbar(player, Component.translatable("message.slfrontier.cooldown",
                     Component.translatable(skill.nameKey()), String.format("%.1f", data.cooldown(skill) / 20f)));
@@ -131,7 +131,7 @@ public final class SkillExecutor {
 
     public static void doubleJump(ServerPlayer player) {
         PlayerData data = ModAttachments.get(player);
-        if (!Frontier.isIn(player) || !data.hasSkill(Skill.DOUBLE_JUMP) || player.onGround() || data.airJumpUsed
+        if (!Frontier.isIn(player) || !player.isAlive() || !data.hasSkill(Skill.DOUBLE_JUMP) || player.onGround() || data.airJumpUsed
                 || player.isFallFlying() || player.getAbilities().flying || player.isInWater()) return;
         if (data.stamina() < Skill.DOUBLE_JUMP.staminaCost) return;
         data.airJumpUsed = true;
@@ -311,20 +311,25 @@ public final class SkillExecutor {
     }
 
     /**
-     * Deals skill damage, rolling for a critical hit and doubling damage on weak points
-     * (striking from behind) when {@code weakPoints} is set.
+     * Deals skill damage: the weapon's own bonus (a Moonblade in its hour, the Twin Moon), a roll for a
+     * critical hit, and x1.5 on weak points (striking from behind) when {@code weakPoints} is set. These
+     * are the only bonuses a skill gets: the melee bonuses in CommonEvents skip skill hits. The hit
+     * leaves the target's hit immunity as it was (see {@link ExtraHit}).
      */
     public static void strike(ServerPlayer player, LivingEntity target, float damage, boolean weakPoints) {
+        if (!player.isAlive()) return;
+        damage *= Progression.weaponBonus(player.getMainHandItem(), player.level());
         boolean crit = player.getRandom().nextFloat() < Progression.critChance(player);
-        if (crit) damage *= 1.5f;
-        if (weakPoints && isBehind(player, target)) {
+        if (crit) damage *= Progression.critMultiplier(player);
+        boolean weak = weakPoints && isBehind(player, target);
+        if (weak) {
             damage *= 1.5f;
             crit = true;
         }
-        target.invulnerableTime = 0;
-        HitFlags.mark(target, crit, weakPoints && isBehind(player, target));
+        HitFlags.mark(target, crit, weak);
         HitFlags.add(target, HitFlags.SKILL);
-        target.hurtOrSimulate(player.damageSources().playerAttack(player), damage);
+        // A hit the target shrugged off (burrowed, submerged...) must not leave its flags for the next one.
+        if (!ExtraHit.deal(target, player.damageSources().playerAttack(player), damage, ExtraHit.Kind.SKILL)) HitFlags.take(target);
         if (crit) {
             player.level().sendParticles(ParticleTypes.CRIT, target.getX(), target.getY(0.6), target.getZ(), 12, 0.3, 0.3, 0.3, 0.3);
             player.level().sendParticles(VORPAL_RED, target.getX(), target.getY(0.6), target.getZ(), 8, 0.3, 0.3, 0.3, 0);

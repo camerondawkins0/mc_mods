@@ -38,6 +38,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -288,6 +289,7 @@ public final class CommonEvents {
             } else {
                 data.offhandTargetId = target.getId();
                 data.offhandDelay = 4;
+                data.offhandFinisher = false;
             }
         }
     }
@@ -295,11 +297,18 @@ public final class CommonEvents {
     /** Ticks between twin-blade hits that still count as one combo (forgiving enough for some lag). */
     private static final int COMBO_WINDOW = 40;
 
-    /** Third hit in a row: both blades cut an X together (instead of the off-hand follow-up) for +20% damage. */
+    /**
+     * Third hit in a row: both blades cut an X together for +20% damage: this swing's main-hand hit
+     * and the off-hand blade right behind it (instead of the usual follow-up a beat later).
+     */
     private static void crossSlash(ServerPlayer player, PlayerData data, LivingEntity target) {
         data.comboStage = 0;
-        data.finisherPending = true;
-        data.offhandTargetId = -1;
+        // Only this swing on this target is the finisher; a hit that never lands lets it lapse.
+        data.finisherTargetId = target.getId();
+        data.finisherTick = player.level().getGameTime();
+        data.offhandTargetId = target.getId();
+        data.offhandDelay = 2;
+        data.offhandFinisher = true;
         ServerLevel level = player.level();
         Fx.arc(player, 2.2f, 52, 150, 0xFFEAF4FF, 8);
         Fx.arc(player, 2.2f, -52, 150, 0xFF9FD0FF, 8);
@@ -310,23 +319,36 @@ public final class CommonEvents {
         ModNetwork.animate(player, PlayerAnims.CROSS_SLASH, 9);
     }
 
+    /** The off-hand blade's share of what it would deal in the main hand (strength included). */
+    public static final float OFFHAND_SHARE = 0.3f;
+
+    /**
+     * The off-hand blade's follow-up. It is an extra hit on top of the main-hand swing (see
+     * {@link com.slfrontier.skill.ExtraHit}): it no longer resets the target's hit immunity, so the
+     * next main-hand swing lands in full and every swing deals main hand + off hand.
+     */
     private static void tickOffhand(ServerPlayer player, PlayerData data) {
         if (data.offhandTargetId < 0 || --data.offhandDelay > 0) return;
         Entity entity = player.level().getEntity(data.offhandTargetId);
+        boolean finisher = data.offhandFinisher;
         data.offhandTargetId = -1;
+        data.offhandFinisher = false;
         ItemStack off = player.getOffhandItem();
-        if (!(entity instanceof LivingEntity target) || !target.isAlive() || !(off.getItem() instanceof TwinBladeItem)
+        if (!player.isAlive() || !(entity instanceof LivingEntity target) || !target.isAlive() || !(off.getItem() instanceof TwinBladeItem)
                 || target.distanceToSqr(player) > 5 * 5) return;
-        float damage = (float) (weaponDamage(off) * 0.6);
+        double strength = ModAttachments.get(player).stat(com.slfrontier.data.Stat.STR) * Progression.STR_DAMAGE;
+        float damage = (float) ((weaponDamage(off) + strength) * OFFHAND_SHARE);
         player.swing(InteractionHand.OFF_HAND, true);
         Sfx.at(player, ModSounds.COMBAT_SLASH, SoundSource.PLAYERS, 0.7f, 1.05f + player.getRandom().nextFloat() * 0.1f);
-        target.invulnerableTime = 0;
-        target.hurtOrSimulate(player.damageSources().playerAttack(player), damage);
+        com.slfrontier.skill.ExtraHit.deal(target, player.damageSources().playerAttack(player), damage,
+                com.slfrontier.skill.ExtraHit.Kind.OFFHAND, finisher);
         off.hurtAndBreak(1, player, EquipmentSlot.OFFHAND);
         player.level().sendParticles(ParticleTypes.SWEEP_ATTACK, target.getX(), target.getY(0.6), target.getZ(), 1, 0, 0, 0, 0);
-        Fx.arc(player, 1.6f, -40, 120, 0xFFD8E8FF, 6);
-        player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_WEAK, SoundSource.PLAYERS, 0.8f, 1.4f);
-        ModNetwork.animate(player, PlayerAnims.OFFHAND, 6);
+        if (!finisher) {
+            Fx.arc(player, 1.6f, -40, 120, 0xFFD8E8FF, 6);
+            player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_WEAK, SoundSource.PLAYERS, 0.8f, 1.4f);
+            ModNetwork.animate(player, PlayerAnims.OFFHAND, 6);
+        }
     }
 
     private static double weaponDamage(ItemStack stack) {
@@ -366,27 +388,39 @@ public final class CommonEvents {
             }
         }
 
-        // Offensive bonuses for the player's own attacks.
-        if (source.getEntity() instanceof ServerPlayer player && source.getDirectEntity() == player && Frontier.isIn(player)) {
+        // Offensive bonuses for the player's own blade hits (main hand and off hand). Skills roll their
+        // own crits and weak points in SkillExecutor.strike, so they are left alone here.
+        com.slfrontier.skill.ExtraHit.Kind extra = com.slfrontier.skill.ExtraHit.current();
+        if (source.getEntity() instanceof ServerPlayer player && source.getDirectEntity() == player && Frontier.isIn(player)
+                && extra != com.slfrontier.skill.ExtraHit.Kind.SKILL) {
+            boolean offhand = extra == com.slfrontier.skill.ExtraHit.Kind.OFFHAND;
             float amount = event.getAmount();
-            ItemStack weapon = player.getMainHandItem();
-            if (weapon.getItem() instanceof MoonbladeItem moon) amount *= moon.timeBonus(player.level());
+            ItemStack weapon = offhand ? player.getOffhandItem() : player.getMainHandItem();
+            amount *= Progression.weaponBonus(weapon, player.level());
             boolean weak = weapon.getItem() instanceof FrontierWeapon && SkillExecutor.isBehind(player, victim);
             if (weak) amount *= 1.25f;
-            boolean crit = player.getRandom().nextFloat() < Progression.critChance(player);
+            boolean crit = player.getRandom().nextFloat() < Progression.critChance(player, weapon);
             if (crit) {
-                amount *= 1.5f;
+                amount *= Progression.critMultiplier(player);
                 player.level().sendParticles(ParticleTypes.CRIT, victim.getX(), victim.getY(0.6), victim.getZ(), 10, 0.3, 0.3, 0.3, 0.3);
             }
             HitFlags.mark(victim, crit, weak);
             PlayerData attackerData = ModAttachments.get(player);
-            if (attackerData.finisherPending) {
-                attackerData.finisherPending = false;
+            boolean finisher = offhand ? com.slfrontier.skill.ExtraHit.isFinisher()
+                    : attackerData.finisherTargetId == victim.getId() && attackerData.finisherTick == player.level().getGameTime();
+            if (!offhand) attackerData.finisherTargetId = -1;
+            if (finisher) {
                 amount *= 1.2f;
                 HitFlags.add(victim, HitFlags.FINISHER);
             }
             if (weapon.is(ModItems.EMPIRE_BEE_TWINBLADES.get())) {
                 victim.addEffect(new MobEffectInstance(MobEffects.POISON, 60, 0), player);
+            }
+            if (!offhand) {
+                // Hit immunity follows the swing: a full-strength swing always lands, however fast the
+                // blade (vanilla's fixed ten ticks wasted every other swing above two swings a second).
+                int earliestFullSwing = (int) Math.ceil(player.getCurrentItemAttackStrengthDelay() - 0.5f);
+                event.getContainer().setPostAttackInvulnerabilityTicks(Mth.clamp(10 + earliestFullSwing - 1, 10, 20));
             }
             event.setAmount(amount);
         }
@@ -421,7 +455,15 @@ public final class CommonEvents {
         int flags = HitFlags.take(victim);
         if (victim.level().isClientSide() || !(event.getSource().getEntity() instanceof ServerPlayer player) || victim == player) return;
         if (!Frontier.isIn(player) || event.getHealthDamage() <= 0) return;
-        if (victim.isDeadOrDying()) flags |= HitFlags.KILL;
+        com.slfrontier.progression.KillCredit.record(victim, player);
+        if (victim.isDeadOrDying()) {
+            flags |= HitFlags.KILL;
+        } else if (victim instanceof com.slfrontier.entity.FrontierMonster
+                && ((flags & HitFlags.FINISHER) != 0 || (flags & (HitFlags.CRIT | HitFlags.WEAK)) == (HitFlags.CRIT | HitFlags.WEAK))) {
+            // A cross-slash finisher or a critical blow to a weak point staggers a regular monster
+            // (and interrupts whatever it was winding up).
+            Stun.apply(victim, 8);
+        }
         PacketDistributor.sendToPlayer(player, new ModNetwork.Hit(victim.getId(), event.getHealthDamage(), flags));
     }
 
@@ -459,9 +501,11 @@ public final class CommonEvents {
             com.slfrontier.quest.WorldStory.set(server, com.slfrontier.quest.WorldStory.BEE_QUEEN_SLAIN);
         }
 
-        if (event.getSource().getEntity() instanceof ServerPlayer killer && Frontier.isIn(killer)) {
-            Progression.grantExp(killer, Progression.expFor(dead));
-            Story.onKill(killer, dead);
+        // Everyone who fought it shares the kill (the last blow may be an ally's, Emul's or a friend's).
+        int exp = Progression.expFor(dead);
+        for (ServerPlayer player : com.slfrontier.progression.KillCredit.creditFor(dead, event.getSource().getEntity())) {
+            Progression.grantExp(player, exp);
+            Story.onKill(player, dead);
         }
     }
 

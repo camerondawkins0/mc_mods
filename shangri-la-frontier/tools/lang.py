@@ -877,6 +877,14 @@ COMBAT_PROGRESSION = {
     "sidequest.slfrontier.solo_killer.desc": "\"Word is you went through the Diremarsh and came back. The Mud Digger has swallowed lone adventurers whole for years. Show me its fin and the bounty is yours.\"",
     "sidequest.slfrontier.solo_killer.objective": "Bring the Mud Digger's fin to the Blacksmith. (Once the Mud Digger is gone for good, he pays the bounty without it.)",
     "sidequest.slfrontier.queens_crown.objective": "Defeat the Empire Bee Queen in her hive. (If she has already fallen, Bilac takes your word for it.)",
+    # Allies' callouts
+    "message.slfrontier.ally_says": "<%s> %s",
+    "message.slfrontier.pencilgon.pin.1": "Pinned it! Hit it now!",
+    "message.slfrontier.pencilgon.pin.2": "Got its footing! Go, go, go!",
+    "message.slfrontier.pencilgon.pin.3": "Hold still, you big lug... Now's your chance!",
+    "message.slfrontier.oikatzo.taunt.1": "Hey! Over here! Is that all you've got?",
+    "message.slfrontier.oikatzo.taunt.2": "My grandma hits harder than that!",
+    "message.slfrontier.oikatzo.taunt.3": "Look at me when I'm punching you!",
 }
 
 

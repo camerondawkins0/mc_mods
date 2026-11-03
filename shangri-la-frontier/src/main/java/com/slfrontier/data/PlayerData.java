@@ -74,10 +74,14 @@ public class PlayerData implements ValueIOSerializable {
     private byte moveStrafe, moveForward;
     public int offhandTargetId = -1;
     public int offhandDelay;
+    /** The pending off-hand hit is the second blade of a cross-slash. */
+    public boolean offhandFinisher;
     /** Twin-blade combo: hits landed in a row (the third is a cross-slash finisher). */
     public int comboStage;
     public long comboLastHit = -1000;
-    public boolean finisherPending;
+    /** The cross-slash's main-hand hit: only on this target and this tick (a hit that never lands lapses). */
+    public int finisherTargetId = -1;
+    public long finisherTick = -1;
     public int pierceTicks;
     public boolean pierceGlowing;
     public boolean airJumpUsed;

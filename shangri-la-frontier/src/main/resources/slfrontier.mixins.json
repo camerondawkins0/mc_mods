@@ -4,7 +4,8 @@
   "package": "com.slfrontier.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
-    "DataFixTypesMixin"
+    "DataFixTypesMixin",
+    "LivingEntityAccess"
   ],
   "client": [
     "CameraMixin",
