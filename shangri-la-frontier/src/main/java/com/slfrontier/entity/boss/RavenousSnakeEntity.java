@@ -169,6 +169,11 @@ public class RavenousSnakeEntity extends FrontierBoss {
     }
 
     @Override
+    protected int animDelay(int attack) {
+        return attack == BITE ? 2 : attack == REAR ? 4 : 0;
+    }
+
+    @Override
     protected void tickAttack(int attack, int tick, LivingEntity target) {
         switch (attack) {
             case BITE -> {

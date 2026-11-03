@@ -161,6 +161,11 @@ public class LycagonShadowEntity extends FrontierBoss {
     }
 
     @Override
+    protected int animDelay(int attack) {
+        return attack == BITE ? 3 : attack == CLAW ? 4 : 0;
+    }
+
+    @Override
     protected void tickAttack(int attack, int tick, LivingEntity target) {
         // Every move gives the same warning on any night: dark nights only shorten its time in the dark.
         switch (attack) {

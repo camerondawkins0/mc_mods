@@ -142,7 +142,7 @@ public class WezaemonEntity extends FrontierBoss {
     protected int attackLength(int attack) {
         return switch (attack) {
             case IAI -> 16;
-            case TRIPLE -> 32;
+            case TRIPLE -> 33;
             case SKY_CLEAR -> 42;
             case STAGGER -> 100;
             case TACHIKAZE -> 26;
@@ -170,6 +170,11 @@ public class WezaemonEntity extends FrontierBoss {
     }
 
     @Override
+    protected int animDelay(int attack) {
+        return attack == TRIPLE ? 3 : 0;
+    }
+
+    @Override
     protected void tickAttack(int attack, int tick, LivingEntity target) {
         switch (attack) {
             case IAI -> {
@@ -190,13 +195,13 @@ public class WezaemonEntity extends FrontierBoss {
             }
             case TRIPLE -> {
                 // Three cuts nine ticks apart; each lands (the hurt cooldown doesn't swallow the combo).
-                if (tick == 1) tellCut(target, 9, true);
-                if (tick == 10 || tick == 19 || tick == 28) {
+                if (tick == 1) tellCut(target, 10, true);
+                if (tick == 11 || tick == 20 || tick == 29) {
                     coneAttack(CUT_RANGE, CUT_ANGLE, 0.7f, 0.4, COMBO);
-                    float tilt = tick == 10 ? 35 : tick == 19 ? -35 : 80;
+                    float tilt = tick == 11 ? 35 : tick == 20 ? -35 : 80;
                     Fx.arc(this, 3.6f, tilt, CUT_ANGLE, WHITE, 8);
                     playSound(SoundEvents.PLAYER_ATTACK_SWEEP, 1.5f, 1.2f);
-                    if (tick < 28) tellCut(target, 9, false);
+                    if (tick < 29 && attack == TRIPLE) tellCut(target, 9, false);  // unless that cut was parried
                 }
             }
             case SKY_CLEAR -> {

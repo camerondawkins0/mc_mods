@@ -199,6 +199,14 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
         return attack + 1;
     }
 
+    /**
+     * Ticks into an attack before its animation starts: lets a longer wind-up keep the animation's
+     * strike frame on the tick the blow actually lands.
+     */
+    protected int animDelay(int attack) {
+        return 0;
+    }
+
     protected void startAttack(int id) {
         attack = id;
         attackTick = 0;
@@ -213,7 +221,7 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
             repeats = 1;
         }
         getNavigation().stop();
-        playAnim(animSlot(id));
+        if (animDelay(id) <= 0) playAnim(animSlot(id));
     }
 
     /** Starts a specific attack right away (used by the client test scenes to show telegraphs). */
@@ -363,6 +371,7 @@ public abstract class FrontierBoss extends Monster implements LeveledMob, SlfAni
             }
             attackTick++;
             int running = attack;
+            if (attackTick == animDelay(running)) playAnim(animSlot(running));
             tickAttack(running, attackTick, target);
             if (attack == running && chargeDir == null && attackTick >= attackLength(running)) finishAttack();
             return;

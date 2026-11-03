@@ -93,6 +93,11 @@ public class WoodmageEntity extends FrontierBoss {
     }
 
     @Override
+    protected int animDelay(int attack) {
+        return attack == CHAINS ? 1 : 0;
+    }
+
+    @Override
     protected void tickAttack(int attack, int tick, LivingEntity target) {
         if (isCasting() && tick % 4 == 0) {
             particles(ParticleTypes.ENCHANT, getX(), getY() + 1.4, getZ(), 6, 0.6, 0.4);

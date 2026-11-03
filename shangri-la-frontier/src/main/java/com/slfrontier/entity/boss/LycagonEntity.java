@@ -51,6 +51,10 @@ import java.util.UUID;
  * really be beaten: it toys with the player, then takes their legs, leaves them at
  * 1 HP and brands them with Lycagon's Mark before vanishing. With the mark, the
  * player cannot wear chest or leg armor in the Frontier until Lycagon is slain.
+ *
+ * <p>In a group this is decided per player: an encounter-stage player is always branded
+ * instead of killed, but if someone at the final chapter (or who already slew it) is in the
+ * fight, it fights in earnest and only lets the branded players go.
  */
 public class LycagonEntity extends FrontierBoss {
     public static final int BITE = 0, CLAW = 1, SHADOW_DASH = 2, HOWL = 3, NIGHT_REND = 4, VANISH = 5, SHADOW_CLONE = 6, BACKSTEP = 7;
@@ -234,6 +238,11 @@ public class LycagonEntity extends FrontierBoss {
     }
 
     @Override
+    protected int animDelay(int attack) {
+        return attack == BITE ? 3 : attack == CLAW ? 2 : 0;
+    }
+
+    @Override
     protected void tickAttack(int attack, int tick, LivingEntity target) {
         switch (attack) {
             case BITE -> {
@@ -255,8 +264,8 @@ public class LycagonEntity extends FrontierBoss {
                     Fx.arc(this, 4.5f, tick == 11 ? 40 : -40, CLAW_ANGLE, PURPLE, 8);
                     playSound(net.minecraft.sounds.SoundEvents.PLAYER_ATTACK_SWEEP, 1.5f, 0.5f);
                 }
-                if (tick == 11) {
-                    // The other paw: a fresh cone toward wherever the prey went.
+                if (tick == 11 && attack == CLAW) {
+                    // The other paw (unless that swipe was parried): a fresh cone toward wherever the prey went.
                     float yaw = yawToward(target);
                     lockAim(yaw);
                     Fx.coneAt(level(), position(), yaw, CLAW_RANGE, CLAW_ANGLE, tellColor(true), 11);
@@ -306,15 +315,17 @@ public class LycagonEntity extends FrontierBoss {
             }
             case NIGHT_REND -> {
                 if (tick == 4) {
+                    // The slam lands on the circle it leaves behind, whether or not it is down yet.
+                    aim = position();
                     setDeltaMovement(0, 1.1, 0);
                     needsSync = true;
-                    tellCircle(position(), 6.5f, false, 22);
+                    tellCircle(aim, 6.5f, false, 22);
                 }
                 if (tick == 8) ring(BLOOD, 6, 36, 0.2);
                 if (tick == 26) {
-                    hitAround(6.5, 1.4f, -1, 1.5, UNPARRYABLE);
-                    Fx.ring(level(), position(), 7f, PURPLE, 14, 1.0f);
-                    Fx.flash(level(), position().add(0, 1, 0), 4f, PINK, 8, 0);
+                    hitAt(aim, 6.5, 1.4f, 1.5, UNPARRYABLE);
+                    Fx.ring(level(), aim, 7f, PURPLE, 14, 1.0f);
+                    Fx.flash(level(), aim.add(0, 1, 0), 4f, PINK, 8, 0);
                     ring(ParticleTypes.EXPLOSION, 4, 8, 0.3);
                     playSound(net.minecraft.sounds.SoundEvents.DRAGON_FIREBALL_EXPLODE, 2f, 0.6f);
                 }
